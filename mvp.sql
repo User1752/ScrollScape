@@ -1,0 +1,10 @@
+manga-web-reader/
+  package.json
+  server.js
+  data/
+    store.json
+    sources/
+  public/
+    index.html
+    styles.css
+    app.js

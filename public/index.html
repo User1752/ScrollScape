@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Manga Web Reader</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Manga Web Reader</div>
+    <nav class="tabs">
+      <button class="tab" data-view="read">Ler</button>
+      <button class="tab" data-view="sources">Fontes</button>
+      <button class="tab" data-view="about">Sobre</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section id="view-read" class="view">
+      <div class="card">
+        <div class="row">
+          <label class="label">Fonte</label>
+          <select id="sourceSelect" class="input"></select>
+        </div>
+
+        <div class="row">
+          <label class="label">Pesquisa</label>
+          <input id="searchInput" class="input" placeholder="Título..." />
+          <button id="searchBtn" class="btn">Pesquisar</button>
+        </div>
+
+        <div id="searchStatus" class="muted"></div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Resultados</h3>
+          <div id="results"></div>
+        </div>
+
+        <div class="card">
+          <h3>Detalhes</h3>
+          <div id="details"></div>
+        </div>
+
+        <div class="card">
+          <h3>Capítulos</h3>
+          <div id="chapters"></div>
+        </div>
+      </div>
+
+      <div id="reader" class="reader hidden">
+        <div class="reader-top">
+          <button id="closeReader" class="btn secondary">Fechar</button>
+          <div id="readerTitle" class="reader-title"></div>
+          <div class="reader-controls">
+            <button id="prevPage" class="btn secondary">Anterior</button>
+            <button id="nextPage" class="btn">Seguinte</button>
+          </div>
+        </div>
+
+        <div id="pageWrap" class="page-wrap"></div>
+      </div>
+    </section>
+
+    <section id="view-sources" class="view hidden">
+      <div class="grid">
+        <div class="card">
+          <h3>Adicionar Repositório</h3>
+          <div class="row">
+            <input id="repoUrl" class="input" placeholder="https://.../repo.json" />
+            <button id="addRepoBtn" class="btn">Adicionar</button>
+          </div>
+          <div id="repoStatus" class="muted"></div>
+
+          <h3 style="margin-top:16px;">Repos</h3>
+          <div id="repos"></div>
+        </div>
+
+        <div class="card">
+          <h3>Disponíveis nos Repos</h3>
+          <div id="availableSources"></div>
+        </div>
+
+        <div class="card">
+          <h3>Instaladas</h3>
+          <div id="installedSources"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-about" class="view hidden">
+      <div class="card">
+        <h3>Sobre</h3>
+        <p>
+          Este é um MVP inspirado no modelo de “sources/extensions” do Tachiyomi/Mihon, mas implementado para Web.
+          Instalar fontes significa executar código JavaScript no servidor — use apenas repositórios confiáveis.
+        </p>
+        <p class="muted">
+          Dica: Se quiseres, eu posso adaptar isto para suportar biblioteca local (pastas/CBZ) ou autenticação para serviços oficiais.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
