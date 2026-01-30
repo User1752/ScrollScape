@@ -187,16 +187,87 @@ function bindUI() {
   });
   setView("read");
 
+  // Drag-and-drop area
+  const dropArea = $("repoDropArea");
+  if (dropArea) {
+    ["dragenter", "dragover"].forEach(ev =>
+      dropArea.addEventListener(ev, e => {
+        e.preventDefault();
+        dropArea.classList.add("dragover");
+      })
+    );
+    ["dragleave", "drop"].forEach(ev =>
+      dropArea.addEventListener(ev, e => {
+        e.preventDefault();
+        dropArea.classList.remove("dragover");
+      })
+    );
+    dropArea.addEventListener("drop", async e => {
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file || !file.name.endsWith(".json")) {
+        $("repoStatus").textContent = "Arraste um arquivo .json válido.";
+        return;
+      }
+      $("repoStatus").textContent = "A adicionar repo via drag-and-drop...";
+      try {
+        const text = await file.text();
+        let repoJson;
+        try {
+          repoJson = JSON.parse(text);
+        } catch {
+          $("repoStatus").textContent = "JSON inválido.";
+          return;
+        }
+        await api("/api/repos", { method: "POST", body: JSON.stringify({ repoJson }) });
+        $("repoStatus").textContent = "Repo adicionado via arquivo.";
+        $("repoUrl").value = "";
+        $("repoFile").value = "";
+        await refreshState();
+      } catch (e) {
+        $("repoStatus").textContent = `Erro: ${e.message}`;
+      }
+    });
+  }
+
   $("addRepoBtn").onclick = async () => {
     const url = $("repoUrl").value.trim();
+    const fileInput = $("repoFile");
     $("repoStatus").textContent = "A adicionar repo...";
-    try {
-      await api("/api/repos", { method: "POST", body: JSON.stringify({ url }) });
-      $("repoStatus").textContent = "Repo adicionada.";
-      $("repoUrl").value = "";
-      await refreshState();
-    } catch (e) {
-      $("repoStatus").textContent = `Erro: ${e.message}`;
+
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      try {
+        const text = await file.text();
+        let repoJson;
+        try {
+          repoJson = JSON.parse(text);
+        } catch {
+          $("repoStatus").textContent = "JSON inválido.";
+          return;
+        }
+        await api("/api/repos", { method: "POST", body: JSON.stringify({ repoJson }) });
+        $("repoStatus").textContent = "Repo adicionado via arquivo.";
+        fileInput.value = "";
+        $("repoUrl").value = "";
+        await refreshState();
+        return;
+      } catch (e) {
+        $("repoStatus").textContent = `Erro: ${e.message}`;
+        return;
+      }
+    }
+
+    if (url) {
+      try {
+        await api("/api/repos", { method: "POST", body: JSON.stringify({ url }) });
+        $("repoStatus").textContent = "Repo adicionada.";
+        $("repoUrl").value = "";
+        await refreshState();
+      } catch (e) {
+        $("repoStatus").textContent = `Erro: ${e.message}`;
+      }
+    } else {
+      $("repoStatus").textContent = "Insira uma URL ou selecione/arraste um arquivo JSON.";
     }
   };
 }

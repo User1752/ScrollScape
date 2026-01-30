@@ -68,12 +68,19 @@
       <div class="grid">
         <div class="card">
           <h3>Adicionar Repositório</h3>
+          <div id="repoDropArea" style="border:2px dashed #aaa; padding:16px; margin-bottom:8px; text-align:center; cursor:pointer;">
+            Arraste e solte um arquivo JSON de repositório aqui
+          </div>
+          <div class="row">
+            <input id="repoFile" type="file" accept=".json" style="margin-bottom:8px;">
+          </div>
           <div class="row">
             <input id="repoUrl" class="input" placeholder="https://.../repo.json" />
             <button id="addRepoBtn" class="btn">Adicionar</button>
           </div>
-          <div id="repoStatus" class="muted"></div>
-
+          <div id="repoStatus" class="muted" style="margin-top:8px;">
+            Insira uma URL ou selecione/arraste um arquivo JSON.
+          </div>
           <h3 style="margin-top:16px;">Repos</h3>
           <div id="repos"></div>
         </div>
