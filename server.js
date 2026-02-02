@@ -7,12 +7,15 @@ const crypto = require("crypto");
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "5mb" }));
 
 const DATA_DIR = path.join(__dirname, "data");
 const SOURCES_DIR = path.join(DATA_DIR, "sources");
 const STORE_PATH = path.join(DATA_DIR, "store.json");
+const CACHE_DIR = path.join(DATA_DIR, "cache");
 const PORT = process.env.PORT || 3000;
+
+const reposCache = new Map();
 
 function safeId(id) {
   if (typeof id !== "string") return null;
@@ -24,12 +27,13 @@ function sha1Short(input) {
 }
 
 async function ensureDirs() {
-  await fsp.mkdir(DATA_DIR, { recursive: true });
-  await fsp.mkdir(SOURCES_DIR, { recursive: true });
+  for (const dir of [DATA_DIR, SOURCES_DIR, CACHE_DIR]) {
+    await fsp.mkdir(dir, { recursive: true });
+  }
   if (!fs.existsSync(STORE_PATH)) {
     await fsp.writeFile(
       STORE_PATH,
-      JSON.stringify({ repos: [], installedSources: {} }, null, 2),
+      JSON.stringify({ repos: [], installedSources: {}, history: [], favorites: [] }, null, 2),
       "utf8"
     );
   }
@@ -44,6 +48,8 @@ async function readStore() {
     name: r.name || r.url
   })) : [];
   store.installedSources = store.installedSources || {};
+  store.history = store.history || [];
+  store.favorites = store.favorites || [];
   return store;
 }
 
@@ -52,14 +58,14 @@ async function writeStore(store) {
 }
 
 async function fetchJson(url) {
-  const res = await fetch(url, { redirect: "follow" });
-  if (!res.ok) throw new Error(`Failed to fetch JSON: ${res.status} ${res.statusText}`);
+  const res = await fetch(url, { redirect: "follow", timeout: 10000 });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
 async function fetchText(url) {
-  const res = await fetch(url, { redirect: "follow" });
-  if (!res.ok) throw new Error(`Failed to fetch text: ${res.status} ${res.statusText}`);
+  const res = await fetch(url, { redirect: "follow", timeout: 10000 });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.text();
 }
 
@@ -69,13 +75,10 @@ function sourcePath(id) {
 
 function loadSourceFromFile(id) {
   const p = sourcePath(id);
-  if (!fs.existsSync(p)) throw new Error("Source file not found");
+  if (!fs.existsSync(p)) throw new Error("Source not found");
   delete require.cache[require.resolve(p)];
   const mod = require(p);
-  if (!mod || typeof mod !== "object") throw new Error("Invalid source module");
-  if (!mod.meta || typeof mod.meta !== "object") throw new Error("Source missing meta");
-  const meta = mod.meta;
-  if (!meta.id || meta.id !== id) throw new Error("meta.id must match installed id");
+  if (!mod?.meta?.id) throw new Error("Invalid source: missing meta.id");
   if (typeof mod.search !== "function") throw new Error("Source missing search()");
   if (typeof mod.mangaDetails !== "function") throw new Error("Source missing mangaDetails()");
   if (typeof mod.chapters !== "function") throw new Error("Source missing chapters()");
@@ -83,137 +86,88 @@ function loadSourceFromFile(id) {
   return mod;
 }
 
-function detectRepoKind(repoJson) {
-  if (repoJson && typeof repoJson === "object" && Array.isArray(repoJson.sources)) return "jsrepo";
-  if (Array.isArray(repoJson)) return "tachiyomi";
-  if (repoJson && typeof repoJson === "object" && Array.isArray(repoJson.extensions)) return "tachiyomi";
+function detectRepoKind(data) {
+  if (data?.sources && Array.isArray(data.sources)) return "jsrepo";
+  if (Array.isArray(data)) return "tachiyomi";
+  if (data?.extensions && Array.isArray(data.extensions)) return "tachiyomi";
   return "unknown";
 }
 
-function getBaseUrl(url) {
+async function getRepoDataWithCache(repo, ttl = 3600000) {
+  const cached = reposCache.get(repo.url);
+  if (cached && Date.now() - cached.time < ttl) {
+    return cached.data;
+  }
+
+  if (repo.url.startsWith("localrepo:")) return { sources: [] };
+
   try {
-    const u = new URL(url);
-    u.pathname = u.pathname.replace(/\/[^/]*$/, "/");
-    return u.toString();
-  } catch {
-    return url;
+    const data = await fetchJson(repo.url);
+    reposCache.set(repo.url, { data, time: Date.now() });
+    return data;
+  } catch (e) {
+    console.warn(`Erro ao carregar ${repo.url}:`, e.message);
+    return cached?.data || {};
   }
-}
-
-// --- Fatoração: helpers para repositórios ---
-function validateRepoData(repoData) {
-  const kind = detectRepoKind(repoData);
-  if (kind === "unknown") {
-    throw new Error("Repo JSON não reconhecido. Suportado: { sources:[...] } (JS) ou index de extensões Tachiyomi/Mihon (array/extensions).");
-  }
-  return kind;
-}
-
-async function getRepoDataAndKind({ url, repoJson }) {
-  if (typeof url === "string" && url.startsWith("http")) {
-    const repoData = await fetchJson(url);
-    return { repoData, kind: validateRepoData(repoData), repoUrl: url };
-  }
-  if (repoJson && typeof repoJson === "object") {
-    const repoData = repoJson;
-    return {
-      repoData,
-      kind: validateRepoData(repoData),
-      repoUrl: `localrepo:${sha1Short(JSON.stringify(repoData))}`
-    };
-  }
-  throw new Error("Invalid repo url or JSON");
 }
 
 async function listAvailableSourcesFromRepos(repos) {
-  const out = [];
+  const sources = [];
   for (const repo of repos) {
     try {
-      const data = await fetchJson(repo.url);
+      const data = await getRepoDataWithCache(repo);
       const kind = repo.kind || detectRepoKind(data);
-      const repoName = repo.name || (data && data.name) || repo.url;
-      // ---- JS repo (our format) ----
-      if (kind === "jsrepo") {
-        const sources = Array.isArray(data.sources) ? data.sources : [];
-        for (const s of sources) {
-          if (!s || typeof s !== "object") continue;
-          if (!safeId(s.id)) continue;
-          if (typeof s.name !== "string") continue;
-          if (typeof s.version !== "string") continue;
-          if (typeof s.codeUrl !== "string") continue;
-          out.push({
-            kind: "js",
-            installable: true,
-            repoUrl: repo.url,
-            repoName,
-            id: s.id,
-            name: s.name,
-            version: s.version,
-            codeUrl: s.codeUrl,
-            author: s.author || "",
-            website: s.website || "",
-            icon: s.icon || ""
-          });
-        }
-        continue;
-      }
-      // ---- Tachiyomi/Mihon extension repo index ----
-      // Usually: top-level array of extensions objects
-      // Fields commonly include: name, pkg, apk, lang, version, nsfw, sources:[{name, lang, id}]
-      if (kind === "tachiyomi") {
-        const list = Array.isArray(data) ? data : (Array.isArray(data.extensions) ? data.extensions : []);
-        const baseUrl = getBaseUrl(repo.url);
-        for (const ext of list) {
-          if (!ext || typeof ext !== "object") continue;
-          const pkg = typeof ext.pkg === "string" ? ext.pkg : "";
-          const extName = typeof ext.name === "string" ? ext.name : (pkg || "Unknown extension");
-          const version = typeof ext.version === "string" ? ext.version : "";
-          const lang = typeof ext.lang === "string" ? ext.lang : "";
-          const nsfw = typeof ext.nsfw === "number" ? ext.nsfw : null;
-          const apk = typeof ext.apk === "string" ? ext.apk : "";
-          const id = `tach_${sha1Short(repo.url + "|" + (pkg || extName))}`;
-          out.push({
-            kind: "tachiyomi",
-            installable: false,
-            repoUrl: repo.url,
-            repoName,
-            id,
-            name: extName,
-            version,
-            author: "",
-            website: "",
-            icon: "",
-            note: "Repo Tachiyomi/Mihon (APK). Não compatível com instalação JS neste servidor.",
-            meta: { pkg, lang, nsfw, apk, apkUrl: apk ? (baseUrl + apk) : "" }
-          });
-          if (Array.isArray(ext.sources) && ext.sources.length > 0) {
-            for (const s of ext.sources) {
-              if (!s || typeof s !== "object") continue;
-              const sName = typeof s.name === "string" ? s.name : "Source";
-              const sLang = typeof s.lang === "string" ? s.lang : lang;
-              const sId = typeof s.id === "number" || typeof s.id === "string" ? String(s.id) : "";
-              out.push({
-                kind: "tachiyomi",
-                installable: false,
-                repoUrl: repo.url,
-                repoName,
-                id: `tach_${sha1Short(repo.url + "|" + (pkg || extName) + "|" + sName + "|" + sId)}`,
-                name: `${sName}${sLang ? ` (${sLang})` : ""}`,
-                version,
-                note: "Source dentro de extensão Tachiyomi/Mihon (APK). Não executável aqui.",
-                meta: { pkg, sourceId: sId, lang: sLang, apk, apkUrl: apk ? (baseUrl + apk) : "" }
-              });
-            }
+
+      if (kind === "jsrepo" && data.sources) {
+        for (const s of data.sources) {
+          if (s?.id && s?.name && s?.version && s?.codeUrl && safeId(s.id)) {
+            sources.push({
+              kind: "js",
+              installable: true,
+              repoUrl: repo.url,
+              repoName: repo.name,
+              id: s.id,
+              name: s.name,
+              version: s.version,
+              codeUrl: s.codeUrl,
+              author: s.author || "",
+              icon: s.icon || ""
+            });
           }
         }
-        continue;
       }
-      // Unknown repo type: ignore
     } catch (e) {
-      // ignore repo failures
+      console.warn(`Erro repo ${repo.url}:`, e.message);
     }
   }
-  return out;
+  return sources;
+}
+
+async function autoInstallLocalSources() {
+  const store = await readStore();
+  const localSourceFiles = fs.readdirSync(SOURCES_DIR).filter(f => f.endsWith(".js"));
+  
+  for (const file of localSourceFiles) {
+    const id = file.replace(".js", "");
+    if (store.installedSources[id]) continue; // Já instalada
+    
+    try {
+      const mod = loadSourceFromFile(id);
+      store.installedSources[id] = {
+        id,
+        name: mod.meta.name || id,
+        version: mod.meta.version || "1.0.0",
+        author: mod.meta.author || "Local",
+        icon: mod.meta.icon || "",
+        installedAt: new Date().toISOString()
+      };
+      console.log(`✓ Auto-instalada: ${mod.meta.name}`);
+    } catch (e) {
+      console.warn(`⚠ Erro ao auto-instalar ${id}:`, e.message);
+    }
+  }
+  
+  await writeStore(store);
 }
 
 // --- Endpoints ---
@@ -221,49 +175,54 @@ app.get("/api/state", async (req, res) => {
   try {
     const store = await readStore();
     const available = await listAvailableSourcesFromRepos(store.repos);
-    res.json({
-      repos: store.repos,
-      availableSources: available,
-      installedSources: store.installedSources
-    });
+    res.json({ repos: store.repos, availableSources: available, installedSources: store.installedSources });
   } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
+    res.status(500).json({ error: e.message });
   }
 });
 
 app.post("/api/repos", async (req, res) => {
   try {
+    const { url, repoJson } = req.body || {};
     let repoData, kind, repoUrl;
-    try {
-      ({ repoData, kind, repoUrl } = await getRepoDataAndKind(req.body || {}));
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
+
+    if (typeof url === "string" && url.startsWith("http")) {
+      repoData = await fetchJson(url);
+      repoUrl = url;
+    } else if (repoJson) {
+      repoData = repoJson;
+      repoUrl = `localrepo:${sha1Short(JSON.stringify(repoData))}`;
+    } else {
+      return res.status(400).json({ error: "URL ou JSON inválido" });
     }
+
+    kind = detectRepoKind(repoData);
+    if (kind === "unknown") {
+      return res.status(400).json({ error: "Formato de repo não reconhecido" });
+    }
+
     const store = await readStore();
-    const exists = store.repos.some(r => r.url === repoUrl);
-    if (!exists) {
-      const name =
-        (repoData && typeof repoData === "object" && repoData.name) ? repoData.name :
-        (kind === "tachiyomi" ? "Tachiyomi/Mihon Repo" : repoUrl);
-      store.repos.push({ url: repoUrl, name, kind, _local: !/^https?:\/\//.test(repoUrl) });
+    if (!store.repos.some(r => r.url === repoUrl)) {
+      const name = repoData?.name || (kind === "tachiyomi" ? "Tachiyomi Repo" : repoUrl);
+      store.repos.push({ url: repoUrl, name, kind });
       await writeStore(store);
     }
     res.json({ ok: true, kind });
   } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
+    res.status(500).json({ error: e.message });
   }
 });
 
 app.delete("/api/repos", async (req, res) => {
   try {
     const { url } = req.query;
-    if (typeof url !== "string") return res.status(400).json({ error: "Missing url" });
+    if (!url) return res.status(400).json({ error: "URL obrigatória" });
     const store = await readStore();
     store.repos = store.repos.filter(r => r.url !== url);
     await writeStore(store);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -271,31 +230,31 @@ app.post("/api/sources/install", async (req, res) => {
   try {
     const { id } = req.body || {};
     const sid = safeId(id);
-    if (!sid) return res.status(400).json({ error: "Invalid source id" });
+    if (!sid) return res.status(400).json({ error: "ID inválido" });
+
     const store = await readStore();
     const available = await listAvailableSourcesFromRepos(store.repos);
-    const found = available.find(s => s.id === sid);
-    if (!found) return res.status(404).json({ error: "Source not found in any repo" });
-    if (found.kind !== "js" || !found.installable) {
-      return res.status(400).json({
-        error: "Esta entrada é de um repo Tachiyomi/Mihon (APK) e não pode ser instalada/executada neste servidor."
-      });
-    }
-    const code = await fetchText(found.codeUrl);
+    const source = available.find(s => s.id === sid);
+
+    if (!source) return res.status(404).json({ error: "Source não encontrado" });
+    if (source.kind !== "js") return res.status(400).json({ error: "Source não compatível" });
+
+    const code = await fetchText(source.codeUrl);
     await fsp.writeFile(sourcePath(sid), code, "utf8");
     const mod = loadSourceFromFile(sid);
+
     store.installedSources[sid] = {
       id: sid,
-      name: mod.meta.name || found.name,
-      version: mod.meta.version || found.version,
-      author: mod.meta.author || found.author || "",
-      icon: mod.meta.icon || found.icon || "",
+      name: mod.meta.name || source.name,
+      version: mod.meta.version || source.version,
+      author: mod.meta.author || source.author || "",
+      icon: mod.meta.icon || source.icon || "",
       installedAt: new Date().toISOString()
     };
     await writeStore(store);
     res.json({ ok: true, installed: store.installedSources[sid] });
   } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -303,7 +262,7 @@ app.post("/api/sources/uninstall", async (req, res) => {
   try {
     const { id } = req.body || {};
     const sid = safeId(id);
-    if (!sid) return res.status(400).json({ error: "Invalid source id" });
+    if (!sid) return res.status(400).json({ error: "ID inválido" });
     const store = await readStore();
     delete store.installedSources[sid];
     await writeStore(store);
@@ -311,53 +270,107 @@ app.post("/api/sources/uninstall", async (req, res) => {
     if (fs.existsSync(p)) await fsp.unlink(p);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
+    res.status(500).json({ error: e.message });
   }
 });
 
-// --- Generic calls to installed JS source methods ---
-async function handleSourceMethod(req, res, method, paramName) {
+app.post("/api/source/:id/:method", async (req, res) => {
   try {
-    const sid = safeId(req.params.id);
-    if (!sid) return res.status(400).json({ error: "Invalid source id" });
-    const param = req.body ? req.body[paramName] : undefined;
+    const { id, method } = req.params;
+    const sid = safeId(id);
+    if (!sid) return res.status(400).json({ error: "ID inválido" });
+
     const mod = loadSourceFromFile(sid);
-    const result = await mod[method](param ? String(param) : "", ...(method === "search" ? [Number(req.body?.page) || 1] : []));
+    if (typeof mod[method] !== "function") return res.status(400).json({ error: "Método não existe" });
+
+    const { query, page, mangaId, chapterId } = req.body || {};
+    
+    // Mapeamento de métodos
+    let result;
+    if (method === "search") {
+      result = await mod.search(query || "", Number(page) || 1);
+    } else if (method === "mangaDetails") {
+      result = await mod.mangaDetails(mangaId || "");
+    } else if (method === "chapters") {
+      result = await mod.chapters(mangaId || "");
+    } else if (method === "pages") {
+      result = await mod.pages(chapterId || "");
+    } else {
+      return res.status(400).json({ error: "Método não suportado" });
+    }
+    
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
-}
-
-app.post("/api/source/:id/search", (req, res) => handleSourceMethod(req, res, "search", "query"));
-app.post("/api/source/:id/manga", (req, res) => handleSourceMethod(req, res, "mangaDetails", "mangaId"));
-app.post("/api/source/:id/chapters", (req, res) => handleSourceMethod(req, res, "chapters", "mangaId"));
-app.post("/api/source/:id/pages", (req, res) => handleSourceMethod(req, res, "pages", "chapterId"));
-
-// --- Extra endpoint ---
-app.post("/api/fetch-url", async (req, res) => {
-  try {
-    const { url } = req.body || {};
-    if (typeof url !== "string" || !/^https?:\/\//.test(url)) {
-      return res.status(400).json({ error: "URL inválida" });
-    }
-    const text = await fetchText(url);
-    res.json({ content: text });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
+    res.status(500).json({ error: e.message });
   }
 });
 
-// Serve static UI
+app.post("/api/library/add", async (req, res) => {
+  try {
+    const { mangaId, sourceId, manga } = req.body || {};
+    const store = await readStore();
+    const existing = store.favorites.findIndex(m => m.id === mangaId && m.sourceId === sourceId);
+    if (existing >= 0) {
+      store.favorites[existing] = { ...manga, sourceId, addedAt: new Date().toISOString() };
+    } else {
+      store.favorites.push({ ...manga, sourceId, addedAt: new Date().toISOString() });
+    }
+    await writeStore(store);
+    res.json({ ok: true, favorites: store.favorites });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/library/remove", async (req, res) => {
+  try {
+    const { mangaId, sourceId } = req.body || {};
+    const store = await readStore();
+    store.favorites = store.favorites.filter(m => !(m.id === mangaId && m.sourceId === sourceId));
+    await writeStore(store);
+    res.json({ ok: true, favorites: store.favorites });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/history/add", async (req, res) => {
+  try {
+    const { mangaId, sourceId, manga, chapterId } = req.body || {};
+    const store = await readStore();
+    const existing = store.history.findIndex(m => m.id === mangaId && m.sourceId === sourceId);
+    if (existing >= 0) {
+      store.history.splice(existing, 1);
+    }
+    store.history.unshift({ ...manga, sourceId, chapterId, readAt: new Date().toISOString() });
+    store.history = store.history.slice(0, 100);
+    await writeStore(store);
+    res.json({ ok: true, history: store.history });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/library", async (req, res) => {
+  try {
+    const store = await readStore();
+    res.json({ favorites: store.favorites, history: store.history });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.use("/", express.static(path.join(__dirname, "public")));
 
 ensureDirs()
+  .then(() => autoInstallLocalSources())
   .then(() => {
-    app.listen(PORT, "0.0.0.0", () =>
-      console.log(`Manga Web Reader running on http://localhost:${PORT}`)
-    );
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🎌 Manghu running on http://localhost:${PORT}`);
+      console.log(`📚 Sources instaladas automaticamente!`);
+    });
   })
-  .catch((e) => {
-    console.error(e);
+  .catch(e => {
+    console.error("Fatal:", e);
     process.exit(1);
   });

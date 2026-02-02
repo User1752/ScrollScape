@@ -1,4 +1,49 @@
 {
   "repos": [],
-  "installedSources": {}
+  "installedSources": {
+    "mangadex": {
+      "id": "mangadex",
+      "name": "MangaDex",
+      "version": "1.0.0",
+      "author": "MangaDex API",
+      "icon": "",
+      "installedAt": "2026-02-01T23:02:03.715Z"
+    }
+  },
+  "history": [
+    {
+      "id": "003ef8e4-0ae6-4dfe-8195-cd42a8cf37dc",
+      "title": "High School Boy",
+      "author": "Park Gee/Ji (박지)",
+      "description": "Hong Il-tak, the only red spot at Daemun Namgo. Despite his name and nickname, he's a boy, and his dwarfism and peculiar appearance have led to him being looked down upon by everyone from the nerds to the elders, and he's at the bottom of the school hierarchy. \n\nIn the past, until his sophomore year, Iltak had been a famous member of the Iljin, but a problem of his own brought him to the bottom of the food chain... \n\n\"His secondary sexuality. If only he'd come to me...!\" \n\nAfter enduring daily teasing and bullying because his body stopped growing like his peers, Hong Il-taek thought of a way to move up in the ranks... \n\n\"If I can befriend this guy, who's in the second grade at Dae-moon Boys' High School, I'll be able to move up again!\" \n\nBut for some reason, Lee Hyun-woo tries to keep his distance from Hong Il-taek... Can Hong Il-taek find his former glory again?",
+      "cover": "https://uploads.mangadex.org/covers/003ef8e4-0ae6-4dfe-8195-cd42a8cf37dc/df98b3a9-bddd-4dd2-81cd-23a1618e38fc.png.512.jpg",
+      "status": "ongoing",
+      "sourceId": "mangadex",
+      "chapterId": "d9b22842-1b6e-4ca4-811d-da3e98b256ae",
+      "readAt": "2026-02-02T00:00:40.305Z"
+    },
+    {
+      "id": "f7888782-0727-49b0-95ec-a3530c70f83b",
+      "title": "Hajime no Ippo",
+      "author": "Morikawa George",
+      "description": "Makunouchi Ippo is an ordinary high school student in Japan. Since he spends most of his time away from school helping his mother run the family business, he doesn't get to enjoy his younger years like most teenagers. Always a target for bullying at school, Ippo's life is one of hardship. One of these after-school bullying sessions turns Ippo's life around for the better, as he is saved by a boxer named Takamura. He decides to follow in Takamura's footsteps and train to become a boxer, giving his life direction and purpose. Ippo's path to perfecting his pugilistic prowess is just beginning.\n___\nOfficial Release:\n- Indonesian release by Level Comics as **Fight!! Ippo** (2006-ongoing)",
+      "cover": "https://uploads.mangadex.org/covers/f7888782-0727-49b0-95ec-a3530c70f83b/8ebf0c88-0f84-4fa0-abaf-0e2f8ebdf91e.jpg.512.jpg",
+      "status": "ongoing",
+      "sourceId": "mangadex",
+      "chapterId": "fb7c4202-75d9-4414-8e4b-25e718c066b7",
+      "readAt": "2026-02-01T23:46:04.363Z"
+    }
+  ],
+  "favorites": [
+    {
+      "id": "a1c7c817-4e59-43b7-9365-09675a149a6f",
+      "title": "One Piece",
+      "author": "Oda Eiichirou",
+      "description": "Gol D. Roger, a man referred to as the \"Pirate King,\" is set to be executed by the World Government. But just before his demise, he confirms the existence of a great treasure, One Piece, located somewhere within the vast ocean known as the Grand Line. Announcing that One Piece can be claimed by anyone worthy enough to reach it, the Pirate King is executed and the Great Age of Pirates begins.  \n  \nTwenty-two years later, a young man by the name of Monkey D. Luffy is ready to embark on his own adventure, searching for One Piece and striving to become the new Pirate King. Armed with just a straw hat, a small boat, and an elastic body, he sets out on a fantastic journey to gather his own crew and a worthy ship that will take them across the Grand Line to claim the greatest status on the high seas.\n\n---\n\n**Note:**  \n**Because a takedown notice was sent to MangaDex from the owners of this series, English fan translations of One Piece are unable to be posted at this time. The series can be read in its entirety at [the official Shonen Jump website,](https://www.viz.com/shonenjump/chapters/one-piece) with the first and latest three chapters available at any time and the rest accessible with a Shonen Jump membership (which costs about $2 a month and can be accessed via a VPN if you are outside the US). The three most recent chapters can also be read on MangaPlus for free by clicking the chapter links below.**\n\n---\n- **The Best-Selling Manga in History**\n- **Won the 41st Japan Cartoonists Association Award Grand Prize alongside Neko Darake in 2012** \n- **Received the Kumamoto Prefecture Honorary Prize in 2018**",
+      "cover": "https://uploads.mangadex.org/covers/a1c7c817-4e59-43b7-9365-09675a149a6f/cb063999-b269-4a27-9fb5-f3ed067fe85a.jpg.512.jpg",
+      "status": "ongoing",
+      "sourceId": "mangadex",
+      "addedAt": "2026-02-01T23:40:15.342Z"
+    }
+  ]
 }
