@@ -11,7 +11,14 @@ module.exports = {
   async search(query, page = 1) {
     const limit = 20;
     const offset = (page - 1) * limit;
-    const url = `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author`;
+    
+    // Se query for "*" ou vazia, buscar manga populares/recentes
+    let url;
+    if (!query || query === "*") {
+      url = `https://api.mangadex.org/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&order[followedCount]=desc`;
+    } else {
+      url = `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author`;
+    }
     
     const res = await fetch(url);
     if (!res.ok) throw new Error(`MangaDex API error: ${res.status}`);
@@ -27,7 +34,9 @@ module.exports = {
         title: manga.attributes.title.en || manga.attributes.title[Object.keys(manga.attributes.title)[0]] || "Unknown",
         author: authorRel?.attributes?.name || "",
         cover: coverId ? `https://uploads.mangadex.org/covers/${manga.id}/${coverId}.256.jpg` : "",
-        url: `https://mangadex.org/title/${manga.id}`
+        url: `https://mangadex.org/title/${manga.id}`,
+        genres: manga.attributes.tags?.map(t => t.attributes.name.en).filter(Boolean) || [],
+        status: manga.attributes.status || "unknown"
       };
     });
 

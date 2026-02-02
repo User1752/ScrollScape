@@ -8,83 +8,124 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">🎌 Manghu</div>
-    <nav class="tabs">
-      <button class="tab active" data-view="discover">Descobrir</button>
-      <button class="tab" data-view="library">Biblioteca</button>
-      <!-- Settings button added via JS -->
-    </nav>
+    <div class="container-top">
+      <div class="brand">🎌 Manghu</div>
+      <nav class="nav-menu">
+        <a href="#" class="nav-link active">Home</a>
+        <a href="#" class="nav-link">Biblioteca</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="container">
+  <main class="main-container">
     <!-- Discover View -->
     <section id="view-discover" class="view">
-      <!-- Left Sidebar: Search + Results -->
-      <div class="sidebar-left">
-        <div class="search-panel">
-          <h3>🔍 Pesquisar Manga</h3>
-          <div class="row">
-            <select id="sourceSelect" class="input"></select>
+      <!-- Search Section -->
+      <div class="search-section">
+        <div class="search-container">
+          <h2>Procurar Mangá</h2>
+          <div class="search-form">
+            <select id="sourceSelect" class="form-control"></select>
+            <input id="searchInput" class="form-control" placeholder="Digite o nome do manga..." />
+            <button id="searchBtn" class="btn-search">Pesquisar</button>
           </div>
-          <div class="row">
-            <input id="searchInput" class="input" placeholder="Digite o nome do manga..." />
-            <button id="searchBtn" class="btn">Pesquisar</button>
-          </div>
-          <div id="searchStatus" class="muted" style="padding:0.5rem 0; text-align:left;"></div>
-        </div>
-
-        <div class="results-panel">
-          <div id="results" class="muted">Digite o nome de um manga e clique em "Pesquisar"</div>
+          <div id="searchStatus" class="search-status"></div>
         </div>
       </div>
 
-      <!-- Right Content: Details + Chapters -->
-      <div class="content-right">
-        <div class="details-panel">
-          <div id="details" class="muted">Selecione um manga dos resultados para ver detalhes</div>
-        </div>
+      <!-- Advanced Filters Section -->
+      <div class="filters-section">
+        <div class="filters-container">
+          <div class="filters-header">
+            <h3>Filtros Avançados</h3>
+            <button id="btn-settings" class="btn-settings-inline">⚙️</button>
+          </div>
+          <div class="filters-grid">
+            <div class="filter-group">
+              <label>🎭 Gêneros</label>
+              <div id="genreFilter" class="genre-filter">
+                <div class="genre-chips"></div>
+              </div>
+            </div>
 
-        <div class="chapters-panel">
-          <div id="chapters" class="muted">Os capítulos aparecerão aqui</div>
+            <div class="filter-group">
+              <label>📊 Status</label>
+              <div class="status-filter"></div>
+            </div>
+
+            <div class="filter-group">
+              <label>📈 Ordenar por</label>
+              <select id="sortFilter" class="form-control">
+                <option value="relevance">Mais Relevantes</option>
+                <option value="trending">Trending</option>
+                <option value="views">Mais Visualizados</option>
+              </select>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- Results Grid (AsuraScans style) -->
+      <div class="results-section">
+        <div id="results" class="results-grid"></div>
+      </div>
+    </section>
+
+    <!-- Manga Details Page (Full Screen) -->
+    <section id="view-manga-details" class="view hidden">
+      <div class="manga-page">
+        <button id="backBtn" class="btn-back">← Voltar</button>
+        
+        <div id="details" class="manga-detail-section"></div>
+        <div id="chapters" class="chapters-section"></div>
       </div>
     </section>
 
     <!-- Library View -->
     <section id="view-library" class="view hidden">
-      <div class="sidebar-left">
-        <div class="search-panel">
-          <h3>⭐ Favoritos</h3>
+      <div class="library-container">
+        <div class="library-header">
+          <h2>📚 Minha Biblioteca</h2>
+          <div class="library-stats">
+            <span id="libraryCount">0 mangás</span>
+          </div>
         </div>
-        <div class="results-panel">
-          <div id="library" class="muted">Adicione mangas aos favoritos</div>
-        </div>
-      </div>
 
-      <div class="content-right">
-        <div class="search-panel">
-          <h3>📜 Histórico de Leitura</h3>
-        </div>
-        <div style="padding: 1.5rem; overflow-y: auto;">
-          <div id="history" class="muted">Seu histórico aparecerá aqui</div>
-        </div>
+        <div class="library-grid" id="library"></div>
       </div>
     </section>
 
     <!-- Reader -->
     <div id="reader" class="reader hidden">
-      <div class="reader-top">
-        <button id="closeReader" class="btn secondary">✕ Fechar</button>
+      <div class="reader-header">
+        <button id="closeReader" class="btn-close">✕</button>
         <div id="readerTitle" class="reader-title"></div>
-        <div class="reader-controls">
-          <button id="prevPage" class="btn secondary">◀</button>
-          <span id="pageCounter"></span>
-          <button id="nextPage" class="btn">▶</button>
+        <div class="reader-nav">
+          <button id="prevPage" class="btn-nav">◀ Anterior</button>
+          <span id="pageCounter" class="page-info"></span>
+          <button id="nextPage" class="btn-nav">Próxima ▶</button>
         </div>
       </div>
-      <div id="pageWrap" class="page-wrap"></div>
+      <div id="pageWrap" class="reader-content"></div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu hidden">
+      <button class="context-item" data-action="mark-read">✓ Marcar como Lido</button>
+      <button class="context-item" data-action="mark-unread">○ Marcar como Não Lido</button>
+      <div class="context-divider"></div>
+      <button class="context-item" data-action="download">⬇️ Baixar</button>
+      <div class="context-divider"></div>
+      <button class="context-item" data-action="tag">🏷️ Adicionar Tag</button>
+      <button class="context-item" data-action="remove">🗑️ Remover</button>
     </div>
   </main>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 Manghu. Todos os direitos reservados.</p>
+    </div>
+  </footer>
 
   <script src="./app.js"></script>
 </body>
