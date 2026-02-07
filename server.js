@@ -351,10 +351,48 @@ app.post("/api/history/add", async (req, res) => {
   }
 });
 
-app.get("/api/library", async (req, res) => {
+// Endpoint da biblioteca
+app.get('/api/library', async (req, res) => {
   try {
     const store = await readStore();
-    res.json({ favorites: store.favorites, history: store.history });
+    
+    res.json({
+      favorites: store.favorites || [],
+      history: store.history || []
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Toggle de favoritos
+app.post('/api/favorites/toggle', async (req, res) => {
+  try {
+    const { mangaId, sourceId, manga } = req.body;
+    const store = await readStore();
+    
+    if (!store.favorites) {
+      store.favorites = [];
+    }
+    
+    const index = store.favorites.findIndex(m => m.id === mangaId && m.sourceId === sourceId);
+    let isFavorite;
+    
+    if (index > -1) {
+      store.favorites.splice(index, 1);
+      isFavorite = false;
+    } else {
+      store.favorites.push({
+        ...manga,
+        id: mangaId,
+        sourceId: sourceId,
+        addedAt: new Date().toISOString()
+      });
+      isFavorite = true;
+    }
+    
+    await writeStore(store);
+    res.json({ success: true, isFavorite, favorites: store.favorites });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

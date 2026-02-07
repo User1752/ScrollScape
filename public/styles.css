@@ -882,12 +882,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 0;
 }
 
 .reader-content.reading-mode-ltr,
 .reader-content.reading-mode-rtl {
   background-color: var(--bg-dark);
+  padding: 1rem;
+}
+
+.reader-content.reading-mode-webtoon {
+  background-color: var(--bg-dark);
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0;
 }
 
 .page-wrap {
@@ -896,6 +904,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.page-wrap.reading-mode-webtoon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: none;
+  width: 100%;
+  max-width: 900px;
+  gap: 0;
+  margin: 0 auto;
 }
 
 .page-img {
@@ -908,8 +927,10 @@ body {
 .webtoon-page {
   width: 100%;
   height: auto;
-  max-width: 600px;
-  margin: 0 auto;
+  max-width: 100%;
+  display: block;
+  margin: 0;
+  object-fit: contain;
 }
 
 /* ============================================================================
@@ -1097,11 +1118,10 @@ body {
 .footer-content {
   max-width: 1220px;
   margin: 0 auto;
-}
-
-.footer p {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 /* ============================================================================
@@ -1244,4 +1264,238 @@ body {
 .popular-row .manga-card {
   min-width: 0;
   scroll-snap-align: start;
+}
+
+/* ============================================================================ */
+/* SIDEBAR */
+/* ============================================================================ */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar {
+  width: 240px;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--bg-tertiary);
+  padding: 1rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sidebar-header {
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar .nav-link {
+  display: block;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.sidebar-footer .btn-settings-header {
+  width: 100%;
+}
+
+.sidebar-footer .btn-settings-sidebar {
+  width: 100%;
+  background-color: rgba(145, 63, 226, 0.2);
+  border: 1px solid var(--primary);
+  color: var(--text-primary);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.sidebar-footer .btn-settings-sidebar:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.btn-sidebar-toggle {
+  display: none;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: white;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.home-hero {
+  background: linear-gradient(135deg, rgba(145, 63, 226, 0.12) 0%, rgba(145, 63, 226, 0.05) 100%);
+  border: 1px solid rgba(145, 63, 226, 0.2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.home-hero h1 {
+  font-size: 1.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.home-hero p {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 2000;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1500;
+  }
+
+  body.sidebar-open .sidebar-backdrop {
+    display: block;
+  }
+
+  .btn-sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+  }
+}
+
+/* ============================================================================
+   ADVANCED SEARCH PAGE
+   ============================================================================ */
+.advanced-search-page {
+  padding: 1rem 0;
+}
+
+.page-title {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+}
+
+.btn-random {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, var(--warning) 0%, #ff8c00 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-random:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 165, 0, 0.4);
+}
+
+.advanced-filters-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  background-color: var(--bg-secondary);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--bg-tertiary);
+}
+
+.advanced-tags-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* ============================================================================
+   STATISTICS SECTION
+   ============================================================================ */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.stat-card {
+  background-color: var(--bg-secondary);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--bg-tertiary);
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(145, 63, 226, 0.2);
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================================
+   RECENT & LATEST SECTIONS
+   ============================================================================ */
+.recent-section,
+.latest-section {
+  margin-bottom: 3rem;
+}
+
+.section-header {
+  margin-bottom: 1.5rem;
+}
+
+.section-header h3 {
+  font-size: 1.5rem;
+  color: var(--text-primary);
 }
