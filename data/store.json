@@ -8,9 +8,72 @@
       "author": "MangaDex API",
       "icon": "",
       "installedAt": "2026-02-01T23:02:03.715Z"
+    },
+    "mangakakalot": {
+      "id": "mangakakalot",
+      "name": "MangaKakalot",
+      "version": "1.0.0",
+      "author": "MangaKakalot",
+      "icon": "",
+      "installedAt": "2026-02-20T00:15:53.869Z"
     }
   },
   "history": [
+    {
+      "id": "801513ba-a712-498c-8f57-cae55b38cc92",
+      "title": "Berserk",
+      "altTitle": "ベルセルク",
+      "author": "Miura Kentarou",
+      "description": "Guts, known as the Black Swordsman, seeks sanctuary from the demonic forces attracted to him and his woman because of a demonic mark on their necks, and also vengeance against the man who branded him as an unholy sacrifice. Aided only by his titanic strength gained from a harsh childhood lived with mercenaries, a gigantic sword, and an iron prosthetic left hand, Guts must struggle against his bleak destiny, all the while fighting with a rage that might strip him of his humanity.\n___\nWon the 6th Osamu Tezuka Cultural Prize Excellence Award in 2002.\n\nNote: Following Miura Kenta's death in 2021, the series has been taken over by Kouji Mori, who supervises the series with art done by Studio Gaga.",
+      "cover": "https://uploads.mangadex.org/covers/801513ba-a712-498c-8f57-cae55b38cc92/81e1c82d-6672-400c-8c58-4ff9bfb89031.jpg.512.jpg",
+      "status": "ongoing",
+      "year": 1989,
+      "genres": [
+        "Award Winning",
+        "Monsters",
+        "Action",
+        "Demons",
+        "Psychological",
+        "Adventure",
+        "Sexual Violence",
+        "Military",
+        "Philosophical",
+        "Gore",
+        "Drama",
+        "Horror",
+        "Fantasy"
+      ],
+      "lastChapter": null,
+      "sourceId": "mangadex",
+      "chapterId": "8ceadc31-e41e-4038-8aef-d002aab344a5",
+      "readAt": "2026-02-19T23:51:47.342Z"
+    },
+    {
+      "id": "27b47848-26af-495f-bbcf-7f1bc5fc0284",
+      "title": "Erika Won't Back Down",
+      "altTitle": "えりかちゃんは絶対に負けない!",
+      "author": "Sakino Yumeko",
+      "description": "Faced with a life-threatening crisis, a game addict who lives in a poor household, Inarikawa Erika, decided to take the matter into her own hands. With a sweet proposal from her long-time gaming friend, promising a one-time huge-paying job, she takes the plunge into the underworld. Where she also finds love for the first time in the most unlikely place.",
+      "cover": "https://uploads.mangadex.org/covers/27b47848-26af-495f-bbcf-7f1bc5fc0284/5f59b082-12c5-4436-ada6-f638fef118d9.jpg.512.jpg",
+      "status": "ongoing",
+      "year": 2024,
+      "genres": [
+        "Psychological",
+        "Romance",
+        "Comedy",
+        "Crime",
+        "Mafia",
+        "Self-Published",
+        "Video Games",
+        "Drama",
+        "School Life",
+        "Supernatural"
+      ],
+      "lastChapter": null,
+      "sourceId": "mangadex",
+      "chapterId": "de195ac9-b8be-4e8f-ae9f-5a1372ef11dc",
+      "readAt": "2026-02-19T23:13:26.591Z"
+    },
     {
       "id": "f7888782-0727-49b0-95ec-a3530c70f83b",
       "title": "Hajime no Ippo",
@@ -21,17 +84,6 @@
       "sourceId": "mangadex",
       "chapterId": "fb7c4202-75d9-4414-8e4b-25e718c066b7",
       "readAt": "2026-02-19T00:31:24.208Z"
-    },
-    {
-      "id": "801513ba-a712-498c-8f57-cae55b38cc92",
-      "title": "Berserk",
-      "author": "Miura Kentarou",
-      "description": "Guts, known as the Black Swordsman, seeks sanctuary from the demonic forces attracted to him and his woman because of a demonic mark on their necks, and also vengeance against the man who branded him as an unholy sacrifice. Aided only by his titanic strength gained from a harsh childhood lived with mercenaries, a gigantic sword, and an iron prosthetic left hand, Guts must struggle against his bleak destiny, all the while fighting with a rage that might strip him of his humanity.\n___\nWon the 6th Osamu Tezuka Cultural Prize Excellence Award in 2002.\n\nNote: Following Miura Kenta's death in 2021, the series has been taken over by Kouji Mori, who supervises the series with art done by Studio Gaga.",
-      "cover": "https://uploads.mangadex.org/covers/801513ba-a712-498c-8f57-cae55b38cc92/81e1c82d-6672-400c-8c58-4ff9bfb89031.jpg.512.jpg",
-      "status": "ongoing",
-      "sourceId": "mangadex",
-      "chapterId": "a5170650-08a9-4083-96bd-219d3d16194d",
-      "readAt": "2026-02-19T00:28:20.666Z"
     },
     {
       "id": "54abaa64-b5f0-4936-a340-236ec7a93abe",
@@ -67,17 +119,6 @@
       "readAt": "2026-02-08T20:36:00.643Z"
     },
     {
-      "id": "27b47848-26af-495f-bbcf-7f1bc5fc0284",
-      "title": "Erika Won't Back Down",
-      "author": "Sakino Yumeko",
-      "description": "Faced with a life-threatening crisis, a game addict who lives in a poor household, Inarikawa Erika, decided to take the matter into her own hands. With a sweet proposal from her long-time gaming friend, promising a one-time huge-paying job, she takes the plunge into the underworld. Where she also finds love for the first time in the most unlikely place.",
-      "cover": "https://uploads.mangadex.org/covers/27b47848-26af-495f-bbcf-7f1bc5fc0284/5f59b082-12c5-4436-ada6-f638fef118d9.jpg.512.jpg",
-      "status": "ongoing",
-      "sourceId": "mangadex",
-      "chapterId": "de195ac9-b8be-4e8f-ae9f-5a1372ef11dc",
-      "readAt": "2026-02-07T23:34:15.769Z"
-    },
-    {
       "id": "bd6d0982-0091-4945-ad70-c028ed3c0917",
       "title": "Mushoku Tensei: Isekai Ittara Honki Dasu",
       "author": "Rifujin na Magonote",
@@ -105,9 +146,33 @@
   "reviews": {},
   "customLists": [],
   "analytics": {
-    "totalChaptersRead": 2,
-    "totalTimeSpent": 0.7,
+    "totalChaptersRead": 6,
+    "totalTimeSpent": 2.4,
     "readingSessions": [
+      {
+        "mangaId": "801513ba-a712-498c-8f57-cae55b38cc92",
+        "chapterId": "8ceadc31-e41e-4038-8aef-d002aab344a5",
+        "duration": 0.8,
+        "date": "2026-02-19T23:52:37.680Z"
+      },
+      {
+        "mangaId": "27b47848-26af-495f-bbcf-7f1bc5fc0284",
+        "chapterId": "de195ac9-b8be-4e8f-ae9f-5a1372ef11dc",
+        "duration": 0.3,
+        "date": "2026-02-19T23:13:41.909Z"
+      },
+      {
+        "mangaId": "801513ba-a712-498c-8f57-cae55b38cc92",
+        "chapterId": "8ceadc31-e41e-4038-8aef-d002aab344a5",
+        "duration": 0.4,
+        "date": "2026-02-19T23:12:52.600Z"
+      },
+      {
+        "mangaId": "801513ba-a712-498c-8f57-cae55b38cc92",
+        "chapterId": "a5170650-08a9-4083-96bd-219d3d16194d",
+        "duration": 0.2,
+        "date": "2026-02-19T22:30:56.151Z"
+      },
       {
         "mangaId": "f7888782-0727-49b0-95ec-a3530c70f83b",
         "chapterId": "fb7c4202-75d9-4414-8e4b-25e718c066b7",
@@ -130,16 +195,6 @@
     "first_fav"
   ],
   "favorites": [
-    {
-      "id": "a1c7c817-4e59-43b7-9365-09675a149a6f",
-      "title": "One Piece",
-      "author": "Oda Eiichirou",
-      "description": "Gol D. Roger, a man referred to as the \"Pirate King,\" is set to be executed by the World Government. But just before his demise, he confirms the existence of a great treasure, One Piece, located somewhere within the vast ocean known as the Grand Line. Announcing that One Piece can be claimed by anyone worthy enough to reach it, the Pirate King is executed and the Great Age of Pirates begins.  \n  \nTwenty-two years later, a young man by the name of Monkey D. Luffy is ready to embark on his own adventure, searching for One Piece and striving to become the new Pirate King. Armed with just a straw hat, a small boat, and an elastic body, he sets out on a fantastic journey to gather his own crew and a worthy ship that will take them across the Grand Line to claim the greatest status on the high seas.\n\n---\n\n**Note:**  \n**Because a takedown notice was sent to MangaDex from the owners of this series, English fan translations of One Piece are unable to be posted at this time. The series can be read in its entirety at [the official Shonen Jump website,](https://www.viz.com/shonenjump/chapters/one-piece) with the first and latest three chapters available at any time and the rest accessible with a Shonen Jump membership (which costs about $2 a month and can be accessed via a VPN if you are outside the US). The three most recent chapters can also be read on MangaPlus for free by clicking the chapter links below.**\n\n---\n- **The Best-Selling Manga in History**\n- **Won the 41st Japan Cartoonists Association Award Grand Prize alongside Neko Darake in 2012** \n- **Received the Kumamoto Prefecture Honorary Prize in 2018**",
-      "cover": "https://uploads.mangadex.org/covers/a1c7c817-4e59-43b7-9365-09675a149a6f/cb063999-b269-4a27-9fb5-f3ed067fe85a.jpg.512.jpg",
-      "status": "ongoing",
-      "sourceId": "mangadex",
-      "addedAt": "2026-02-01T23:40:15.342Z"
-    },
     {
       "id": "bd6d0982-0091-4945-ad70-c028ed3c0917",
       "title": "Mushoku Tensei: Isekai Ittara Honki Dasu",

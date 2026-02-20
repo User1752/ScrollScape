@@ -9,7 +9,7 @@ module.exports = {
   },
 
   async search(query, page = 1) {
-    const limit = 20;
+    const limit = 50;
     const offset = (page - 1) * limit;
     
     // Se query for "*" ou vazia, buscar manga populares/recentes
@@ -60,10 +60,14 @@ module.exports = {
     return {
       id: manga.id,
       title: manga.attributes.title.en || manga.attributes.title[Object.keys(manga.attributes.title)[0]] || "Unknown",
+      altTitle: Object.values(manga.attributes.altTitles?.[0] || {})[0] || "",
       author: authorRel?.attributes?.name || "",
       description: manga.attributes.description.en || manga.attributes.description[Object.keys(manga.attributes.description)[0]] || "",
       cover: coverId ? `https://uploads.mangadex.org/covers/${manga.id}/${coverId}.512.jpg` : "",
-      status: manga.attributes.status || "unknown"
+      status: manga.attributes.status || "unknown",
+      year: manga.attributes.year || null,
+      genres: manga.attributes.tags?.map(t => t.attributes.name.en).filter(Boolean) || [],
+      lastChapter: manga.attributes.lastChapter ? parseFloat(manga.attributes.lastChapter) : null
     };
   },
 

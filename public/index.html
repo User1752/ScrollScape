@@ -78,8 +78,14 @@
         ================================================================== -->
         <section id="view-discover" class="view">
           <div class="home-hero">
-            <h1>Welcome to Manghu</h1>
-            <p>Quick search, advanced filters, and comfortable reading.</p>
+            <div class="home-hero-content">
+              <h1>Manghu</h1>
+              <p>Discover, track, and read manga from MangaDex — all in one place.</p>
+            </div>
+            <div class="home-hero-badges">
+              <span class="hero-badge">50 titles loaded per section</span>
+              <span class="hero-badge">Live chapter tracking</span>
+            </div>
           </div>
 
           <!-- Search -->
@@ -88,30 +94,11 @@
               <h2>Search Manga</h2>
               <div class="search-form">
                 <select id="sourceSelect" class="form-control"></select>
-                <input id="searchInput" class="form-control" placeholder="Enter manga title..." />
+                <input id="searchInput" class="form-control" placeholder="Enter manga title..." autocomplete="off" />
                 <button id="searchBtn" class="btn-search">Search</button>
               </div>
               <div id="searchStatus" class="search-status"></div>
-            </div>
-          </div>
-
-          <!-- Stats -->
-          <div class="stats-section">
-            <div class="stat-card">
-              <div class="stat-number" id="statTotalLibrary">0</div>
-              <div class="stat-label">Manga in Library</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="statCompleted">0</div>
-              <div class="stat-label">Completed</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="statChaptersRead">0</div>
-              <div class="stat-label">Chapters Read</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="statReadingStreak">0</div>
-              <div class="stat-label">Day Streak</div>
+              <div id="searchDropdown" class="search-dropdown"></div>
             </div>
           </div>
 
@@ -140,11 +127,6 @@
             <div class="section-header"><h3>Latest Updates</h3></div>
             <div id="latestUpdatesRow" class="results-grid"></div>
           </div>
-
-          <!-- Search Results -->
-          <div class="results-section">
-            <div id="results" class="results-grid"></div>
-          </div>
         </section>
 
         <!-- ==================================================================
@@ -157,8 +139,6 @@
             <!-- Reading Status Selector (rendered by JS) -->
             <div id="readingStatusSection"></div>
             <div id="chapters" class="chapters-section"></div>
-            <!-- Reviews Section (rendered by JS) -->
-            <div id="reviewsSection"></div>
           </div>
         </section>
 
@@ -422,12 +402,29 @@
             <span id="zoomLevel" class="zoom-level">100%</span>
             <button id="zoomIn" class="btn-zoom" title="Zoom in">+</button>
             <button id="zoomReset" class="btn-zoom" title="Reset zoom">⊙</button>
+            <!-- AutoScroll toggle -->
+            <button id="autoScrollToggle" class="btn-zoom btn-autoscroll" title="Start AutoScroll">⏩ Auto</button>
           </div>
           <div class="reader-nav">
             <button id="prevPage" class="btn-nav">◀ Prev</button>
             <span id="pageCounter" class="page-info"></span>
             <button id="nextPage" class="btn-nav">Next ▶</button>
           </div>
+        </div>
+        <!-- AutoScroll speed bar (shown when AutoScroll is active) -->
+        <div id="autoScrollBar" class="autoscroll-bar hidden">
+          <span class="autoscroll-bar-label">Speed:</span>
+          <div class="autoscroll-control">
+            <div class="autoscroll-ticks">
+              <span>Slow</span>
+              <span>Medium</span>
+              <span>Fast</span>
+              <span>Faster</span>
+              <span>Fastest</span>
+            </div>
+            <input type="range" id="autoScrollSpeed" class="autoscroll-slider" min="1" max="5" step="1" value="2">
+          </div>
+          <span id="autoScrollSpeedLabel" class="autoscroll-speed-label">Medium</span>
         </div>
         <div id="pageWrap" class="reader-content"></div>
       </div>

@@ -1,10 +1,10 @@
-- Corrigir o webtoonmode
+- Corrigir o webtoonmode                                FEITO
 - Deixar os Filtros mais bonitos
 - Adicionar mais sources
 - Certificar que os mangas estao completos
 - Homepage mais profissional   
 - Download dos mangas/capitulos(individual ou bulk)
-- Remover tudo associado a comunidade
+- Remover tudo associado a comunidade                    FEITO
 - Integrar o Anlist na aplicação para dar track
 - Adicionar idiomas
-- AutoScroll
+- AutoScroll                                                 FEITO

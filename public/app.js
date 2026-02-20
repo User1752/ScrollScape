@@ -47,10 +47,14 @@ const state = {
   customLists: [],
   analytics: {},
   earnedAchievements: new Set(),
+  previousView: "discover",  // tracks which view to return to from manga-details
 
   // Reader zoom (1.0 = 100%)
   zoomLevel: 1.0,
   readerSessionStart: null, // ms timestamp when chapter opened
+
+  // AutoScroll
+  autoScroll: { enabled: false, speed: 2 },
 
   advancedFilters: {
     orderBy: "relevance",
@@ -73,7 +77,6 @@ const ACHIEVEMENTS = [
   { id: 'fav_10',         icon: '📦', label: 'Hoarder',             desc: 'Have 10 manga in your library',     check: (a) => a.totalFavorites >= 10 },
   { id: 'completed_1',    icon: '✅', label: 'Completionist',       desc: 'Mark your first manga as completed',check: (a) => a.completedCount >= 1 },
   { id: 'completed_5',    icon: '🎖️', label: 'Veteran Reader',      desc: 'Complete 5 manga',                  check: (a) => a.completedCount >= 5 },
-  { id: 'reviewer',       icon: '✍️', label: 'Critic',              desc: 'Write your first review',           check: (a) => a.totalReviews >= 1 },
   { id: 'list_maker',     icon: '📋', label: 'Organizer',           desc: 'Create a custom list',              check: (a) => a.totalLists >= 1 },
   { id: 'night_owl',      icon: '🦉', label: 'Night Owl',           desc: 'Spend 1 hour reading total',        check: (a) => (a.totalTimeSpent || 0) >= 60 },
   { id: 'marathon',       icon: '🏃', label: 'Marathon Reader',     desc: 'Spend 5 hours reading total',       check: (a) => (a.totalTimeSpent || 0) >= 300 },
@@ -290,7 +293,7 @@ async function loadPopularToday() {
       method: "POST",
       body: JSON.stringify({ query: "*", page: 1 })
     });
-    const list = (result.results || []).slice(0, 10);
+    const list = result.results || [];
     if (!list.length) { row.innerHTML = `<div class="muted">No popular manga today.</div>`; return; }
     row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
     bindMangaCards(row);
@@ -309,7 +312,7 @@ async function loadRecentlyAdded() {
       method: "POST",
       body: JSON.stringify({ query: "*", page: 1, orderBy: "createdAt" })
     });
-    const list = (result.results || []).slice(0, 12);
+    const list = result.results || [];
     if (!list.length) { row.innerHTML = `<div class="muted">No recently added manga.</div>`; return; }
     renderMangaGrid(row, list);
   } catch (e) {
@@ -327,7 +330,7 @@ async function loadLatestUpdates() {
       method: "POST",
       body: JSON.stringify({ query: "*", page: 1, orderBy: "latestUploadedChapter" })
     });
-    const list = (result.results || []).slice(0, 12);
+    const list = result.results || [];
     if (!list.length) { row.innerHTML = `<div class="muted">No recent updates.</div>`; return; }
     renderMangaGrid(row, list);
   } catch (e) {
@@ -336,14 +339,18 @@ async function loadLatestUpdates() {
 }
 
 function mangaCardHTML(m) {
+  const genres = (m.genres || []).slice(0, 3);
   return `
     <div class="manga-card" data-manga-id="${escapeHtml(m.id)}">
       <div class="manga-card-cover">
-        ${m.cover ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy">` : '<div class="no-cover">?</div>'}
+        ${m.cover
+          ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy">`
+          : '<div class="no-cover">?</div>'}
       </div>
       <div class="manga-card-info">
         <h3 class="manga-card-title">${escapeHtml(m.title)}</h3>
         <p class="manga-card-author">${escapeHtml(m.author || "")}</p>
+        ${genres.length ? `<div class="manga-card-genres">${genres.map(g => `<span class="manga-card-genre">${escapeHtml(g)}</span>`).join("")}</div>` : ""}
       </div>
     </div>
   `;
@@ -485,7 +492,7 @@ function renderLibrary() {
       // Preserve source context when opening from library
       const prevSource = state.currentSourceId;
       state.currentSourceId = sourceId;
-      await loadMangaDetails(mangaId);
+      await loadMangaDetails(mangaId, "library");
       if (!state.currentSourceId) state.currentSourceId = prevSource;
     };
   });
@@ -549,82 +556,20 @@ function renderReadingStatusSection(mangaId, sourceId) {
 }
 
 // ============================================================================
-// REVIEWS & RATINGS
-// ============================================================================
-
-async function renderReviewsSection(mangaId) {
-  const section = $("reviewsSection");
-  if (!section) return;
-
-  let reviews = [];
-  try {
-    const data = await api(`/api/reviews/${encodeURIComponent(mangaId)}`);
-    reviews = data.reviews || [];
-  } catch (e) { /* skip */ }
-
-  let selectedRating = reviews[0]?.rating || 0;
-
-  const starsHTML = (r) => [1,2,3,4,5].map(n =>
-    `<button class="star-btn${n <= r ? ' active' : ''}" data-star="${n}">★</button>`
-  ).join("");
-
-  section.innerHTML = `
-    <div class="reviews-section">
-      <h3>Reviews & Ratings</h3>
-      <div class="review-form">
-        <p style="margin-bottom:0.5rem;font-size:0.9rem;color:var(--text-secondary)">Your Rating:</p>
-        <div class="star-rating" id="starRatingRow">${starsHTML(selectedRating)}</div>
-        <textarea class="review-textarea" id="reviewTextInput" placeholder="Write a review (optional)...">${escapeHtml(reviews[0]?.text || "")}</textarea>
-        <button class="btn-submit-review" id="submitReviewBtn">Submit Review</button>
-      </div>
-      ${reviews.length > 0 ? `
-        <div class="review-list">
-          ${reviews.map(r => `
-            <div class="review-item">
-              <div class="review-header">
-                <span class="review-stars">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</span>
-                <span class="review-date">${new Date(r.date).toLocaleDateString()}</span>
-              </div>
-              ${r.text ? `<p class="review-text">${escapeHtml(r.text)}</p>` : ""}
-            </div>`).join("")}
-        </div>` : ""}
-    </div>
-  `;
-
-  // star interaction
-  section.querySelectorAll(".star-btn").forEach(btn => {
-    btn.onclick = () => {
-      selectedRating = parseInt(btn.dataset.star);
-      section.querySelectorAll(".star-btn").forEach((b, i) => {
-        b.classList.toggle("active", i < selectedRating);
-      });
-    };
-  });
-
-  $("submitReviewBtn").onclick = async () => {
-    if (!selectedRating) { showToast("Please select a star rating", "", "error"); return; }
-    try {
-      await api("/api/reviews", {
-        method: "POST",
-        body: JSON.stringify({ mangaId, rating: selectedRating, text: $("reviewTextInput").value.trim() })
-      });
-      showToast("Review saved!", "", "success");
-      await renderReviewsSection(mangaId);
-      await checkAndUnlockAchievements();
-    } catch (err) {
-      showToast("Error saving review", err.message, "error");
-    }
-  };
-}
-
-// ============================================================================
 // SEARCH & MANGA DETAILS
 // ============================================================================
 
+let _liveSearchTimer = null;
+
 async function search() {
   const query = $("searchInput").value.trim();
+  const dropdown = $("searchDropdown");
   if (!state.currentSourceId) { $("searchStatus").textContent = "Select a source first."; return; }
-  if (!query)                  { $("searchStatus").textContent = "Enter a search term."; return; }
+  if (!query) {
+    if (dropdown) dropdown.innerHTML = "";
+    $("searchStatus").textContent = "";
+    return;
+  }
 
   $("searchStatus").textContent = "Searching...";
   try {
@@ -633,12 +578,13 @@ async function search() {
       body: JSON.stringify({ query, page: 1 })
     });
     const results = result.results || [];
-    const div = $("results");
+    if (!dropdown) return;
     if (!results.length) {
-      div.innerHTML = `<div class="muted">No results found</div>`;
+      dropdown.innerHTML = `<div class="muted" style="padding:1rem">No results found for "${escapeHtml(query)}"</div>`;
       $("searchStatus").textContent = "0 result(s) found";
     } else {
-      renderMangaGrid(div, results);
+      dropdown.innerHTML = results.map(m => mangaCardHTML(m)).join("");
+      bindMangaCards(dropdown);
       $("searchStatus").textContent = `${results.length} result(s) found`;
     }
   } catch (e) {
@@ -646,7 +592,8 @@ async function search() {
   }
 }
 
-async function loadMangaDetails(mangaId) {
+async function loadMangaDetails(mangaId, fromView = "discover") {
+  state.previousView = fromView;
   $("searchStatus").textContent = "Loading details...";
   try {
     const result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
@@ -664,7 +611,10 @@ async function loadMangaDetails(mangaId) {
       <div class="manga-details">
         ${result.cover ? `
           <div class="manga-cover">
-            <img src="${escapeHtml(result.cover)}" alt="${escapeHtml(result.title)}">
+            <a href="${escapeHtml(`https://anilist.co/search/manga?search=${encodeURIComponent(result.title)}`)}" target="_blank" rel="noopener noreferrer" class="cover-anilist-link" title="View on AniList" onclick="event.stopPropagation()">
+              <img src="${escapeHtml(result.cover)}" alt="${escapeHtml(result.title)}">
+              <div class="cover-anilist-hint">View on AniList</div>
+            </a>
           </div>` : ""}
         <div class="manga-info">
           <h2 class="manga-title">${escapeHtml(result.title)}</h2>
@@ -676,7 +626,7 @@ async function loadMangaDetails(mangaId) {
           </div>
           ${result.genres?.length ? `
             <div class="manga-genres">
-              ${result.genres.map(g => `<span class="genre-tag">${escapeHtml(g)}</span>`).join("")}
+              ${result.genres.map(g => `<span class="genre-tag" data-genre="${escapeHtml(g)}" title="Search: ${escapeHtml(g)}">${escapeHtml(g)}</span>`).join("")}
             </div>` : ""}
           ${result.description ? `
             <div class="manga-description">
@@ -731,15 +681,17 @@ async function loadMangaDetails(mangaId) {
       };
     }
 
+    // Genre tag navigation
+    $("details").querySelectorAll(".genre-tag[data-genre]").forEach(tag => {
+      tag.onclick = (e) => { e.stopPropagation(); searchByGenre(tag.dataset.genre); };
+    });
+
     // Add to custom list
     $("addToListBtn").onclick = () => showAddToListModal(result);
 
-    // Render reading status + reviews
+    // Render reading status
     renderReadingStatusSection(result.id, state.currentSourceId);
-    await Promise.all([
-      loadChapters(),
-      renderReviewsSection(result.id)
-    ]);
+    await loadChapters();
     $("searchStatus").textContent = "";
   } catch (e) {
     $("searchStatus").textContent = `Error: ${e.message}`;
@@ -840,6 +792,7 @@ async function loadChapters() {
         parseInt(el.dataset.chapterIndex)
       );
     });
+
   } catch (e) {
     chapDiv.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
   }
@@ -951,8 +904,49 @@ function showReader() {
 }
 
 async function hideReader() {
+  stopAutoScroll();
   await recordReadingSession();
   $("reader").classList.add("hidden");
+}
+
+// ============================================================================
+// AUTOSCROLL
+// ============================================================================
+
+let _autoScrollRAF = null;
+const AUTOSCROLL_SPEEDS = [0.5, 1.5, 3.0, 5.0, 8.0]; // px per animation frame
+
+function startAutoScroll() {
+  stopAutoScroll();
+  const pageWrap = $("pageWrap");
+  if (!pageWrap) return;
+
+  function tick() {
+    const speedPx = AUTOSCROLL_SPEEDS[state.autoScroll.speed - 1] || 1.5;
+    pageWrap.scrollTop += speedPx;
+    _autoScrollRAF = requestAnimationFrame(tick);
+  }
+  _autoScrollRAF = requestAnimationFrame(tick);
+}
+
+function stopAutoScroll() {
+  if (_autoScrollRAF !== null) {
+    cancelAnimationFrame(_autoScrollRAF);
+    _autoScrollRAF = null;
+  }
+}
+
+function toggleAutoScroll() {
+  state.autoScroll.enabled = !state.autoScroll.enabled;
+  const btn   = $("autoScrollToggle");
+  const bar   = $("autoScrollBar");
+  if (btn) {
+    btn.classList.toggle("active", state.autoScroll.enabled);
+    btn.title = state.autoScroll.enabled ? "Stop AutoScroll" : "Start AutoScroll";
+  }
+  if (bar) bar.classList.toggle("hidden", !state.autoScroll.enabled);
+  if (state.autoScroll.enabled) startAutoScroll();
+  else stopAutoScroll();
 }
 
 function renderPage() {
@@ -966,17 +960,18 @@ function renderPage() {
   const zoomStyle = state.zoomLevel !== 1.0 ? `style="transform:scale(${state.zoomLevel});transform-origin:top center;"` : "";
 
   if (mode === "webtoon") {
+    pageWrap.className = "reader-content reading-mode-webtoon";
+    const validPages = pages.filter(p => p.img);
     pageWrap.innerHTML = `
-      <div class="page-zoom-wrap" ${zoomStyle}>
-        ${pages.filter(p => p.img).map((p, i) => `
-          <img src="${escapeHtml(p.img)}" alt="Page ${i + 1}" class="webtoon-page" loading="lazy">
-        `).join("")}
+      <div class="page-zoom-wrap webtoon-wrap" ${zoomStyle}>
+        ${validPages.map((p, i) => `<img src="${escapeHtml(p.img)}" alt="Page ${i + 1}" class="webtoon-page" loading="lazy">`).join("")}
       </div>`;
-    $("pageCounter").textContent = `Webtoon Mode — ${pages.length} pages`;
+    $("pageCounter").textContent = `Webtoon Mode — ${validPages.length} pages`;
     $("prevPage").style.display = "none";
     $("nextPage").style.display = "none";
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, 0);
   } else {
+    pageWrap.className = "reader-content";
     if (idx < 0 || idx >= pages.length) return;
     const page = pages[idx];
     const imgClass = state.settings.panWideImages ? "page-img pannable" : "page-img";
@@ -1334,7 +1329,6 @@ async function checkAndUnlockAchievements() {
       totalTimeSpent:    a.totalTimeSpent || 0,
       totalFavorites:    (anaData.totalFavorites || 0),
       completedCount:    (anaData.statusDistribution?.completed || 0),
-      totalReviews:      (anaData.totalReviews || 0),
       totalLists:        (anaData.totalLists || 0),
     };
 
@@ -1378,6 +1372,32 @@ async function renderAchievementsGrid() {
   } catch (e) {
     grid.innerHTML = `<div class="muted">Could not load achievements.</div>`;
   }
+}
+
+// ============================================================================
+// GENRE NAVIGATION
+// ============================================================================
+
+function searchByGenre(genre) {
+  // Clear existing tag filters and add the selected genre
+  state.advancedFilters.tags.clear();
+  state.advancedFilters.tags.add(genre.toLowerCase());
+
+  // Navigate to advanced search view
+  setView("advanced-search");
+
+  // Visually activate the matching genre chip in the advanced search UI
+  document.querySelectorAll(".advanced-tags-section .genre-chip").forEach(chip => {
+    const chipTag = chip.dataset.tag || "";
+    const isMatch = chipTag.toLowerCase() === genre.toLowerCase();
+    chip.classList.toggle("active", isMatch);
+    if (isMatch) state.advancedFilters.tags.add(chipTag);
+  });
+
+  // Pre-fill the search input and run the search
+  const advInput = $("advancedSearchInput");
+  if (advInput) advInput.value = "";
+  advancedSearch();
 }
 
 // ============================================================================
@@ -1523,7 +1543,7 @@ function bindUI() {
 
   // Back buttons
   const backBtn = $("backBtn");
-  if (backBtn) backBtn.onclick = () => setView("discover");
+  if (backBtn) backBtn.onclick = () => setView(state.previousView || "discover");
 
   const backToListsBtn = $("backToListsBtn");
   if (backToListsBtn) backToListsBtn.onclick = () => setView("lists");
@@ -1531,8 +1551,14 @@ function bindUI() {
   // Search
   const searchBtn   = $("searchBtn");
   const searchInput = $("searchInput");
-  if (searchBtn)   searchBtn.onclick   = search;
-  if (searchInput) searchInput.onkeypress = (e) => { if (e.key === "Enter") search(); };
+  if (searchBtn)   searchBtn.onclick = () => { clearTimeout(_liveSearchTimer); search(); };
+  if (searchInput) {
+    searchInput.onkeypress = (e) => { if (e.key === "Enter") { clearTimeout(_liveSearchTimer); search(); } };
+    searchInput.oninput = () => {
+      clearTimeout(_liveSearchTimer);
+      _liveSearchTimer = setTimeout(() => search(), 450);
+    };
+  }
 
   // Theme toggle
   const themeBtn = $("themeToggle");
@@ -1574,6 +1600,21 @@ function bindUI() {
   if (zoomIn)    zoomIn.onclick    = () => applyZoom(+0.1);
   if (zoomOut)   zoomOut.onclick   = () => applyZoom(-0.1);
   if (zoomReset) zoomReset.onclick = () => { state.zoomLevel = 1.0; updateZoomUI(); renderPage(); };
+
+  // AutoScroll controls
+  const autoScrollToggle = $("autoScrollToggle");
+  const autoScrollSpeed  = $("autoScrollSpeed");
+  if (autoScrollToggle) autoScrollToggle.onclick = toggleAutoScroll;
+  if (autoScrollSpeed) {
+    autoScrollSpeed.value = state.autoScroll.speed;
+    autoScrollSpeed.oninput = (e) => {
+      state.autoScroll.speed = parseInt(e.target.value, 10);
+      const labels = ["Slow", "Medium", "Fast", "Faster", "Fastest"];
+      const labelEl = $("autoScrollSpeedLabel");
+      if (labelEl) labelEl.textContent = labels[state.autoScroll.speed - 1] || "Medium";
+      if (state.autoScroll.enabled) { stopAutoScroll(); startAutoScroll(); }
+    };
+  }
 
   // Keyboard shortcuts in reader
   document.addEventListener("keydown", (e) => {

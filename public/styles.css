@@ -1349,20 +1349,58 @@ body {
 }
 
 .home-hero {
-  background: linear-gradient(135deg, rgba(145, 63, 226, 0.12) 0%, rgba(145, 63, 226, 0.05) 100%);
-  border: 1px solid rgba(145, 63, 226, 0.2);
-  border-radius: 8px;
-  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(145, 63, 226, 0.18) 0%, rgba(89, 28, 172, 0.10) 60%, rgba(145, 63, 226, 0.05) 100%);
+  border: 1px solid rgba(145, 63, 226, 0.25);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
   margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.home-hero h1 {
-  font-size: 1.6rem;
+.home-hero-content h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary-light), #e879f9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 0.5rem;
 }
 
-.home-hero p {
+.home-hero-content p {
   color: var(--text-secondary);
+  font-size: 1rem;
+  max-width: 480px;
+}
+
+.home-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hero-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  background: rgba(145, 63, 226, 0.15);
+  border: 1px solid rgba(145, 63, 226, 0.3);
+  color: var(--primary-light);
+  white-space: nowrap;
+}
+
+[data-theme="light"] .home-hero {
+  background: linear-gradient(135deg, rgba(145, 63, 226, 0.08) 0%, rgba(145, 63, 226, 0.03) 100%);
+}
+
+[data-theme="light"] .hero-badge {
+  background: rgba(145, 63, 226, 0.08);
+  color: var(--primary);
 }
 
 @media (max-width: 900px) {
@@ -1699,10 +1737,6 @@ body {
   background-color: #FFFFFF;
   border-color: #E0E0EC;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="light"] .home-hero {
-  background: linear-gradient(135deg, rgba(145, 63, 226, 0.08) 0%, rgba(145, 63, 226, 0.03) 100%);
 }
 
 /* ============================================================================
@@ -2400,6 +2434,17 @@ body {
   display: inline-block;
 }
 
+/* Webtoon zoom wrapper — full-width vertical strip */
+.page-zoom-wrap.webtoon-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  gap: 0;
+}
+
 /* ============================================================================
    TOAST NOTIFICATIONS
    ============================================================================ */
@@ -2527,4 +2572,311 @@ body {
     align-items: flex-end;
     gap: 0.5rem;
   }
+}
+
+/* ============================================================================
+   SEARCH INLINE DROPDOWN
+   ============================================================================ */
+.search-dropdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  max-height: 520px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+
+.search-dropdown:empty {
+  display: none;
+  margin-top: 0;
+}
+
+.search-status:empty {
+  display: none;
+  margin-top: 0;
+  padding: 0;
+  min-height: 0;
+}
+
+/* ============================================================================
+   MANGA CARD GENRES
+   ============================================================================ */
+.manga-card-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+}
+
+.manga-card-genre {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.4rem;
+  background: rgba(145, 63, 226, 0.18);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 80px;
+  text-overflow: ellipsis;
+}
+
+[data-theme="light"] .manga-card-genre {
+  background: rgba(145, 63, 226, 0.12);
+  color: var(--primary);
+}
+
+/* ============================================================================
+   CHAPTER COMPLETENESS BAR
+   ============================================================================ */
+.chapter-completeness {
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.completeness-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.completeness-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.completeness-pct {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.completeness-bar-wrap {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+
+.completeness-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.completeness-info {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .chapter-completeness {
+  background: #FFFFFF;
+  border-color: #E0E0EC;
+}
+
+/* ============================================================ */
+/* ANILIST COVER LINK                                           */
+/* ============================================================ */
+
+.cover-anilist-link {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+}
+
+.cover-anilist-link img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.manga-card:hover .cover-anilist-link img,
+.library-card:hover .cover-anilist-link img {
+  transform: scale(1.05);
+}
+
+.cover-anilist-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(145, 63, 226, 0.88);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.3rem 0.4rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.manga-card-cover:hover .cover-anilist-hint,
+.library-card-cover:hover .cover-anilist-hint {
+  opacity: 1;
+}
+
+/* Manga detail page cover */
+.manga-cover .cover-anilist-link {
+  display: block;
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.manga-cover .cover-anilist-link img {
+  width: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  transition: transform 0.3s ease;
+}
+
+.manga-cover .cover-anilist-link:hover img {
+  transform: scale(1.03);
+}
+
+.manga-cover .cover-anilist-hint {
+  font-size: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0 0 8px 8px;
+}
+
+.manga-cover:hover .cover-anilist-hint {
+  opacity: 1;
+}
+
+/* ============================================================ */
+/* CLICKABLE GENRE TAGS                                         */
+/* ============================================================ */
+
+.genre-tag {
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.genre-tag:hover {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* ============================================================ */
+/* AUTOSCROLL BAR                                               */
+/* ============================================================ */
+
+.btn-autoscroll {
+  width: auto !important;
+  padding: 0 0.6rem;
+  font-size: 0.75rem !important;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.btn-autoscroll.active {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%) !important;
+  border-color: var(--primary) !important;
+}
+
+.autoscroll-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 1.2rem;
+  background: rgba(0, 0, 0, 0.65);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+  flex-wrap: wrap;
+}
+
+.autoscroll-bar.hidden {
+  display: none;
+}
+
+.autoscroll-bar-label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.autoscroll-control {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.autoscroll-ticks {
+  display: flex;
+  justify-content: space-between;
+  width: 200px;
+  pointer-events: none;
+}
+
+.autoscroll-ticks span {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  width: 40px;
+}
+
+.autoscroll-slider {
+  width: 200px;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+  cursor: pointer;
+}
+
+.autoscroll-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(145, 63, 226, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.autoscroll-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 3px 10px rgba(145, 63, 226, 0.7);
+}
+
+.autoscroll-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(145, 63, 226, 0.5);
+}
+
+.autoscroll-speed-label {
+  min-width: 50px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary-light);
+  text-align: center;
 }
