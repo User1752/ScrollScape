@@ -296,7 +296,14 @@ const state = {
   searchQuery: "",
   searchHasNextPage: false,
   advSearchPage: 1,
-  advSearchHasNextPage: false
+  advSearchHasNextPage: false,
+
+  // Local manga
+  localManga: [],
+  pdfDocument: null,
+
+  // User ratings cache: mangaId -> 1-10 score
+  ratings: {}
 };
 
 // ============================================================================
@@ -695,6 +702,16 @@ async function refreshState() {
     state.history       = libData.history   || [];
     state.readingStatus = statusData.readingStatus || {};
 
+    try {
+      const localData = await api("/api/local/list");
+      state.localManga = localData.localManga || [];
+    } catch (_) { state.localManga = []; }
+
+    try {
+      const ratingsData = await api("/api/ratings");
+      state.ratings = ratingsData.ratings || {};
+    } catch (_) { state.ratings = {}; }
+
     renderSourceSelect();
     await Promise.all([
       loadPopularToday(),
@@ -704,8 +721,8 @@ async function refreshState() {
     await updateStats();
     renderLibrary();
 
-    // Trigger recommendations if library has content
-    if (state.favorites.length > 0) loadRecommendations();
+    // Trigger recommendations if there's any reading history or library content
+    if (state.favorites.length > 0 || state.history.length > 0) loadRecommendations();
   } catch (e) {
     console.error("Failed to load state:", e);
   }
@@ -751,20 +768,17 @@ async function loadPopularToday() {
   if (!row || !state.currentSourceId) return;
   row.innerHTML = `<div class="muted">Loading...</div>`;
   try {
-    const result = await api(`/api/source/${state.currentSourceId}/search`, {
+    const result = await api(`/api/source/${state.currentSourceId}/trending`, {
       method: "POST",
-      body: JSON.stringify({ query: "", page: 1 })
+      body: JSON.stringify({})
     });
     const list = result.results || [];
-    if (!list.length) { 
-      row.innerHTML = `<div class="muted">No manga found.</div>`; 
-      return; 
-    }
+    if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     row.innerHTML = list.slice(0, 10).map(m => mangaCardHTML(m)).join("");
     bindMangaCards(row);
   } catch (e) {
     console.error("Error loading popular manga:", e);
-    row.innerHTML = `<div class="muted">Error loading manga from ${state.installedSources[state.currentSourceId]?.name || state.currentSourceId}</div>`;
+    row.innerHTML = `<div class="muted">Error loading manga.</div>`;
   }
 }
 
@@ -773,15 +787,12 @@ async function loadRecentlyAdded() {
   if (!row || !state.currentSourceId) return;
   row.innerHTML = `<div class="muted">Loading...</div>`;
   try {
-    const result = await api(`/api/source/${state.currentSourceId}/search`, {
+    const result = await api(`/api/source/${state.currentSourceId}/recentlyAdded`, {
       method: "POST",
-      body: JSON.stringify({ query: "", page: 1, orderBy: "createdAt" })
+      body: JSON.stringify({})
     });
     const list = result.results || [];
-    if (!list.length) { 
-      row.innerHTML = `<div class="muted">No manga found.</div>`; 
-      return; 
-    }
+    if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     renderMangaGrid(row, list.slice(0, 12));
   } catch (e) {
     console.error("Error loading recently added:", e);
@@ -794,15 +805,12 @@ async function loadLatestUpdates() {
   if (!row || !state.currentSourceId) return;
   row.innerHTML = `<div class="muted">Loading...</div>`;
   try {
-    const result = await api(`/api/source/${state.currentSourceId}/search`, {
+    const result = await api(`/api/source/${state.currentSourceId}/latestUpdates`, {
       method: "POST",
-      body: JSON.stringify({ query: "", page: 1, orderBy: "latestUploadedChapter" })
+      body: JSON.stringify({})
     });
     const list = result.results || [];
-    if (!list.length) { 
-      row.innerHTML = `<div class="muted">No manga found.</div>`; 
-      return; 
-    }
+    if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     renderMangaGrid(row, list.slice(0, 12));
   } catch (e) {
     console.error("Error loading latest updates:", e);
@@ -914,38 +922,48 @@ async function loadRecommendations() {
   const row     = $("recommendedRow");
   if (!section || !row || !state.currentSourceId) return;
 
-  // Build genre profile from library
-  const genreProfile = new Map();
-  for (const m of state.favorites) {
-    for (const g of (m.genres || [])) {
-      genreProfile.set(g.toLowerCase(), (genreProfile.get(g.toLowerCase()) || 0) + 1);
+  // Build genre profile from history (weighted 2x) + favorites (weighted 1x)
+  const genreScore = new Map();
+  const addGenres = (manga, weight) => {
+    for (const g of (manga.genres || [])) {
+      const key = g.toLowerCase();
+      genreScore.set(key, (genreScore.get(key) || 0) + weight);
     }
-  }
-  if (genreProfile.size === 0) return;
+  };
+  for (const m of (state.history  || [])) addGenres(m, 2);
+  for (const m of (state.favorites || [])) addGenres(m, 1);
+
+  if (genreScore.size === 0) return;
+
+  // Pick top 5 genres
+  const topGenres = [...genreScore.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([g]) => g.charAt(0).toUpperCase() + g.slice(1)); // capitalise for MangaDex
 
   try {
-    const result = await api(`/api/source/${state.currentSourceId}/search`, {
+    const result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
       method: "POST",
-      body: JSON.stringify({ query: "*", page: 1, orderBy: "followedCount" })
+      body: JSON.stringify({ genres: topGenres })
     });
 
-    const libraryIds = new Set(state.favorites.map(m => m.id));
-    const scored = (result.results || [])
-      .filter(m => !libraryIds.has(m.id))
-      .map(m => {
-        const score = (m.genres || []).reduce((n, g) => n + (genreProfile.get(g.toLowerCase()) || 0), 0);
-        return { ...m, score };
-      })
-      .filter(m => m.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+    const libraryIds = new Set([
+      ...state.favorites.map(m => m.id),
+      ...state.history.map(m => m.id)
+    ]);
+    const list = (result.results || []).filter(m => !libraryIds.has(m.id)).slice(0, 10);
 
-    if (scored.length === 0) return;
+    if (!list.length) return;
     section.style.display = "block";
-    row.innerHTML = scored.map(m => mangaCardHTML(m)).join("");
+
+    // Show which genres drove the recommendations
+    const labelEl = section.querySelector(".recommended-genres-label");
+    if (labelEl) labelEl.textContent = `Based on: ${topGenres.slice(0, 3).join(", ")}`;
+
+    row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
     bindMangaCards(row);
   } catch (e) {
-    // Recommendations failing silently is acceptable
+    // Fail silently
   }
 }
 
@@ -990,21 +1008,18 @@ function renderLibrary() {
     return status === filterVal;
   });
 
+  const totalCount = favs.length + (filterVal === "all" ? state.localManga.length : 0);
   if ($("libraryCount")) {
-    $("libraryCount").textContent = `${favs.length} manga`;
+    $("libraryCount").textContent = `${totalCount} manga`;
   }
 
-  if (favs.length === 0) {
-    grid.innerHTML = `<div class="muted">No manga found. Add your favorites or change the filter!</div>`;
-    return;
-  }
-
-  grid.innerHTML = favs.map(manga => {
+  const favHTML = favs.map(manga => {
     const key    = `${manga.id}:${manga.sourceId}`;
     const status = state.readingStatus[key]?.status;
     const statusBadge = status
       ? `<div class="library-card-status status-badge-${status}">${statusLabel(status).split(' ')[0]}</div>`
       : "";
+    const currentRating = state.ratings[manga.id] || 0;
     return `
       <div class="library-card" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || state.currentSourceId)}">
         <div class="library-card-cover">
@@ -1018,21 +1033,194 @@ function renderLibrary() {
           <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
           <p class="library-card-author">${escapeHtml(manga.author || "")}</p>
           ${status ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : ""}
+          ${currentRating ? `<span class="card-score-badge">${currentRating}<span class="card-score-badge-max">/10</span></span>` : ""}
         </div>
       </div>`;
   }).join("");
 
-  grid.querySelectorAll(".library-card").forEach(card => {
+  // Local manga section
+  const localHTML = (filterVal === "all" && state.localManga.length > 0)
+    ? `<div class="local-section-header">&#128193; Local Manga</div>` +
+      state.localManga.map(manga => {
+        const localRating = state.ratings[manga.id] || 0;
+        return `
+        <div class="library-card local-manga-card" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local">
+          <div class="library-card-cover">
+            ${manga.cover ? `<img src="${escapeHtml(manga.cover)}" alt="${escapeHtml(manga.title)}" loading="lazy">` : '<div class="no-cover">&#128214;</div>'}
+            <div class="local-badge">${escapeHtml((manga.type || 'local').toUpperCase())}</div>
+            <button class="local-delete-btn" data-manga-id="${escapeHtml(manga.id)}" title="Delete local manga">&#128465;</button>
+            <div class="library-card-overlay"><button class="btn-read">Read</button></div>
+          </div>
+          <div class="library-card-info">
+            <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
+            <p class="library-card-author">${escapeHtml((manga.type || 'local').toUpperCase())}</p>
+            ${localRating ? `<span class="card-score-badge">${localRating}<span class="card-score-badge-max">/10</span></span>` : ""}
+          </div>
+        </div>`;
+      }).join("")
+    : "";
+
+  if (favs.length === 0 && !localHTML) {
+    grid.innerHTML = `<div class="muted">No manga found. Add favorites or import local files!</div>`;
+    return;
+  }
+
+  grid.innerHTML = favHTML + localHTML;
+
+  grid.querySelectorAll(".library-card:not(.local-manga-card)").forEach(card => {
     const mangaId  = card.dataset.mangaId;
     const sourceId = card.dataset.sourceId;
     card.onclick = async (e) => {
-      // Preserve source context when opening from library
       const prevSource = state.currentSourceId;
       state.currentSourceId = sourceId;
       await loadMangaDetails(mangaId, "library");
       if (!state.currentSourceId) state.currentSourceId = prevSource;
     };
   });
+
+  grid.querySelectorAll(".local-manga-card").forEach(card => {
+    const mangaId = card.dataset.mangaId;
+    card.onclick = async (e) => {
+      if (e.target.closest(".local-delete-btn")) return;
+      state.currentSourceId = "local";
+      await loadMangaDetails(mangaId, "library");
+    };
+  });
+
+  grid.querySelectorAll(".local-delete-btn").forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const mangaId = btn.dataset.mangaId;
+      if (!confirm("Delete this local manga?")) return;
+      await deleteLocalManga(mangaId);
+    };
+  });
+}
+
+async function loadLocalManga() {
+  try {
+    const data = await api("/api/local/list");
+    state.localManga = data.localManga || [];
+  } catch (_) { state.localManga = []; }
+}
+
+async function deleteLocalManga(mangaId) {
+  try {
+    await api(`/api/local/${mangaId}`, { method: "DELETE" });
+    state.localManga = state.localManga.filter(m => m.id !== mangaId);
+    renderLibrary();
+    showToast("Deleted", "Local manga removed", "info");
+  } catch (e) {
+    showToast("Error", e.message, "error");
+  }
+}
+
+// ============================================================================
+// LOCAL MANGA IMPORT MODAL
+// ============================================================================
+let _importFile = null;
+
+function showImportModal() {
+  _importFile = null;
+  if ($("importTitleInput"))  $("importTitleInput").value  = "";
+  if ($("importFileName"))   { $("importFileName").textContent = ""; $("importFileName").classList.add("hidden"); }
+  if ($("importProgress"))   $("importProgress").classList.add("hidden");
+  if ($("importError"))      { $("importError").textContent = ""; $("importError").classList.add("hidden"); }
+  if ($("importSubmitBtn"))  $("importSubmitBtn").disabled = true;
+  if ($("importFileInput"))  $("importFileInput").value = "";
+  $("importLocalModal").classList.remove("hidden");
+
+  // Drag and drop
+  const zone = $("importDropZone");
+  if (zone && !zone._ddBound) {
+    zone._ddBound = true;
+    zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drop-active"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("drop-active"));
+    zone.addEventListener("drop", e => {
+      e.preventDefault();
+      zone.classList.remove("drop-active");
+      const file = e.dataTransfer.files[0];
+      if (file) setImportFile(file);
+    });
+  }
+}
+
+function closeImportModal() {
+  $("importLocalModal").classList.add("hidden");
+  _importFile = null;
+}
+
+function onImportFileSelected(event) {
+  const file = event.target.files[0];
+  if (file) setImportFile(file);
+}
+
+function setImportFile(file) {
+  const allowed = ['.cbz', '.cbr', '.pdf'];
+  const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+  if (!allowed.includes(ext)) {
+    if ($("importError")) { $("importError").textContent = "Unsupported format. Use CBZ, CBR or PDF."; $("importError").classList.remove("hidden"); }
+    return;
+  }
+  _importFile = file;
+  if ($("importFileName"))  { $("importFileName").textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`; $("importFileName").classList.remove("hidden"); }
+  if ($("importError"))     $("importError").classList.add("hidden");
+  if ($("importSubmitBtn")) $("importSubmitBtn").disabled = false;
+  // Pre-fill title from filename if empty
+  const titleInput = $("importTitleInput");
+  if (titleInput && !titleInput.value) {
+    titleInput.value = file.name.slice(0, file.name.lastIndexOf('.')).replace(/[_\-]+/g, ' ');
+  }
+}
+
+async function submitImport() {
+  if (!_importFile) return;
+  const title = $("importTitleInput")?.value?.trim() || "";
+  const submitBtn = $("importSubmitBtn");
+  const progressEl = $("importProgress");
+  const errorEl   = $("importError");
+  const fillEl    = $("importProgressFill");
+  const labelEl   = $("importProgressLabel");
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (errorEl)  { errorEl.textContent = ""; errorEl.classList.add("hidden"); }
+  if (progressEl) progressEl.classList.remove("hidden");
+  if (fillEl)   fillEl.style.width = "10%";
+  if (labelEl)  labelEl.textContent = "Uploading...";
+
+  try {
+    const formData = new FormData();
+    formData.append("file", _importFile);
+    if (title) formData.append("title", title);
+
+    // Simulate progress while uploading
+    let pct = 10;
+    const progTimer = setInterval(() => {
+      pct = Math.min(pct + 5, 85);
+      if (fillEl) fillEl.style.width = `${pct}%`;
+      if (labelEl) labelEl.textContent = pct < 50 ? "Uploading..." : "Extracting...";
+    }, 400);
+
+    const resp = await fetch("/api/local/import", { method: "POST", body: formData });
+    clearInterval(progTimer);
+
+    if (fillEl)   fillEl.style.width = "100%";
+    if (labelEl)  labelEl.textContent = "Done!";
+
+    const data = await resp.json();
+    if (!resp.ok || !data.success) throw new Error(data.error || "Import failed");
+
+    state.localManga.push(data.manga);
+    showToast("Imported!", data.manga.title, "success");
+    setTimeout(() => {
+      closeImportModal();
+      renderLibrary();
+    }, 600);
+  } catch (e) {
+    if (progressEl) progressEl.classList.add("hidden");
+    if (errorEl)    { errorEl.textContent = e.message; errorEl.classList.remove("hidden"); }
+    if (submitBtn)  submitBtn.disabled = false;
+  }
 }
 
 // ============================================================================
@@ -1216,7 +1404,7 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
         <div class="manga-info">
           <h2 class="manga-title">${escapeHtml(result.title)}</h2>
           ${result.altTitle ? `<p class="manga-alt-title">${escapeHtml(result.altTitle)}</p>` : ""}
-          ${result.author  ? `<p class="manga-author">✍️ ${escapeHtml(result.author)}</p>` : ""}
+          ${result.author  ? `<p class="manga-author">✍️ <span class="author-link" data-author="${escapeHtml(result.author)}" onclick="searchByAuthor(this.dataset.author)">${escapeHtml(result.author)}</span></p>` : ""}
           <div class="manga-meta">
             ${result.status ? `<span class="badge badge-${result.status === 'ongoing' ? 'success' : 'secondary'}">${escapeHtml(result.status)}</span>` : ""}
             ${result.year   ? `<span class="badge">📅 ${escapeHtml(String(result.year))}</span>` : ""}
@@ -1235,8 +1423,8 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
             </button>
             <button class="btn btn-start-reading-detail" id="startReadingBtn">&#9654; Start Reading</button>
             ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">Continue</button>` : ""}
-            <button class="btn btn-secondary" id="addToListBtn">Add to List</button>
           </div>
+          <div id="detailRatingWrap" class="detail-rating-wrap"></div>
         </div>
       </div>
     `;
@@ -1295,8 +1483,8 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
       tag.onclick = (e) => { e.stopPropagation(); searchByGenre(tag.dataset.genre); };
     });
 
-    // Add to custom list
-    $("addToListBtn").onclick = () => showAddToListModal(result);
+    // Rating widget
+    renderDetailRating(result.id);
 
     // Render reading status
     renderReadingStatusSection(result.id, state.currentSourceId);
@@ -1304,6 +1492,59 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
     $("searchStatus").textContent = "";
   } catch (e) {
     $("searchStatus").textContent = `Error: ${e.message}`;
+  }
+}
+
+function renderDetailRating(mangaId) {
+  const wrap = $("detailRatingWrap");
+  if (!wrap) return;
+  const current = state.ratings[mangaId] || 0;
+  wrap.innerHTML = `
+    <div class="detail-rating-row" data-manga-id="${escapeHtml(mangaId)}">
+      <span class="detail-rating-label">Rating</span>
+      <div class="detail-rating-btns">
+        ${Array.from({length: 10}, (_, i) => {
+          const v = i + 1;
+          return `<button class="card-score-btn detail-score-btn${v <= current ? ' active' : ''}" data-score="${v}">${v}</button>`;
+        }).join("")}
+      </div>
+      ${current ? `<span class="detail-rating-current">${current}<span class="detail-rating-max">/10</span></span>` : ""}
+      ${current ? `<button class="detail-rating-clear" title="Clear rating">\u2715</button>` : ""}
+    </div>
+  `;
+  const row = wrap.querySelector(".detail-rating-row");
+  row.querySelectorAll(".detail-score-btn").forEach(btn => {
+    btn.onmouseenter = () => {
+      const v = Number(btn.dataset.score);
+      row.querySelectorAll(".detail-score-btn").forEach(b => b.classList.toggle("hover", Number(b.dataset.score) <= v));
+    };
+    btn.onmouseleave = () => row.querySelectorAll(".detail-score-btn").forEach(b => b.classList.remove("hover"));
+    btn.onclick = async () => {
+      const score = Number(btn.dataset.score);
+      const newScore = state.ratings[mangaId] === score ? null : score;
+      try {
+        if (newScore) {
+          await api("/api/reviews", { method: "POST", body: JSON.stringify({ mangaId, rating: newScore, text: "" }) });
+          state.ratings[mangaId] = newScore;
+        } else {
+          await api(`/api/ratings/${mangaId}`, { method: "DELETE" });
+          delete state.ratings[mangaId];
+        }
+        renderDetailRating(mangaId);
+        renderLibrary();
+      } catch (e) { showToast("Error", e.message, "error"); }
+    };
+  });
+  const clearBtn = wrap.querySelector(".detail-rating-clear");
+  if (clearBtn) {
+    clearBtn.onclick = async () => {
+      try {
+        await api(`/api/ratings/${mangaId}`, { method: "DELETE" });
+        delete state.ratings[mangaId];
+        renderDetailRating(mangaId);
+        renderLibrary();
+      } catch (e) { showToast("Error", e.message, "error"); }
+    };
   }
 }
 
@@ -1418,7 +1659,12 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
     state.currentChapter.id   = chapterId;
     state.currentChapterIndex = chapterIndex;
 
-    const maxIndex = Math.max((result.pages?.length || 1) - 1, 0);
+    // PDF: load via PDF.js to get page count, build synthetic pages array
+    if (result.isPDF && result.pdfUrl) {
+      await initPDFChapter(result.pdfUrl);
+    }
+
+    const maxIndex = Math.max((state.currentChapter.pages?.length || 1) - 1, 0);
     state.currentPageIndex = Math.min(Math.max(startPageIndex, 0), maxIndex);
     state.zoomLevel = 1.0;
 
@@ -1491,7 +1737,7 @@ async function goToPrevChapter() {
 async function downloadChapter(chapterId, chapterName) {
   try {
     showToast("Download Started", `Downloading ${chapterName}...`, "info");
-    
+
     // Get chapter pages
     const result = await api(`/api/source/${state.currentSourceId}/pages`, {
       method: "POST",
@@ -1503,9 +1749,10 @@ async function downloadChapter(chapterId, chapterName) {
       return;
     }
 
-    // Request download from server
-    const downloadResult = await api(`/api/download/chapter`, {
+    // Request CBZ from server (binary response)
+    const resp = await fetch("/api/download/chapter", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mangaTitle: state.currentManga?.title || "Unknown",
         chapterName,
@@ -1515,19 +1762,25 @@ async function downloadChapter(chapterId, chapterName) {
       })
     });
 
-    if (downloadResult.success) {
-      // Trigger download
-      const link = document.createElement('a');
-      link.href = downloadResult.downloadUrl;
-      link.download = downloadResult.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showToast("Download Complete", `${chapterName} downloaded successfully!`, "success");
-    } else {
-      showToast("Error", downloadResult.error || "Download failed", "error");
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      showToast("Error", err.error || "Download failed", "error");
+      return;
     }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const filename = (resp.headers.get("Content-Disposition") || "").match(/filename="(.+?)"/)?.at(1)
+      || `${chapterName}.cbz`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast("Download Complete", `${chapterName} downloaded as CBZ!`, "success");
   } catch (e) {
     showToast("Error", `Download failed: ${e.message}`, "error");
   }
@@ -1615,11 +1868,12 @@ window.deselectAllChapters = function() {
 
 async function downloadBulkChapters(selectedChapters) {
   try {
-    showToast("Bulk Download Started", `Preparing ${selectedChapters.length} chapters...`, "info");
+    showToast("Bulk Download Started", `Fetching ${selectedChapters.length} chapters — this may take a while...`, "info");
 
-    // Request bulk download from server
-    const downloadResult = await api(`/api/download/bulk`, {
+    // Request CBZ from server (binary response — server fetches all images)
+    const resp = await fetch("/api/download/bulk", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mangaTitle: state.currentManga?.title || "Unknown",
         sourceId: state.currentSourceId,
@@ -1627,19 +1881,25 @@ async function downloadBulkChapters(selectedChapters) {
       })
     });
 
-    if (downloadResult.success) {
-      // Trigger download
-      const link = document.createElement('a');
-      link.href = downloadResult.downloadUrl;
-      link.download = downloadResult.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showToast("Download Complete", `${selectedChapters.length} chapters downloaded!`, "success");
-    } else {
-      showToast("Error", downloadResult.error || "Bulk download failed", "error");
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      showToast("Error", err.error || "Bulk download failed", "error");
+      return;
     }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const filename = (resp.headers.get("Content-Disposition") || "").match(/filename="(.+?)"/)?.at(1)
+      || `${state.currentManga?.title || "manga"}_chapters.cbz`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast("Download Complete", `${selectedChapters.length} chapters saved as CBZ!`, "success");
   } catch (e) {
     showToast("Error", `Bulk download failed: ${e.message}`, "error");
   }
@@ -1912,7 +2172,7 @@ async function hideReader() {
 // ============================================================================
 
 let _autoScrollRAF = null;
-const AUTOSCROLL_SPEEDS = [0.5, 1.5, 3.0, 5.0, 8.0]; // px per animation frame
+const AUTOSCROLL_SPEEDS = [0.2, 0.5, 1.0, 2.0, 3.5]; // px per animation frame
 
 function startAutoScroll() {
   stopAutoScroll();
@@ -1949,6 +2209,13 @@ function toggleAutoScroll() {
 
 function renderPage() {
   if (!state.currentChapter?.pages) return;
+
+  // PDF mode: delegate to async PDF.js renderer
+  if (state.currentChapter.isPDF && state.pdfDocument) {
+    renderPDFPageToCanvas(state.currentPageIndex + 1);
+    return;
+  }
+
   const pages   = state.currentChapter.pages;
   const pageWrap = $("pageWrap");
   const idx     = state.currentPageIndex;
@@ -1965,7 +2232,7 @@ function renderPage() {
     const nextWLabel = nextWCh ? (nextWCh.name || `Chapter ${nextWCh.chapter || nextWIdx + 1}`) : null;
     pageWrap.innerHTML = `
       <div class="page-zoom-wrap webtoon-wrap" ${zoomStyle}>
-        ${validPages.map((p, i) => `<img src="${escapeHtml(p.img)}" alt="Page ${i + 1}" class="webtoon-page" loading="lazy">`).join("")}
+        ${validPages.map((p, i) => `<img src="${escapeHtml(p.img)}" alt="Page ${i + 1}" class="webtoon-page" loading="eager">`).join("")}
       </div>
       <div class="chapter-end-wrap">
         ${nextWLabel
@@ -1978,6 +2245,9 @@ function renderPage() {
     $("prevPage").style.display = "none";
     $("nextPage").style.display = "none";
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, 0);
+  } else if (mode === "rtl") {
+    renderBookSpread();
+    return;
   } else {
     pageWrap.className = "reader-content";
     if (idx < 0 || idx >= pages.length) return;
@@ -2012,10 +2282,231 @@ function renderPage() {
   }
 }
 
+// ============================================================================
+// BOOK READER — RTL double-page spread with 3D page-flip
+// ============================================================================
+
+let _bookFlipAnimating = false;
+
+function getBookSpread(idx, pages) {
+  // Manga RTL: right panel = pages[idx], left panel = pages[idx+1]
+  return {
+    right: pages[idx]?.img     || null,
+    left:  pages[idx + 1]?.img || null
+  };
+}
+
+function renderBookSpread() {
+  if (!state.currentChapter?.pages) return;
+  const pages    = state.currentChapter.pages;
+  const pageWrap = $("pageWrap");
+  if (!pageWrap) return;
+
+  // Snap to even index
+  if (state.currentPageIndex % 2 !== 0)
+    state.currentPageIndex = Math.max(0, state.currentPageIndex - 1);
+
+  const idx   = state.currentPageIndex;
+  const total = pages.length;
+  const { right: rightImg, left: leftImg } = getBookSpread(idx, pages);
+
+  pageWrap.className = "reader-content reading-mode-rtl";
+  const pv = $("prevPage"), nx = $("nextPage");
+  if (pv) { pv.style.display = "block"; pv.disabled = idx === 0; }
+  if (nx) { nx.style.display = "block"; nx.disabled = idx + 2 >= total; }
+
+  const r = idx + 1, l = idx + 2;
+  $("pageCounter").textContent = l <= total ? `${r}-${l} / ${total}` : `${r} / ${total}`;
+
+  pageWrap.innerHTML = `
+    <div class="book-reader-wrap">
+      <div class="book-spread" id="bookSpread">
+        <div class="book-side book-left" id="bookLeft">
+          ${leftImg
+            ? `<img class="book-page-img" src="${escapeHtml(leftImg)}" alt="Page ${idx + 2}">`
+            : `<div class="book-page-blank"></div>`}
+        </div>
+        <div class="book-spine"></div>
+        <div class="book-side book-right" id="bookRight">
+          ${rightImg
+            ? `<img class="book-page-img" src="${escapeHtml(rightImg)}" alt="Page ${idx + 1}">`
+            : `<div class="book-page-blank"></div>`}
+        </div>
+      </div>
+    </div>
+  `;
+
+  updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, idx);
+  attachBookDragEvents();
+}
+
+function attachBookDragEvents() {
+  const spread = $("bookSpread");
+  if (!spread) return;
+
+  let startX = 0;
+  let dragSide = null;
+  let active   = false;
+
+  spread.addEventListener("pointerdown", e => {
+    if (e.button && e.pointerType === "mouse") return;
+    const rect = spread.getBoundingClientRect();
+    dragSide = (e.clientX - rect.left) > rect.width / 2 ? "right" : "left";
+    startX   = e.clientX;
+    active   = true;
+    spread.setPointerCapture(e.pointerId);
+  }, { passive: true });
+
+  spread.addEventListener("pointerup", e => {
+    if (!active) return;
+    active = false;
+    const dx = e.clientX - startX;
+    const tap = Math.abs(dx) < 12;
+    if (dragSide === "right" && (dx < -50 || tap))  navigateBook("forward");
+    if (dragSide === "left"  && (dx >  50 || tap))  navigateBook("backward");
+  });
+}
+
+function navigateBook(direction) {
+  if (_bookFlipAnimating) return;
+  const pages = state.currentChapter?.pages;
+  if (!pages) return;
+  const idx   = state.currentPageIndex;
+  const total = pages.length;
+  let newIdx;
+
+  if (direction === "forward") {
+    if (idx + 2 >= total) { goToNextChapter(); return; }
+    newIdx = idx + 2;
+  } else {
+    if (idx === 0) { goToPrevChapter(); return; }
+    newIdx = Math.max(0, idx - 2);
+  }
+
+  _bookFlipAnimating = true;
+  playBookFlip(direction, idx, newIdx, pages, () => {
+    state.currentPageIndex = newIdx;
+    _bookFlipAnimating = false;
+    renderBookSpread();
+  });
+}
+
+function playBookFlip(direction, oldIdx, newIdx, pages, onComplete) {
+  const spread = $("bookSpread");
+  if (!spread) { onComplete(); return; }
+
+  const { right: oldRight, left: oldLeft } = getBookSpread(oldIdx, pages);
+  const { right: newRight, left: newLeft  } = getBookSpread(newIdx, pages);
+
+  // Update static background sides to the NEW spread (hidden under flipper during anim)
+  const sL = document.getElementById("bookLeft");
+  const sR = document.getElementById("bookRight");
+  if (sL) sL.innerHTML = newLeft  ? `<img class="book-page-img" src="${escapeHtml(newLeft)}">`  : `<div class="book-page-blank"></div>`;
+  if (sR) sR.innerHTML = newRight ? `<img class="book-page-img" src="${escapeHtml(newRight)}">` : `<div class="book-page-blank"></div>`;
+
+  const w = spread.offsetWidth / 2;
+  const h = spread.offsetHeight;
+  const srcImg = direction === "forward" ? oldRight : oldLeft;
+
+  // Build flipper
+  const flipper = document.createElement("div");
+  Object.assign(flipper.style, {
+    position: "absolute",
+    top: "0",
+    width: w + "px",
+    height: h + "px",
+    transformStyle: "preserve-3d",
+    zIndex: "20",
+    left: direction === "forward" ? w + "px" : "0px",
+    transformOrigin: direction === "forward" ? "left center" : "right center"
+  });
+
+  flipper.innerHTML = `
+    <div class="book-flipper-face book-flipper-front">
+      ${srcImg ? `<img class="book-page-img" src="${escapeHtml(srcImg)}" alt="">` : ""}
+    </div>
+    <div class="book-flipper-face book-flipper-back"></div>
+  `;
+
+  spread.appendChild(flipper);
+  flipper.getBoundingClientRect(); // force reflow
+
+  flipper.style.transition  = "transform 0.48s cubic-bezier(0.645, 0.045, 0.355, 1.000)";
+  flipper.style.transform   = direction === "forward" ? "rotateY(-180deg)" : "rotateY(180deg)";
+
+  const done = () => { flipper.remove(); onComplete(); };
+  flipper.addEventListener("transitionend", done, { once: true });
+  setTimeout(done, 700); // safety fallback
+}
+
 function applyZoom(delta) {
   state.zoomLevel = Math.min(3.0, Math.max(0.5, Math.round((state.zoomLevel + delta) * 10) / 10));
   updateZoomUI();
   renderPage();
+}
+
+// ============================================================================
+// PDF READER
+// ============================================================================
+async function initPDFChapter(pdfUrl) {
+  if (!window.pdfjsLib) { state.currentChapter.pages = []; return; }
+  try {
+    state.pdfDocument = await pdfjsLib.getDocument(pdfUrl).promise;
+    const n = state.pdfDocument.numPages;
+    state.currentChapter.pages = Array.from({ length: n }, (_, i) => ({ pdfPage: i + 1 }));
+  } catch (e) {
+    console.error('PDF load error:', e);
+    state.currentChapter.pages = [];
+    state.pdfDocument = null;
+  }
+}
+
+async function renderPDFPageToCanvas(pageNum) {
+  const pageWrap = $("pageWrap");
+  if (!state.pdfDocument || !pageWrap) return;
+  try {
+    const pdf  = state.pdfDocument;
+    const page = await pdf.getPage(pageNum);
+    const scale    = Math.max(state.zoomLevel, 1) * 1.5;
+    const viewport = page.getViewport({ scale });
+    const canvas   = document.createElement('canvas');
+    canvas.className = 'page-img';
+    canvas.width  = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+    const isLast   = pageNum === pdf.numPages;
+    const nextIdx  = isLast ? getNextChapterIndex(state.currentChapterIndex) : -1;
+    const nextCh   = (isLast && nextIdx >= 0 && nextIdx < (state.allChapters?.length || 0)) ? state.allChapters[nextIdx] : null;
+    const nextLabel = nextCh ? (nextCh.name || `Chapter ${nextCh.chapter || nextIdx + 1}`) : null;
+    const endBanner = isLast ? `
+      <div class="chapter-end-wrap">
+        ${nextLabel
+          ? `<p class="chapter-end-label">Next Chapter</p>
+             <p class="chapter-end-name">${escapeHtml(nextLabel)}</p>
+             <button class="btn chapter-next-btn" onclick="goToNextChapter()">Read Next \u2192</button>`
+          : `<p class="chapter-end-label">Last chapter reached!</p>`}
+      </div>` : '';
+
+    pageWrap.className = 'reader-content';
+    pageWrap.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'page-zoom-wrap';
+    if (state.zoomLevel !== 1.0) wrap.style.cssText = `transform:scale(${state.zoomLevel});transform-origin:top center;`;
+    wrap.appendChild(canvas);
+    pageWrap.appendChild(wrap);
+    if (endBanner) pageWrap.insertAdjacentHTML('beforeend', endBanner);
+
+    $("pageCounter").textContent = `${pageNum} / ${pdf.numPages}`;
+    $("prevPage").style.display = 'block';
+    $("nextPage").style.display = 'block';
+    $("prevPage").disabled = false;
+    $("nextPage").disabled = false;
+    pageWrap.scrollTop = 0;
+    updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, pageNum - 1);
+  } catch (e) {
+    console.error('PDF render error:', e);
+  }
 }
 
 function updateZoomUI() {
@@ -2134,10 +2625,10 @@ async function renderAnalyticsView() {
 
     // Stat cards
     const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
-    el("anaChapters", a.totalChaptersRead || 0);
-    el("anaTime",     formatTime(a.totalTimeSpent || 0));
-    el("anaStreak",   a.dailyStreak || 0);
-    el("anaLibrary",  data.totalFavorites || 0);
+    el("anaChapters",  a.totalChaptersRead || 0);
+    el("anaTime",      formatTime(a.totalTimeSpent || 0));
+    el("anaMeanScore", data.meanScore != null ? data.meanScore.toFixed(2) : "—");
+    el("anaLibrary",   data.totalFavorites || 0);
 
     // Status distribution
     const distEl = $("statusDistribution");
@@ -2291,8 +2782,37 @@ async function renderAchievementsGrid() {
 }
 
 // ============================================================================
-// GENRE NAVIGATION
+// GENRE / AUTHOR NAVIGATION
 // ============================================================================
+
+async function searchByAuthor(author) {
+  if (!author) return;
+  if (!state.currentSourceId) { showToast("Select a source first", "", "warning"); return; }
+  setView("advanced-search");
+  const advInput = $("advancedSearchInput");
+  if (advInput) advInput.value = "";
+  state.advancedFilters.tags.clear();
+  document.querySelectorAll(".advanced-tags-section .genre-chip").forEach(c => c.classList.remove("active"));
+  const statusEl = $("advancedSearchStatus");
+  const resultsDiv = $("advancedResults");
+  if (statusEl) statusEl.textContent = `Searching author: "${author}"...`;
+  try {
+    const result = await api(`/api/source/${state.currentSourceId}/authorSearch`, {
+      method: "POST",
+      body: JSON.stringify({ authorName: author })
+    });
+    const results = result.results || [];
+    if (!results.length) {
+      if (resultsDiv) resultsDiv.innerHTML = `<div class="muted">No results found for author "${escapeHtml(author)}"</div>`;
+      if (statusEl) statusEl.textContent = `0 result(s) for author "${author}"`;
+      return;
+    }
+    renderMangaGrid(resultsDiv, results);
+    if (statusEl) statusEl.textContent = `${results.length} result(s) for author "${author}"`;
+  } catch (e) {
+    if (statusEl) statusEl.textContent = `Error: ${e.message}`;
+  }
+}
 
 function searchByGenre(genre) {
   // Clear existing tag filters and add the selected genre
@@ -2543,6 +3063,9 @@ function bindUI() {
   const settingsBtnSidebar = $("btn-settings-sidebar");
   if (settingsBtnSidebar) settingsBtnSidebar.onclick = showSettings;
 
+  const readerSettingsBtn = $("readerSettingsBtn");
+  if (readerSettingsBtn) readerSettingsBtn.onclick = showSettings;
+
   // Reader controls
   const closeReader = $("closeReader");
   const prevPage    = $("prevPage");
@@ -2551,19 +3074,21 @@ function bindUI() {
   if (closeReader) closeReader.onclick = () => hideReader();
 
   if (prevPage) prevPage.onclick = () => {
+    if (state.settings.readingMode === "rtl") { navigateBook("backward"); return; }
     if (state.currentPageIndex === 0) {
       goToPrevChapter();
     } else {
-      state.currentPageIndex += state.settings.readingMode === "rtl" ? 1 : -1;
+      state.currentPageIndex--;
       renderPage();
     }
   };
 
   if (nextPage) nextPage.onclick = () => {
+    if (state.settings.readingMode === "rtl") { navigateBook("forward"); return; }
     if (state.currentPageIndex === (state.currentChapter?.pages?.length ?? 1) - 1) {
       goToNextChapter();
     } else {
-      state.currentPageIndex += state.settings.readingMode === "rtl" ? -1 : 1;
+      state.currentPageIndex++;
       renderPage();
     }
   };
@@ -2597,12 +3122,12 @@ function bindUI() {
     const isRtl = state.settings.readingMode === "rtl";
     if (e.key === "ArrowRight" || e.key === "d") {
       if (state.settings.readingMode !== "webtoon") {
-        if (isRtl) { if (state.currentPageIndex > 0) { state.currentPageIndex--; renderPage(); } else goToPrevChapter(); }
+        if (isRtl) { navigateBook("backward"); }
         else        { if (state.currentPageIndex < (state.currentChapter?.pages?.length ?? 1) - 1) { state.currentPageIndex++; renderPage(); } else goToNextChapter(); }
       }
     } else if (e.key === "ArrowLeft" || e.key === "a") {
       if (state.settings.readingMode !== "webtoon") {
-        if (isRtl) { if (state.currentPageIndex < (state.currentChapter?.pages?.length ?? 1) - 1) { state.currentPageIndex++; renderPage(); } else goToNextChapter(); }
+        if (isRtl) { navigateBook("forward"); }
         else        { if (state.currentPageIndex > 0) { state.currentPageIndex--; renderPage(); } else goToPrevChapter(); }
       }
     } else if (e.key === "Escape") {
@@ -2645,6 +3170,12 @@ function bindUI() {
   initTheme();
   applyTranslations();
   loadSettings();
+
+  // Configure PDF.js worker
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
   
   // Load achievements from JSON
   try {

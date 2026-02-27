@@ -1,0 +1,20 @@
+{
+  "id": "local-36bafddcd4ba",
+  "title": "Dragon Ball   001",
+  "cover": "/local-media/local-36bafddcd4ba/original.pdf",
+  "type": "pdf",
+  "sourceId": "local",
+  "description": "Imported on 2/27/2026",
+  "genres": [],
+  "author": "",
+  "chapters": [
+    {
+      "id": "local-36bafddcd4ba:0",
+      "name": "Dragon Ball   001",
+      "date": "2026-02-27T21:57:33.648Z",
+      "isPDF": true,
+      "pdfUrl": "/local-media/local-36bafddcd4ba/original.pdf",
+      "pages": []
+    }
+  ]
+}

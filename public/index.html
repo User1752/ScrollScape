@@ -6,6 +6,7 @@
   <title>Manghu - Manga Web Reader</title>
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     /* Icon sizing classes */
     .icon-small { width: 16px; height: 16px; }
@@ -168,6 +169,7 @@
           <div class="recommended-section" id="recommendedSection" style="display:none">
             <div class="section-header">
               <h3>Recommended For You</h3>
+              <span class="recommended-genres-label muted" style="font-size:0.8rem;margin-left:0.6rem;"></span>
             </div>
             <div id="recommendedRow" class="popular-row"></div>
           </div>
@@ -220,6 +222,7 @@
                   <option value="plan_to_read">Plan to Read</option>
                   <option value="dropped">Dropped</option>
                 </select>
+                <button class="btn btn-import-local" id="importLocalBtn" onclick="showImportModal()">&#128193; Import Local</button>
                 <span id="libraryCount" class="library-stats">0 manga</span>
               </div>
             </div>
@@ -247,9 +250,9 @@
                 <div class="analytics-label">Time Spent</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon"><i data-feather="trending-up" class="icon-medium"></i></div>
-                <div class="analytics-value" id="anaStreak">0</div>
-                <div class="analytics-label">Day Streak</div>
+                <div class="analytics-icon">⭐</div>
+                <div class="analytics-value" id="anaMeanScore">—</div>
+                <div class="analytics-label">Mean Score</div>
               </div>
               <div class="analytics-card">
                 <div class="analytics-icon"><i data-feather="book" class="icon-medium"></i></div>
@@ -421,6 +424,8 @@
             <button id="zoomReset" class="btn-zoom" title="Reset zoom">⊙</button>
             <!-- AutoScroll toggle -->
             <button id="autoScrollToggle" class="btn-zoom btn-autoscroll" title="Start AutoScroll">⏩ Auto</button>
+            <!-- Settings shortcut -->
+            <button id="readerSettingsBtn" class="btn-zoom btn-reader-settings" title="Settings">⚙️</button>
           </div>
           <div class="reader-nav">
             <button id="prevPage" class="btn-nav">◀ Prev</button>
@@ -466,6 +471,40 @@
 
   <!-- Toast notification container -->
   <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ======================================================================
+       LOCAL MANGA IMPORT MODAL
+  ====================================================================== -->
+  <div id="importLocalModal" class="modal-overlay hidden">
+    <div class="modal-box import-modal-box">
+      <div class="modal-header">
+        <h3>&#128193; Import Local Manga</h3>
+        <button class="btn-close-modal" onclick="closeImportModal()">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <div id="importDropZone" class="import-drop-zone" onclick="document.getElementById('importFileInput').click()">
+          <div class="import-drop-icon">&#128194;</div>
+          <p class="import-drop-label">Click or drag &amp; drop a file here</p>
+          <p class="import-drop-hint">Supported formats: <strong>CBZ &bull; CBR &bull; PDF</strong></p>
+          <div id="importFileName" class="import-file-name hidden"></div>
+        </div>
+        <input type="file" id="importFileInput" accept=".cbz,.cbr,.pdf" style="display:none" onchange="onImportFileSelected(event)">
+        <div class="import-form-group">
+          <label for="importTitleInput">Title <span class="import-optional">(optional — defaults to filename)</span></label>
+          <input type="text" id="importTitleInput" class="form-control" placeholder="Manga title...">
+        </div>
+        <div id="importProgress" class="import-progress hidden">
+          <div class="import-progress-bar"><div id="importProgressFill" class="import-progress-fill"></div></div>
+          <span id="importProgressLabel">Uploading...</span>
+        </div>
+        <div id="importError" class="import-error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+        <button class="btn btn-primary" id="importSubmitBtn" onclick="submitImport()" disabled>Import</button>
+      </div>
+    </div>
+  </div>
 
   <script src="./achievement-manager.js"></script>
   <script src="./app.js"></script>
