@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Manghu - Manga Web Reader</title>
   <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <style>
+    /* Icon sizing classes */
+    .icon-small { width: 16px; height: 16px; }
+    .icon-medium { width: 24px; height: 24px; }
+    .icon-large { width: 48px; height: 48px; }
+    .icon-xlarge { width: 64px; height: 64px; }
+    
+    /* Achievement rarity colors */
+    .rarity-common { color: #9ca3af; }
+    .rarity-rare { color: #3b82f6; }
+    .rarity-epic { color: #a855f7; }
+    .rarity-legendary { color: #f59e0b; }
+    
+    /* Icon inline display */
+    .hero-badge i, .analytics-icon i { vertical-align: middle; margin-right: 4px; }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -23,27 +40,27 @@
         <span class="sidebar-nav-label">Browse</span>
         <a href="#" class="nav-link active" data-view="discover">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          Home
+          <span data-i18n="nav.home">Home</span>
         </a>
         <a href="#" class="nav-link" data-view="advanced-search">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Advanced Search
+          <span data-i18n="nav.search">Advanced Search</span>
         </a>
 
         <span class="sidebar-nav-label">My Content</span>
         <a href="#" class="nav-link" data-view="library">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          Library
+          <span data-i18n="nav.library">Library</span>
         </a>
-        <a href="#" class="nav-link" data-view="lists">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-          My Lists
+        <a href="#" class="nav-link" data-view="history">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>History</span>
         </a>
 
         <span class="sidebar-nav-label">Stats</span>
         <a href="#" class="nav-link" data-view="analytics">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          Analytics
+          <span data-i18n="nav.analytics">Analytics</span>
         </a>
       </nav>
 
@@ -61,13 +78,20 @@
     <div class="app-content">
       <header class="topbar">
         <div class="container-top">
-          <button id="sidebarToggle" class="btn-sidebar-toggle" aria-label="Open menu">☰</button>
+          <button id="sidebarToggle" class="btn-sidebar-toggle" aria-label="Open menu"><i data-feather="menu"></i></button>
           <div class="brand">Manghu</div>
-          <!-- Theme toggle: sun/moon icon -->
-          <button id="themeToggle" class="btn-theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
-            <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-            <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          </button>
+          <div class="topbar-actions">
+            <!-- Language selector -->
+            <select id="languageSelector" class="language-selector" aria-label="Select language">
+              <option value="en">EN</option>
+              <option value="pt">PT</option>
+            </select>
+            <!-- Theme toggle: sun/moon icon -->
+            <button id="themeToggle" class="btn-theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+              <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -79,26 +103,64 @@
         <section id="view-discover" class="view">
           <div class="home-hero">
             <div class="home-hero-content">
-              <h1>Manghu</h1>
-              <p>Discover, track, and read manga from MangaDex — all in one place.</p>
+              <div class="hero-tag"><i data-feather="target" class="icon-small"></i> Your Ultimate Manga Destination</div>
+              <h1 data-i18n="home.title">Discover & Read Manga</h1>
+              <p data-i18n="home.subtitle">Access thousands of manga titles from multiple sources, track your reading progress, and enjoy a seamless reading experience — all in one place.</p>
+              <div class="home-hero-badges">
+                <span class="hero-badge"><i data-feather="book" class="icon-small"></i> 6 Sources</span>
+                <span class="hero-badge"><i data-feather="zap" class="icon-small"></i> Fast Loading</span>
+                <span class="hero-badge"><i data-feather="edit-3" class="icon-small"></i> Multiple Themes</span>
+                <span class="hero-badge"><i data-feather="bar-chart" class="icon-small"></i> Analytics & Tracking</span>
+              </div>
             </div>
-            <div class="home-hero-badges">
-              <span class="hero-badge">50 titles loaded per section</span>
-              <span class="hero-badge">Live chapter tracking</span>
+            <div class="hero-stats">
+              <div class="stat-box">
+                <div class="stat-number" id="totalMangaCount">1000+</div>
+                <div class="stat-label">Manga Available</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-number" id="totalChaptersCount">50K+</div>
+                <div class="stat-label">Chapters</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Features Section -->
+          <div class="features-section">
+            <div class="feature-card">
+              <div class="feature-icon">🔍</div>
+              <h3 data-i18n="features.search.title">Advanced Search</h3>
+              <p data-i18n="features.search.desc">Find exactly what you're looking for with powerful filters and sorting options</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📖</div>
+              <h3 data-i18n="features.reader.title">Smart Reader</h3>
+              <p data-i18n="features.reader.desc">Enhanced reading experience with multiple modes, auto-scroll, and zoom controls</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📊</div>
+              <h3 data-i18n="features.track.title">Track Progress</h3>
+              <p data-i18n="features.track.desc">Keep track of what you've read with analytics, achievements, and custom lists</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">🌐</div>
+              <h3 data-i18n="features.sources.title">Multiple Sources</h3>
+              <p data-i18n="features.sources.desc">Access manga from MangaDex, MangaNato, Asura Scans, and more in one app</p>
             </div>
           </div>
 
           <!-- Search -->
           <div class="search-section">
             <div class="search-container">
-              <h2>Search Manga</h2>
+              <h2 data-i18n="home.search">Search Manga</h2>
               <div class="search-form">
                 <select id="sourceSelect" class="form-control"></select>
-                <input id="searchInput" class="form-control" placeholder="Enter manga title..." autocomplete="off" />
-                <button id="searchBtn" class="btn-search">Search</button>
+                <input id="searchInput" class="form-control" data-i18n-placeholder="home.searchPlaceholder" placeholder="Enter manga title..." autocomplete="off" />
+                <button id="searchBtn" class="btn-search" data-i18n="home.searchBtn">Search</button>
               </div>
               <div id="searchStatus" class="search-status"></div>
               <div id="searchDropdown" class="search-dropdown"></div>
+              <div id="searchPagination" class="pagination-container"></div>
             </div>
           </div>
 
@@ -166,29 +228,6 @@
         </section>
 
         <!-- ==================================================================
-             MY LISTS VIEW
-        ================================================================== -->
-        <section id="view-lists" class="view hidden">
-          <div class="lists-container">
-            <div class="lists-header">
-              <h2>My Lists</h2>
-              <button id="createListBtn" class="btn btn-primary">+ New List</button>
-            </div>
-            <div id="listsGrid" class="lists-grid"></div>
-          </div>
-        </section>
-
-        <!-- ==================================================================
-             LIST DETAIL VIEW (single list)
-        ================================================================== -->
-        <section id="view-list-detail" class="view hidden">
-          <div class="manga-page">
-            <button id="backToListsBtn" class="btn-back">← Back to Lists</button>
-            <div id="listDetailContent"></div>
-          </div>
-        </section>
-
-        <!-- ==================================================================
              ANALYTICS VIEW
         ================================================================== -->
         <section id="view-analytics" class="view hidden">
@@ -208,12 +247,12 @@
                 <div class="analytics-label">Time Spent</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon">🔥</div>
+                <div class="analytics-icon"><i data-feather="trending-up" class="icon-medium"></i></div>
                 <div class="analytics-value" id="anaStreak">0</div>
                 <div class="analytics-label">Day Streak</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon">📚</div>
+                <div class="analytics-icon"><i data-feather="book" class="icon-medium"></i></div>
                 <div class="analytics-value" id="anaLibrary">0</div>
                 <div class="analytics-label">In Library</div>
               </div>
@@ -252,129 +291,99 @@
                   <select id="advancedSourceSelect" class="form-control"></select>
                   <input id="advancedSearchInput" class="form-control" placeholder="Enter manga title..." />
                   <button id="advancedSearchBtn" class="btn-search">Search</button>
-                  <button id="randomMangaBtn" class="btn-random">🎲 Random</button>
+                  <button id="randomMangaBtn" class="btn-random"><i data-feather="shuffle" class="icon-small"></i> Random</button>
                 </div>
               </div>
             </div>
 
             <div class="advanced-filters-section">
-              <div class="filter-group">
-                <label>Sort by</label>
-                <select id="advancedOrderBy" class="form-control">
-                  <option value="relevance">Best Match</option>
-                  <option value="latestUploadedChapter">Latest Upload</option>
-                  <option value="oldestUploadedChapter">Oldest Upload</option>
-                  <option value="title">Title Ascending</option>
-                  <option value="-title">Title Descending</option>
-                  <option value="rating">Highest Rating</option>
-                  <option value="-rating">Lowest Rating</option>
-                  <option value="followedCount">Most Follows</option>
-                  <option value="-followedCount">Fewest Follows</option>
-                  <option value="createdAt">Recently Added</option>
-                  <option value="-createdAt">Oldest Added</option>
-                  <option value="year">Year Ascending</option>
-                  <option value="-year">Year Descending</option>
-                </select>
-              </div>
-
-              <div class="filter-group">
-                <label>Publication Status</label>
-                <div class="status-filter">
-                  <label class="filter-checkbox"><input type="checkbox" value="ongoing" class="advanced-status-check"><span>📖 Ongoing</span></label>
-                  <label class="filter-checkbox"><input type="checkbox" value="completed" class="advanced-status-check"><span>✅ Completed</span></label>
-                  <label class="filter-checkbox"><input type="checkbox" value="hiatus" class="advanced-status-check"><span>⏸️ Hiatus</span></label>
-                  <label class="filter-checkbox"><input type="checkbox" value="cancelled" class="advanced-status-check"><span>❌ Cancelled</span></label>
+              <!-- Row 1: dropdowns -->
+              <div class="filters-row">
+                <div class="filter-group">
+                  <label>Sort by</label>
+                  <select id="advancedOrderBy" class="form-control filter-dropdown">
+                    <option value="relevance">Best Match</option>
+                    <option value="latestUploadedChapter">Latest Upload</option>
+                    <option value="title">Title (A-Z)</option>
+                    <option value="-title">Title (Z-A)</option>
+                    <option value="rating">Highest Rating</option>
+                    <option value="followedCount">Most Follows</option>
+                    <option value="createdAt">Recently Added</option>
+                    <option value="year">Year Ascending</option>
+                    <option value="-year">Year Descending</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Format</label>
+                  <select id="advancedFormat" class="form-control filter-dropdown">
+                    <option value="">Any</option>
+                    <option value="4-Koma">4-Koma</option>
+                    <option value="Adaptation">Adaptation</option>
+                    <option value="Anthology">Anthology</option>
+                    <option value="Award Winning">Award Winning</option>
+                    <option value="Doujinshi">Doujinshi</option>
+                    <option value="Fan Colored">Fan Colored</option>
+                    <option value="Full Color">Full Color</option>
+                    <option value="Long Strip">Long Strip</option>
+                    <option value="Official Colored">Official Colored</option>
+                    <option value="Oneshot">Oneshot</option>
+                    <option value="Self-Published">Self-Published</option>
+                    <option value="Web Comic">Web Comic</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Content Rating</label>
+                  <select id="advancedContentRating" class="form-control filter-dropdown">
+                    <option value="">Any</option>
+                    <option value="safe">Safe</option>
+                    <option value="suggestive">Suggestive</option>
+                    <option value="erotica">Erotica</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Publication Status</label>
+                  <select id="advancedPublicationStatus" class="form-control filter-dropdown">
+                    <option value="">Any</option>
+                    <option value="ongoing">📖 Ongoing</option>
+                    <option value="completed">✅ Completed</option>
+                    <option value="hiatus">⏸️ Hiatus</option>
+                    <option value="cancelled">❌ Cancelled</option>
+                  </select>
                 </div>
               </div>
 
-              <div class="filter-group">
-                <label>Format</label>
-                <div class="advanced-tags-section">
-                  <div class="genre-chip" data-tag="4-Koma">4-Koma</div>
-                  <div class="genre-chip" data-tag="Adaptation">Adaptation</div>
-                  <div class="genre-chip" data-tag="Anthology">Anthology</div>
-                  <div class="genre-chip" data-tag="Award Winning">Award Winning</div>
-                  <div class="genre-chip" data-tag="Doujinshi">Doujinshi</div>
-                  <div class="genre-chip" data-tag="Fan Colored">Fan Colored</div>
-                  <div class="genre-chip" data-tag="Full Color">Full Color</div>
-                  <div class="genre-chip" data-tag="Long Strip">Long Strip</div>
-                  <div class="genre-chip" data-tag="Official Colored">Official Colored</div>
-                  <div class="genre-chip" data-tag="Oneshot">Oneshot</div>
-                  <div class="genre-chip" data-tag="Self-Published">Self-Published</div>
-                  <div class="genre-chip" data-tag="Web Comic">Web Comic</div>
+              <!-- Genre checkbox grid -->
+              <div class="genre-filter-group">
+                <div class="genre-filter-header">
+                  <span class="genre-filter-title">Genres</span>
+                  <button type="button" class="genre-clear-btn" id="clearGenresBtn">Clear</button>
                 </div>
-              </div>
-
-              <div class="filter-group">
-                <label>Genre</label>
-                <div class="advanced-tags-section">
-                  <div class="genre-chip" data-tag="Action">Action</div>
-                  <div class="genre-chip" data-tag="Adventure">Adventure</div>
-                  <div class="genre-chip" data-tag="Boys' Love">Boys' Love</div>
-                  <div class="genre-chip" data-tag="Comedy">Comedy</div>
-                  <div class="genre-chip" data-tag="Crime">Crime</div>
-                  <div class="genre-chip" data-tag="Drama">Drama</div>
-                  <div class="genre-chip" data-tag="Fantasy">Fantasy</div>
-                  <div class="genre-chip" data-tag="Girls' Love">Girls' Love</div>
-                  <div class="genre-chip" data-tag="Historical">Historical</div>
-                  <div class="genre-chip" data-tag="Horror">Horror</div>
-                  <div class="genre-chip" data-tag="Isekai">Isekai</div>
-                  <div class="genre-chip" data-tag="Magical Girls">Magical Girls</div>
-                  <div class="genre-chip" data-tag="Mecha">Mecha</div>
-                  <div class="genre-chip" data-tag="Medical">Medical</div>
-                  <div class="genre-chip" data-tag="Mystery">Mystery</div>
-                  <div class="genre-chip" data-tag="Philosophical">Philosophical</div>
-                  <div class="genre-chip" data-tag="Psychological">Psychological</div>
-                  <div class="genre-chip" data-tag="Romance">Romance</div>
-                  <div class="genre-chip" data-tag="Sci-Fi">Sci-Fi</div>
-                  <div class="genre-chip" data-tag="Slice of Life">Slice of Life</div>
-                  <div class="genre-chip" data-tag="Sports">Sports</div>
-                  <div class="genre-chip" data-tag="Superhero">Superhero</div>
-                  <div class="genre-chip" data-tag="Thriller">Thriller</div>
-                  <div class="genre-chip" data-tag="Tragedy">Tragedy</div>
-                  <div class="genre-chip" data-tag="Wuxia">Wuxia</div>
-                </div>
-              </div>
-
-              <div class="filter-group">
-                <label>Theme</label>
-                <div class="advanced-tags-section">
-                  <div class="genre-chip" data-tag="Aliens">Aliens</div>
-                  <div class="genre-chip" data-tag="Animals">Animals</div>
-                  <div class="genre-chip" data-tag="Cooking">Cooking</div>
-                  <div class="genre-chip" data-tag="Crossdressing">Crossdressing</div>
-                  <div class="genre-chip" data-tag="Delinquents">Delinquents</div>
-                  <div class="genre-chip" data-tag="Demons">Demons</div>
-                  <div class="genre-chip" data-tag="Genderswap">Genderswap</div>
-                  <div class="genre-chip" data-tag="Ghosts">Ghosts</div>
-                  <div class="genre-chip" data-tag="Gyaru">Gyaru</div>
-                  <div class="genre-chip" data-tag="Harem">Harem</div>
-                  <div class="genre-chip" data-tag="Mafia">Mafia</div>
-                  <div class="genre-chip" data-tag="Magic">Magic</div>
-                  <div class="genre-chip" data-tag="Martial Arts">Martial Arts</div>
-                  <div class="genre-chip" data-tag="Military">Military</div>
-                  <div class="genre-chip" data-tag="Monster Girls">Monster Girls</div>
-                  <div class="genre-chip" data-tag="Monsters">Monsters</div>
-                  <div class="genre-chip" data-tag="Music">Music</div>
-                  <div class="genre-chip" data-tag="Ninja">Ninja</div>
-                  <div class="genre-chip" data-tag="Office Workers">Office Workers</div>
-                  <div class="genre-chip" data-tag="Police">Police</div>
-                  <div class="genre-chip" data-tag="Post-Apocalyptic">Post-Apocalyptic</div>
-                  <div class="genre-chip" data-tag="Reincarnation">Reincarnation</div>
-                  <div class="genre-chip" data-tag="School Life">School Life</div>
-                  <div class="genre-chip" data-tag="Supernatural">Supernatural</div>
-                  <div class="genre-chip" data-tag="Survival">Survival</div>
-                  <div class="genre-chip" data-tag="Time Travel">Time Travel</div>
-                  <div class="genre-chip" data-tag="Vampires">Vampires</div>
-                  <div class="genre-chip" data-tag="Zombies">Zombies</div>
-                </div>
-              </div>
-
-              <div class="filter-group">
-                <label>Content</label>
-                <div class="advanced-tags-section">
-                  <div class="genre-chip" data-tag="Gore">Gore</div>
-                  <div class="genre-chip" data-tag="Sexual Violence">Sexual Violence</div>
+                <div class="genre-grid" id="genreGrid">
+                  <label class="genre-check"><input type="checkbox" value="Action"><span>Action</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Adventure"><span>Adventure</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Boys' Love"><span>Boys' Love</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Comedy"><span>Comedy</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Crime"><span>Crime</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Drama"><span>Drama</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Fantasy"><span>Fantasy</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Girls' Love"><span>Girls' Love</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Historical"><span>Historical</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Horror"><span>Horror</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Isekai"><span>Isekai</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Magical Girls"><span>Magical Girls</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Mecha"><span>Mecha</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Medical"><span>Medical</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Mystery"><span>Mystery</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Philosophical"><span>Philosophical</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Psychological"><span>Psychological</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Romance"><span>Romance</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Sci-Fi"><span>Sci-Fi</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Slice of Life"><span>Slice of Life</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Sports"><span>Sports</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Superhero"><span>Superhero</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Thriller"><span>Thriller</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Tragedy"><span>Tragedy</span></label>
+                  <label class="genre-check"><input type="checkbox" value="Wuxia"><span>Wuxia</span></label>
                 </div>
               </div>
             </div>
@@ -384,6 +393,14 @@
               <div id="advancedResults" class="results-grid"></div>
             </div>
             <div id="advancedSearchPagination" class="pagination-container"></div>
+          </div>
+        </section>
+
+        <!-- HISTORY VIEW -->
+        <section id="view-history" class="view hidden">
+          <div class="page-container">
+            <h1 class="page-title">Reading History</h1>
+            <div id="historyList" class="history-list"></div>
           </div>
         </section>
 
@@ -450,6 +467,7 @@
   <!-- Toast notification container -->
   <div id="toastContainer" class="toast-container"></div>
 
+  <script src="./achievement-manager.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

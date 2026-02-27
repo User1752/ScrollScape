@@ -15,6 +15,236 @@ async function api(path, opts = {}) {
 }
 
 // ============================================================================
+// INTERNATIONALIZATION (i18n)
+// ============================================================================
+
+const translations = {
+  en: {
+    // Navigation
+    "nav.home": "Home",
+    "nav.search": "Advanced Search",
+    "nav.library": "Library",
+    "nav.analytics": "Analytics",
+    "nav.settings": "Settings",
+    
+    // Home
+    "home.title": "Discover & Read Manga",
+    "home.subtitle": "Access thousands of manga titles from multiple sources, track your reading progress, and enjoy a seamless reading experience — all in one place.",
+    "home.tag": "Your Ultimate Manga Destination",
+    "home.sources": "Sources",
+    "home.search": "Search Manga",
+    "home.searchPlaceholder": "Enter manga title...",
+    "home.searchBtn": "Search",
+    
+    // Features
+    "features.search.title": "Advanced Search",
+    "features.search.desc": "Find exactly what you're looking for with powerful filters and sorting options",
+    "features.reader.title": "Smart Reader",
+    "features.reader.desc": "Enhanced reading experience with multiple modes, auto-scroll, and zoom controls",
+    "features.track.title": "Track Progress",
+    "features.track.desc": "Keep track of what you've read with analytics and achievements",
+    "features.sources.title": "Multiple Sources",
+    "features.sources.desc": "Access manga from MangaDex, MangaNato, Asura Scans, and more in one app",
+    
+    // Search & Filters
+    "search.filters": "Filters",
+    "search.genres": "Genres",
+    "search.status": "Status",
+    "search.sortBy": "Sort By",
+    "search.relevance": "Relevance",
+    "search.rating": "Rating",
+    "search.alphabetical": "Alphabetical",
+    "search.recent": "Recent",
+    
+    // Manga Details
+    "manga.addToLibrary": "Add to Library",
+    "manga.inLibrary": "In Library",
+    "manga.status": "Status",
+    "manga.author": "Author",
+    "manga.artist": "Artist",
+    "manga.genres": "Genres",
+    "manga.description": "Description",
+    "manga.chapters": "Chapters",
+    "manga.readingStatus": "Reading Status",
+    
+    // Chapters
+    "chapters.available": "Available",
+    "chapters.unread": "Unread",
+    "chapters.checkIntegrity": "Check Integrity",
+    "chapters.bulkDownload": "Bulk Download",
+    "chapters.download": "Download",
+    "chapters.read": "Read",
+    
+    // Library
+    "library.title": "My Library",
+    "library.all": "All",
+    "library.reading": "Reading",
+    "library.completed": "Completed",
+    "library.planToRead": "Plan to Read",
+    "library.onHold": "On Hold",
+    "library.dropped": "Dropped",
+    
+    // Reader
+    "reader.close": "Close",
+    "reader.previous": "Previous",
+    "reader.next": "Next",
+    "reader.zoomIn": "Zoom In",
+    "reader.zoomOut": "Zoom Out",
+    "reader.autoScroll": "Auto Scroll",
+    "reader.settings": "Settings",
+    
+    // Settings
+    "settings.title": "Settings",
+    "settings.language": "Language",
+    "settings.theme": "Theme",
+    "settings.readingMode": "Reading Mode",
+    "settings.ltr": "Left to Right",
+    "settings.rtl": "Right to Left",
+    "settings.webtoon": "Webtoon",
+    
+    // Common
+    "common.loading": "Loading...",
+    "common.error": "Error",
+    "common.cancel": "Cancel",
+    "common.save": "Save",
+    "common.delete": "Delete",
+    "common.close": "Close",
+    "common.confirm": "Confirm",
+    "common.yes": "Yes",
+    "common.no": "No"
+  },
+  pt: {
+    // Navigation
+    "nav.home": "Início",
+    "nav.search": "Pesquisa Avançada",
+    "nav.library": "Biblioteca",
+    "nav.analytics": "Estatísticas",
+    "nav.settings": "Configurações",
+    
+    // Home  
+    "home.title": "Descubra & Leia Mangá",
+    "home.subtitle": "Acesse milhares de títulos de mangá de várias fontes, acompanhe seu progresso de leitura e desfrute de uma experiência perfeita — tudo em um só lugar.",
+    "home.tag": "Seu Destino Definitivo de Mangá",
+    "home.sources": "Fontes",
+    "home.search": "Pesquisar Mangá",
+    "home.searchPlaceholder": "Digite o título do mangá...",
+    "home.searchBtn": "Pesquisar",
+    
+    // Features
+    "features.search.title": "Pesquisa Avançada",
+    "features.search.desc": "Encontre exatamente o que procura com filtros poderosos e opções de ordenação",
+    "features.reader.title": "Leitor Inteligente",
+    "features.reader.desc": "Experiência de leitura aprimorada com múltiplos modos, rolagem automática e controles de zoom",
+    "features.track.title": "Acompanhe o Progresso",
+    "features.track.desc": "Mantenha o controle do que você leu com estatísticas, conquistas e listas personalizadas",
+    "features.sources.title": "Múltiplas Fontes",
+    "features.sources.desc": "Acesse mangá do MangaDex, MangaNato, Asura Scans e muito mais em um só app",
+    
+    // Search & Filters
+    "search.filters": "Filtros",
+    "search.genres": "Gêneros",
+    "search.status": "Status",
+    "search.sortBy": "Ordenar Por",
+    "search.relevance": "Relevância",
+    "search.rating": "Avaliação",
+    "search.alphabetical": "Alfabética",
+    "search.recent": "Recentes",
+    
+    // Manga Details
+    "manga.addToLibrary": "Adicionar à Biblioteca",
+    "manga.inLibrary": "Na Biblioteca",
+    "manga.status": "Status",
+    "manga.author": "Autor",
+    "manga.artist": "Artista",
+    "manga.genres": "Gêneros",
+    "manga.description": "Descrição",
+    "manga.chapters": "Capítulos",
+    "manga.readingStatus": "Status de Leitura",
+    
+    // Chapters
+    "chapters.available": "Disponíveis",
+    "chapters.unread": "Não Lidos",
+    "chapters.checkIntegrity": "Verificar Integridade",
+    "chapters.bulkDownload": "Download em Massa",
+    "chapters.download": "Baixar",
+    "chapters.read": "Ler",
+    
+    // Library
+    "library.title": "Minha Biblioteca",
+    "library.all": "Todos",
+    "library.reading": "Lendo",
+    "library.completed": "Completos",
+    "library.planToRead": "Quero Ler",
+    "library.onHold": "Em Espera",
+    "library.dropped": "Abandonados",
+    
+    // Reader
+    "reader.close": "Fechar",
+    "reader.previous": "Anterior",
+    "reader.next": "Próximo",
+    "reader.zoomIn": "Aumentar Zoom",
+    "reader.zoomOut": "Diminuir Zoom",
+    "reader.autoScroll": "Rolagem Automática",
+    "reader.settings": "Configurações",
+    
+    // Settings
+    "settings.title": "Configurações",
+    "settings.language": "Idioma",
+    "settings.theme": "Tema",
+    "settings.readingMode": "Modo de Leitura",
+    "settings.ltr": "Esquerda para Direita",
+    "settings.rtl": "Direita para Esquerda",
+    "settings.webtoon": "Webtoon",
+    
+    // Common
+    "common.loading": "Carregando...",
+    "common.error": "Erro",
+    "common.cancel": "Cancelar",
+    "common.save": "Salvar",
+    "common.delete": "Excluir",
+    "common.close": "Fechar",
+    "common.confirm": "Confirmar",
+    "common.yes": "Sim",
+    "common.no": "Não"
+  }
+};
+
+let currentLanguage = localStorage.getItem('language') || 'en';
+
+function t(key) {
+  return translations[currentLanguage]?.[key] || translations.en[key] || key;
+}
+
+function setLanguage(lang) {
+  if (translations[lang]) {
+    currentLanguage = lang;
+    localStorage.setItem('language', lang);
+    // Reload UI with new language
+    location.reload();
+  }
+}
+
+function applyTranslations() {
+  // Apply text content translations
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  
+  // Apply placeholder translations
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    el.placeholder = t(key);
+  });
+  
+  // Apply title translations
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    el.title = t(key);
+  });
+}
+
+// ============================================================================
 // APPLICATION STATE
 // ============================================================================
 
@@ -30,6 +260,7 @@ const state = {
   favorites: [],
   history: [],
   readChapters: new Set(),
+  flaggedChapters: new Set(),
   allChapters: [],
   selectedGenres: new Set(),
   selectedStatuses: new Set(),
@@ -44,10 +275,8 @@ const state = {
 
   // --- New feature state ---
   readingStatus: {},        // { "mangaId:sourceId": { status, updatedAt, manga } }
-  customLists: [],
   analytics: {},
   earnedAchievements: new Set(),
-  previousView: "discover",  // tracks which view to return to from manga-details
 
   // Reader zoom (1.0 = 100%)
   zoomLevel: 1.0,
@@ -60,12 +289,181 @@ const state = {
     orderBy: "relevance",
     statuses: new Set(),
     tags: new Set()
-  }
+  },
+
+  // Pagination state
+  searchPage: 1,
+  searchQuery: "",
+  searchHasNextPage: false,
+  advSearchPage: 1,
+  advSearchHasNextPage: false
 };
 
 // ============================================================================
+// NAVIGATION MANAGER
+// Manages navigation stack with context preservation
+// ============================================================================
+
+class NavigationManager {
+  constructor(maxStackSize = 50) {
+    this.maxStackSize = maxStackSize;
+    this.stack = [];
+    this.currentView = null;
+    this.currentContext = {};
+    this.storageKey = 'manghu_nav_stack';
+    this.loadFromStorage();
+  }
+
+  /**
+   * Navigate to a new view
+   * @param {string} view - View name
+   * @param {object} context - Optional context data
+   * @param {boolean} replace - Replace current entry instead of pushing new one
+   */
+  navigateTo(view, context = {}, replace = false) {
+    // Save current view to stack before navigating (unless replacing)
+    if (this.currentView && !replace) {
+      this.stack.push({
+        view: this.currentView,
+        context: { ...this.currentContext },
+        timestamp: Date.now()
+      });
+
+      // Limit stack size
+      if (this.stack.length > this.maxStackSize) {
+        this.stack.shift();
+      }
+    } else if (replace && this.stack.length > 0) {
+      // Replace the last entry in the stack
+      this.stack[this.stack.length - 1] = {
+        view: this.currentView,
+        context: { ...this.currentContext },
+        timestamp: Date.now()
+      };
+    }
+
+    // Set new current view
+    this.currentView = view;
+    this.currentContext = context;
+    this.saveToStorage();
+  }
+
+  /**
+   * Go back to previous view
+   * @returns {object|null} Previous view entry or null if stack is empty
+   */
+  goBack() {
+    if (this.stack.length === 0) {
+      // No history, return to discover
+      return { view: 'discover', context: {} };
+    }
+
+    const previous = this.stack.pop();
+    this.currentView = previous.view;
+    this.currentContext = previous.context;
+    this.saveToStorage();
+    return previous;
+  }
+
+  /**
+   * Check if we can go back
+   * @returns {boolean}
+   */
+  canGoBack() {
+    return this.stack.length > 0;
+  }
+
+  /**
+   * Get the previous view without modifying the stack
+   * @returns {object|null}
+   */
+  peekPrevious() {
+    if (this.stack.length === 0) return null;
+    return { ...this.stack[this.stack.length - 1] };
+  }
+
+  /**
+   * Clear the entire navigation stack
+   */
+  clear() {
+    this.stack = [];
+    this.currentView = null;
+    this.currentContext = {};
+    this.saveToStorage();
+  }
+
+  /**
+   * Get the full navigation history
+   * @returns {array}
+   */
+  getHistory() {
+    return [...this.stack];
+  }
+
+  /**
+   * Save stack to localStorage
+   */
+  saveToStorage() {
+    try {
+      const data = {
+        stack: this.stack,
+        currentView: this.currentView,
+        currentContext: this.currentContext
+      };
+      localStorage.setItem(this.storageKey, JSON.stringify(data));
+    } catch (err) {
+      console.warn('Failed to save navigation stack:', err);
+    }
+  }
+
+  /**
+   * Load stack from localStorage
+   */
+  loadFromStorage() {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (stored) {
+        const data = JSON.parse(stored);
+        this.stack = data.stack || [];
+        this.currentView = data.currentView || null;
+        this.currentContext = data.currentContext || {};
+      }
+    } catch (err) {
+      console.warn('Failed to load navigation stack:', err);
+      this.stack = [];
+      this.currentView = null;
+      this.currentContext = {};
+    }
+  }
+
+  /**
+   * Get current context
+   * @returns {object}
+   */
+  getContext() {
+    return { ...this.currentContext };
+  }
+
+  /**
+   * Update current context
+   * @param {object} updates - Context updates
+   */
+  updateContext(updates) {
+    this.currentContext = { ...this.currentContext, ...updates };
+    this.saveToStorage();
+  }
+}
+
+// Create global navigation manager instance
+const navigationManager = new NavigationManager();
+
+// Create global achievement manager instance
+const achievementManager = new AchievementManager();
+
+// ============================================================================
 // ACHIEVEMENT DEFINITIONS
-// Each achievement is checked client-side against analytics data
+// Loaded dynamically from data/achievements.json via AchievementManager
+// Legacy hardcoded achievements kept for backwards compatibility
 // ============================================================================
 
 const ACHIEVEMENTS = [
@@ -105,11 +503,11 @@ function formatTime(minutes) {
 
 function statusLabel(status) {
   const map = {
-    reading: '📖 Reading',
-    completed: '✅ Completed',
-    on_hold: '⏸️ On Hold',
-    plan_to_read: '🗂️ Plan to Read',
-    dropped: '❌ Dropped'
+    reading: 'Reading',
+    completed: 'Completed',
+    on_hold: 'On Hold',
+    plan_to_read: 'Plan to Read',
+    dropped: 'Dropped'
   };
   return map[status] || status;
 }
@@ -174,6 +572,9 @@ function loadSettings() {
     const readChaps = localStorage.getItem("manghuReadChapters");
     if (readChaps) state.readChapters = new Set(JSON.parse(readChaps));
 
+    const flaggedChaps = localStorage.getItem("manghuFlaggedChapters");
+    if (flaggedChaps) state.flaggedChapters = new Set(JSON.parse(flaggedChaps));
+
     const progress = localStorage.getItem("manghuReadingProgress");
     if (progress) {
       const p = JSON.parse(progress);
@@ -193,6 +594,7 @@ function loadSettings() {
 function saveSettings() {
   localStorage.setItem("manghuSettings", JSON.stringify(state.settings));
   localStorage.setItem("manghuReadChapters", JSON.stringify([...state.readChapters]));
+  localStorage.setItem("manghuFlaggedChapters", JSON.stringify([...state.flaggedChapters]));
   localStorage.setItem("manghuReadingProgress", JSON.stringify({
     pages: state.lastReadPages,
     chapters: state.lastReadChapter
@@ -204,8 +606,68 @@ function markChapterAsRead(mangaId, chapterId) {
   saveSettings();
 }
 
+function unmarkChapterAsRead(mangaId, chapterId) {
+  state.readChapters.delete(`${mangaId}:${chapterId}`);
+  saveSettings();
+}
+
 function isChapterRead(mangaId, chapterId) {
   return state.readChapters.has(`${mangaId}:${chapterId}`);
+}
+
+function toggleFlagChapter(mangaId, chapterId) {
+  const key = `${mangaId}:${chapterId}`;
+  if (state.flaggedChapters.has(key)) state.flaggedChapters.delete(key);
+  else state.flaggedChapters.add(key);
+  saveSettings();
+}
+
+function showChapterContextMenu(e, chapterId, mangaId) {
+  // Remove any existing context menu
+  document.querySelectorAll(".chapter-ctx-menu").forEach(m => m.remove());
+
+  const isRead    = isChapterRead(mangaId, chapterId);
+  const isFlagged = state.flaggedChapters.has(`${mangaId}:${chapterId}`);
+
+  const menu = document.createElement("div");
+  menu.className = "context-menu chapter-ctx-menu";
+  menu.innerHTML = `
+    <button class="context-item" id="ctxMarkRead">
+      ${isRead
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Mark as Unread'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Mark as Read'}
+    </button>
+    <div class="context-divider"></div>
+    <button class="context-item" id="ctxFlag">
+      🚩 ${isFlagged ? 'Remove Flag' : 'Add Flag'}
+    </button>
+  `;
+
+  // Position near cursor
+  document.body.appendChild(menu);
+  const { clientX: x, clientY: y } = e;
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = (x + mw > window.innerWidth  ? window.innerWidth  - mw - 8 : x) + "px";
+  menu.style.top  = (y + mh > window.innerHeight ? window.innerHeight - mh - 8 : y) + "px";
+
+  // Actions
+  menu.querySelector("#ctxMarkRead").onclick = () => {
+    if (isRead) unmarkChapterAsRead(mangaId, chapterId);
+    else        markChapterAsRead(mangaId, chapterId);
+    menu.remove();
+    loadChapters();
+  };
+  menu.querySelector("#ctxFlag").onclick = () => {
+    toggleFlagChapter(mangaId, chapterId);
+    menu.remove();
+    loadChapters();
+  };
+
+  // Dismiss on click outside
+  const dismiss = (ev) => {
+    if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener("click", dismiss, true); }
+  };
+  setTimeout(() => document.addEventListener("click", dismiss, true), 0);
 }
 
 function updateReadingProgress(mangaId, chapterId, pageIndex) {
@@ -224,16 +686,14 @@ async function refreshState() {
     const data = await api("/api/state");
     state.installedSources = data.installedSources || {};
 
-    const [libData, statusData, listsData] = await Promise.all([
+    const [libData, statusData] = await Promise.all([
       api("/api/library"),
-      api("/api/user/status"),
-      api("/api/lists")
+      api("/api/user/status")
     ]);
 
     state.favorites     = libData.favorites || [];
     state.history       = libData.history   || [];
     state.readingStatus = statusData.readingStatus || {};
-    state.customLists   = listsData.lists || [];
 
     renderSourceSelect();
     await Promise.all([
@@ -272,7 +732,13 @@ function renderSourceSelect() {
       state.currentSourceId = installed[0].id;
     }
     sel.value = state.currentSourceId;
-    sel.onchange = () => { state.currentSourceId = sel.value; };
+    sel.onchange = () => { 
+      state.currentSourceId = sel.value;
+      // Reload homepage content when source changes
+      loadPopularToday();
+      loadRecentlyAdded();
+      loadLatestUpdates();
+    };
   }
 }
 
@@ -285,20 +751,20 @@ async function loadPopularToday() {
   if (!row || !state.currentSourceId) return;
   row.innerHTML = `<div class="muted">Loading...</div>`;
   try {
-    if (state.currentSourceId !== "mangadex") {
-      row.innerHTML = `<div class="muted">Popular today unavailable for this source.</div>`;
-      return;
-    }
     const result = await api(`/api/source/${state.currentSourceId}/search`, {
       method: "POST",
-      body: JSON.stringify({ query: "*", page: 1 })
+      body: JSON.stringify({ query: "", page: 1 })
     });
     const list = result.results || [];
-    if (!list.length) { row.innerHTML = `<div class="muted">No popular manga today.</div>`; return; }
-    row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
+    if (!list.length) { 
+      row.innerHTML = `<div class="muted">No manga found.</div>`; 
+      return; 
+    }
+    row.innerHTML = list.slice(0, 10).map(m => mangaCardHTML(m)).join("");
     bindMangaCards(row);
   } catch (e) {
-    row.innerHTML = `<div class="muted">Error loading popular manga.</div>`;
+    console.error("Error loading popular manga:", e);
+    row.innerHTML = `<div class="muted">Error loading manga from ${state.installedSources[state.currentSourceId]?.name || state.currentSourceId}</div>`;
   }
 }
 
@@ -307,16 +773,19 @@ async function loadRecentlyAdded() {
   if (!row || !state.currentSourceId) return;
   row.innerHTML = `<div class="muted">Loading...</div>`;
   try {
-    if (state.currentSourceId !== "mangadex") { row.innerHTML = `<div class="muted">Unavailable.</div>`; return; }
     const result = await api(`/api/source/${state.currentSourceId}/search`, {
       method: "POST",
-      body: JSON.stringify({ query: "*", page: 1, orderBy: "createdAt" })
+      body: JSON.stringify({ query: "", page: 1, orderBy: "createdAt" })
     });
     const list = result.results || [];
-    if (!list.length) { row.innerHTML = `<div class="muted">No recently added manga.</div>`; return; }
-    renderMangaGrid(row, list);
+    if (!list.length) { 
+      row.innerHTML = `<div class="muted">No manga found.</div>`; 
+      return; 
+    }
+    renderMangaGrid(row, list.slice(0, 12));
   } catch (e) {
-    row.innerHTML = `<div class="muted">Error loading recently added.</div>`;
+    console.error("Error loading recently added:", e);
+    row.innerHTML = `<div class="muted">Error loading manga.</div>`;
   }
 }
 
@@ -325,16 +794,19 @@ async function loadLatestUpdates() {
   if (!row || !state.currentSourceId) return;
   row.innerHTML = `<div class="muted">Loading...</div>`;
   try {
-    if (state.currentSourceId !== "mangadex") { row.innerHTML = `<div class="muted">Unavailable.</div>`; return; }
     const result = await api(`/api/source/${state.currentSourceId}/search`, {
       method: "POST",
-      body: JSON.stringify({ query: "*", page: 1, orderBy: "latestUploadedChapter" })
+      body: JSON.stringify({ query: "", page: 1, orderBy: "latestUploadedChapter" })
     });
     const list = result.results || [];
-    if (!list.length) { row.innerHTML = `<div class="muted">No recent updates.</div>`; return; }
-    renderMangaGrid(row, list);
+    if (!list.length) { 
+      row.innerHTML = `<div class="muted">No manga found.</div>`; 
+      return; 
+    }
+    renderMangaGrid(row, list.slice(0, 12));
   } catch (e) {
-    row.innerHTML = `<div class="muted">Error loading latest updates.</div>`;
+    console.error("Error loading latest updates:", e);
+    row.innerHTML = `<div class="muted">Error loading manga.</div>`;
   }
 }
 
@@ -351,9 +823,74 @@ function mangaCardHTML(m) {
         <h3 class="manga-card-title">${escapeHtml(m.title)}</h3>
         <p class="manga-card-author">${escapeHtml(m.author || "")}</p>
         ${genres.length ? `<div class="manga-card-genres">${genres.map(g => `<span class="manga-card-genre">${escapeHtml(g)}</span>`).join("")}</div>` : ""}
+        <button class="btn-start-reading" onclick="event.stopPropagation(); startReading('${escapeHtml(m.id)}')">▶ Start Reading</button>
       </div>
     </div>
   `;
+}
+
+async function startReading(mangaId) {
+  if (!state.currentSourceId) { showToast("Select a source first", "", "warning"); return; }
+  await loadMangaDetails(mangaId);
+  if (!state.allChapters?.length) { showToast("No chapters found", "", "info"); return; }
+  // Chapters are sorted newest-first; last index = chapter 1
+  const firstIdx = state.allChapters.length - 1;
+  const ch = state.allChapters[firstIdx];
+  await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || 1}`, firstIdx);
+}
+
+// ============================================================================
+// HISTORY VIEW
+// ============================================================================
+
+function renderHistoryView() {
+  const container = $("historyList");
+  if (!container) return;
+  const history = state.history || [];
+  if (!history.length) {
+    container.innerHTML = `<div class="muted" style="text-align:center;padding:3rem 0">No reading history yet.</div>`;
+    return;
+  }
+  container.innerHTML = history.map(m => {
+    const genres = (m.genres || []).slice(0, 3);
+    const date   = m.readAt ? new Date(m.readAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "";
+    return `
+      <div class="history-item" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(m.sourceId || "")}">
+        <div class="history-cover">
+          ${m.cover ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy">` : `<div class="no-cover">?</div>`}
+        </div>
+        <div class="history-info">
+          <h3 class="history-title">${escapeHtml(m.title)}</h3>
+          ${m.author ? `<p class="history-author">✍️ ${escapeHtml(m.author)}</p>` : ""}
+          ${genres.length ? `<div class="history-genres">${genres.map(g => `<span class="manga-card-genre">${escapeHtml(g)}</span>`).join("")}</div>` : ""}
+          ${date ? `<p class="history-date">🕐 ${date}</p>` : ""}
+        </div>
+        <div class="history-actions">
+          <button class="btn history-view-btn" data-mid="${escapeHtml(m.id)}">View Details</button>
+          <button class="btn btn-start-reading-detail history-read-btn" data-mid="${escapeHtml(m.id)}">&#9654; Start Reading</button>
+          <button class="history-delete-btn" title="Remove from history" data-mid="${escapeHtml(m.id)}" data-sid="${escapeHtml(m.sourceId || '')}">[x]</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  container.querySelectorAll(".history-view-btn").forEach(btn => {
+    btn.onclick = () => loadMangaDetails(btn.dataset.mid);
+  });
+  container.querySelectorAll(".history-read-btn").forEach(btn => {
+    btn.onclick = () => startReading(btn.dataset.mid);
+  });
+  container.querySelectorAll(".history-delete-btn").forEach(btn => {
+    btn.onclick = async () => {
+      try {
+        await api("/api/history/remove", {
+          method: "POST",
+          body: JSON.stringify({ mangaId: btn.dataset.mid, sourceId: btn.dataset.sid })
+        });
+        state.history = state.history.filter(m => !(m.id === btn.dataset.mid && m.sourceId === (btn.dataset.sid || m.sourceId)));
+        renderHistoryView();
+      } catch (e) { showToast("Error", e.message, "error"); }
+    };
+  });
 }
 
 function renderMangaGrid(container, mangaList) {
@@ -474,7 +1011,7 @@ function renderLibrary() {
           ${manga.cover ? `<img src="${escapeHtml(manga.cover)}" alt="${escapeHtml(manga.title)}" loading="lazy">` : '<div class="no-cover">?</div>'}
           ${statusBadge}
           <div class="library-card-overlay">
-            <button class="btn-read">📖 Continue Reading</button>
+            <button class="btn-read">Continue Reading</button>
           </div>
         </div>
         <div class="library-card-info">
@@ -522,11 +1059,11 @@ function renderReadingStatusSection(mangaId, sourceId) {
       <span class="status-selector-label">Reading Status:</span>
       <select class="status-select" id="mangaStatusSelect">
         <option value="none" ${!current ? "selected" : ""}>— Not Set —</option>
-        <option value="reading"      ${current === "reading"       ? "selected" : ""}>📖 Reading</option>
-        <option value="completed"    ${current === "completed"     ? "selected" : ""}>✅ Completed</option>
-        <option value="on_hold"      ${current === "on_hold"       ? "selected" : ""}>⏸️ On Hold</option>
-        <option value="plan_to_read" ${current === "plan_to_read"  ? "selected" : ""}>🗂️ Plan to Read</option>
-        <option value="dropped"      ${current === "dropped"       ? "selected" : ""}>❌ Dropped</option>
+        <option value="reading"      ${current === "reading"       ? "selected" : ""}>Reading</option>
+        <option value="completed"    ${current === "completed"     ? "selected" : ""}>Completed</option>
+        <option value="on_hold"      ${current === "on_hold"       ? "selected" : ""}>On Hold</option>
+        <option value="plan_to_read" ${current === "plan_to_read"  ? "selected" : ""}>Plan to Read</option>
+        <option value="dropped"      ${current === "dropped"       ? "selected" : ""}>Dropped</option>
       </select>
       ${current ? `<span class="status-badge status-badge-${current}">${statusLabel(current)}</span>` : ""}
     </div>
@@ -561,39 +1098,94 @@ function renderReadingStatusSection(mangaId, sourceId) {
 
 let _liveSearchTimer = null;
 
-async function search() {
+// ── Pagination helper ───────────────────────────────────────────────────────
+function renderPagination(containerId, currentPage, hasNextPage, callbackName) {
+  const container = $(containerId);
+  if (!container) return;
+  if (currentPage === 1 && !hasNextPage) {
+    container.innerHTML = "";
+    return;
+  }
+  const btn = (page, label, active = false, disabled = false) =>
+    active
+      ? `<button class="pagination-number active">${label}</button>`
+      : `<button class="pagination-number${disabled ? " disabled" : ""}" ${
+          disabled ? "disabled" : `onclick="${callbackName}(${page})"`
+        }>${label}</button>`;
+
+  let nums = "";
+  if (currentPage > 2) nums += btn(1, "1");
+  if (currentPage > 3) nums += `<span class="pagination-ellipsis">…</span>`;
+  if (currentPage > 1) nums += btn(currentPage - 1, currentPage - 1);
+  nums += btn(currentPage, currentPage, true);
+  if (hasNextPage) nums += btn(currentPage + 1, currentPage + 1);
+
+  container.innerHTML = `
+    <div class="pagination">
+      <button class="pagination-btn" ${
+        currentPage <= 1 ? "disabled" : `onclick="${callbackName}(${currentPage - 1})"`
+      }>← Prev</button>
+      <div class="pagination-numbers">${nums}</div>
+      <button class="pagination-btn" ${
+        !hasNextPage ? "disabled" : `onclick="${callbackName}(${currentPage + 1})"`
+      }>Next →</button>
+    </div>
+  `;
+}
+
+function searchGoToPage(page) {
+  state.searchPage = page;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  search(page);
+}
+
+function advSearchGoToPage(page) {
+  state.advSearchPage = page;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  advancedSearch(page);
+}
+
+// ── Main search ─────────────────────────────────────────────────────────────
+async function search(page = 1) {
   const query = $("searchInput").value.trim();
   const dropdown = $("searchDropdown");
   if (!state.currentSourceId) { $("searchStatus").textContent = "Select a source first."; return; }
   if (!query) {
     if (dropdown) dropdown.innerHTML = "";
     $("searchStatus").textContent = "";
+    const pg = $("searchPagination"); if (pg) pg.innerHTML = "";
     return;
   }
 
+  state.searchQuery = query;
+  state.searchPage = page;
   $("searchStatus").textContent = "Searching...";
   try {
     const result = await api(`/api/source/${state.currentSourceId}/search`, {
       method: "POST",
-      body: JSON.stringify({ query, page: 1 })
+      body: JSON.stringify({ query, page })
     });
     const results = result.results || [];
+    const hasNextPage = result.hasNextPage || false;
+    state.searchHasNextPage = hasNextPage;
     if (!dropdown) return;
     if (!results.length) {
       dropdown.innerHTML = `<div class="muted" style="padding:1rem">No results found for "${escapeHtml(query)}"</div>`;
       $("searchStatus").textContent = "0 result(s) found";
+      renderPagination("searchPagination", page, false, "searchGoToPage");
     } else {
       dropdown.innerHTML = results.map(m => mangaCardHTML(m)).join("");
       bindMangaCards(dropdown);
-      $("searchStatus").textContent = `${results.length} result(s) found`;
+      $("searchStatus").textContent = `${results.length} result(s) found — Page ${page}`;
+      renderPagination("searchPagination", page, hasNextPage, "searchGoToPage");
     }
   } catch (e) {
     $("searchStatus").textContent = `Error: ${e.message}`;
+    const pg = $("searchPagination"); if (pg) pg.innerHTML = "";
   }
 }
 
 async function loadMangaDetails(mangaId, fromView = "discover") {
-  state.previousView = fromView;
   $("searchStatus").textContent = "Loading details...";
   try {
     const result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
@@ -604,7 +1196,12 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
     const isFavorited = state.favorites.some(m => m.id === result.id && m.sourceId === state.currentSourceId);
     const hasProgress = state.lastReadChapter?.[result.id];
 
-    setView("manga-details");
+    // Navigate with context
+    setView("manga-details", {
+      mangaId: mangaId,
+      sourceId: state.currentSourceId,
+      scrollPosition: 0
+    });
 
     // Render detail card
     $("details").innerHTML = `
@@ -634,10 +1231,11 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
             </div>` : ""}
           <div class="manga-actions">
             <button class="btn" id="addFavBtn">
-              ${isFavorited ? "❤️ Remove from Library" : "⭐ Add to Library"}
+              ${isFavorited ? "Remove from Library" : "Add to Library"}
             </button>
-            ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">📖 Continue</button>` : ""}
-            <button class="btn btn-secondary" id="addToListBtn">📋 Add to List</button>
+            <button class="btn btn-start-reading-detail" id="startReadingBtn">&#9654; Start Reading</button>
+            ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">Continue</button>` : ""}
+            <button class="btn btn-secondary" id="addToListBtn">Add to List</button>
           </div>
         </div>
       </div>
@@ -650,13 +1248,24 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
           method: "POST",
           body: JSON.stringify({ mangaId: result.id, sourceId: state.currentSourceId, manga: result })
         });
-        $("addFavBtn").textContent = res.isFavorite ? "❤️ Remove from Library" : "⭐ Add to Library";
+        $("addFavBtn").textContent = res.isFavorite ? "Remove from Library" : "Add to Library";
         state.favorites = res.favorites;
         showToast(res.isFavorite ? "Added to Library" : "Removed from Library", result.title, res.isFavorite ? "success" : "info");
         renderLibrary();
         await updateStats();
         await checkAndUnlockAchievements();
       } catch (e) { showToast("Error", e.message, "error"); }
+    };
+
+    // Start reading (first chapter)
+    $("startReadingBtn").onclick = async () => {
+      if (!state.allChapters?.length) {
+        showToast("Loading chapters...", "", "info");
+        return;
+      }
+      const firstIdx = state.allChapters.length - 1;
+      const ch = state.allChapters[firstIdx];
+      await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || 1}`, firstIdx);
     };
 
     // Continue reading
@@ -701,47 +1310,6 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
 // ============================================================================
 // ADD TO LIST MODAL
 // ============================================================================
-
-function showAddToListModal(manga) {
-  if (state.customLists.length === 0) {
-    showToast("No lists yet", "Create a list first from My Lists.", "info");
-    return;
-  }
-  const modal = document.createElement("div");
-  modal.className = "settings-modal";
-  modal.innerHTML = `
-    <div class="settings-content">
-      <div class="settings-header">
-        <h2>📋 Add to List</h2>
-        <button class="btn secondary" id="closeAddToList">✕</button>
-      </div>
-      <div class="settings-body">
-        ${state.customLists.map(l => `
-          <button class="btn btn-secondary" style="width:100%;margin-bottom:0.5rem;text-align:left" data-list-id="${escapeHtml(l.id)}">
-            ${escapeHtml(l.name)} <span style="color:var(--text-secondary);font-size:0.8rem">(${l.mangaItems.length} manga)</span>
-          </button>`).join("")}
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  $("closeAddToList").onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  modal.querySelectorAll("[data-list-id]").forEach(btn => {
-    btn.onclick = async () => {
-      try {
-        await api(`/api/lists/${btn.dataset.listId}/manga`, {
-          method: "POST",
-          body: JSON.stringify({ mangaData: manga })
-        });
-        state.customLists = (await api("/api/lists")).lists;
-        showToast("Added to list!", manga.title, "success");
-        modal.remove();
-      } catch (e) { showToast("Error", e.message, "error"); }
-    };
-  });
-}
-
-// ============================================================================
 // CHAPTERS MANAGEMENT
 // ============================================================================
 
@@ -766,32 +1334,72 @@ async function loadChapters() {
     chapDiv.innerHTML = `
       <div class="chapters-header">
         <strong>${displayChapters.length} Chapter${displayChapters.length !== 1 ? "s" : ""} ${state.settings.skipReadChapters ? "Unread" : "Available"}</strong>
+        <div class="chapters-header-actions">
+          <button class="btn-check-integrity" id="checkIntegrityBtn" title="Check Chapter Integrity">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Check Integrity
+          </button>
+          <button class="btn-download-bulk" id="downloadBulkBtn" title="Download Multiple Chapters">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Bulk Download
+          </button>
+        </div>
       </div>
+      <div id="integrityReport"></div>
       <div class="chapters-list">
         ${displayChapters.map((ch, i) => {
           const isRead    = isChapterRead(state.currentManga.id, ch.id);
           const realIndex = state.allChapters.findIndex(c => c.id === ch.id);
+          const isFlagged = state.flaggedChapters.has(`${state.currentManga.id}:${ch.id}`);
           return `
-            <div class="chapter-item ${isRead ? 'chapter-read' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
+            <div class="chapter-item ${isRead ? 'chapter-read' : ''} ${isFlagged ? 'chapter-flagged' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
               <div class="chapter-info">
-                <div class="chapter-name">${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</div>
+                <div class="chapter-name">${isFlagged ? '<span class="chapter-flag-icon">🚩</span> ' : ''}${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</div>
                 ${ch.date ? `<div class="chapter-date">${new Date(ch.date).toLocaleDateString("en-US", { day:"2-digit", month:"short", year:"numeric" })}</div>` : ""}
               </div>
               <div class="chapter-action">
                 ${isRead ? `<span class="read-badge">✓</span>` : ""}
+                <button class="btn-download-chapter" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}" title="Download this chapter" onclick="event.stopPropagation();">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
               </div>
             </div>`;
         }).join("")}
       </div>`;
 
-    chapDiv.querySelectorAll("[data-chapter-id]").forEach(el => {
+    chapDiv.querySelectorAll(".chapter-item[data-chapter-id]").forEach(el => {
       el.onclick = () => loadChapter(
         el.dataset.chapterId,
         el.dataset.chapterName,
         parseInt(el.dataset.chapterIndex)
       );
+      el.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showChapterContextMenu(e, el.dataset.chapterId, state.currentManga?.id);
+      });
     });
+
+    // Download individual chapters
+    chapDiv.querySelectorAll(".btn-download-chapter").forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        await downloadChapter(btn.dataset.chapterId, btn.dataset.chapterName);
+      };
+    });
+
+    // Bulk download button
+    const bulkBtn = $("downloadBulkBtn");
+    if (bulkBtn) {
+      bulkBtn.onclick = () => showBulkDownloadModal(displayChapters);
+    }
+
+    // Check integrity button
+    const integrityBtn = $("checkIntegrityBtn");
+    if (integrityBtn) {
+      integrityBtn.onclick = () => checkChapterIntegrity(state.allChapters);
+    }
 
   } catch (e) {
     chapDiv.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
@@ -841,15 +1449,7 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
 // ============================================================================
 
 function getNextChapterIndex(currentIndex) {
-  if (!state.settings.skipDuplicates || !state.allChapters.length) return currentIndex + 1;
-  const cur = state.allChapters[currentIndex];
-  for (let i = currentIndex + 1; i < state.allChapters.length; i++) {
-    if (state.allChapters[i].chapter !== cur?.chapter) return i;
-  }
-  return currentIndex + 1;
-}
-
-function getPrevChapterIndex(currentIndex) {
+  // Chapters are sorted newest-first, so "next" chapter = lower index
   if (!state.settings.skipDuplicates || !state.allChapters.length) return currentIndex - 1;
   const cur = state.allChapters[currentIndex];
   for (let i = currentIndex - 1; i >= 0; i--) {
@@ -858,9 +1458,19 @@ function getPrevChapterIndex(currentIndex) {
   return currentIndex - 1;
 }
 
+function getPrevChapterIndex(currentIndex) {
+  // Chapters are sorted newest-first, so "prev" chapter = higher index
+  if (!state.settings.skipDuplicates || !state.allChapters.length) return currentIndex + 1;
+  const cur = state.allChapters[currentIndex];
+  for (let i = currentIndex + 1; i < state.allChapters.length; i++) {
+    if (state.allChapters[i].chapter !== cur?.chapter) return i;
+  }
+  return currentIndex + 1;
+}
+
 async function goToNextChapter() {
   const next = getNextChapterIndex(state.currentChapterIndex);
-  if (next >= state.allChapters.length) { showToast("Last chapter reached", "", "info"); return; }
+  if (next < 0) { showToast("Last chapter reached", "", "info"); return; }
   await recordReadingSession();
   const ch = state.allChapters[next];
   await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || next + 1}`, next);
@@ -868,11 +1478,399 @@ async function goToNextChapter() {
 
 async function goToPrevChapter() {
   const prev = getPrevChapterIndex(state.currentChapterIndex);
-  if (prev < 0) { showToast("First chapter reached", "", "info"); return; }
+  if (prev >= state.allChapters.length) { showToast("First chapter reached", "", "info"); return; }
   await recordReadingSession();
   const ch = state.allChapters[prev];
   await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || prev + 1}`, prev);
 }
+
+// ============================================================================
+// DOWNLOAD FUNCTIONS
+// ============================================================================
+
+async function downloadChapter(chapterId, chapterName) {
+  try {
+    showToast("Download Started", `Downloading ${chapterName}...`, "info");
+    
+    // Get chapter pages
+    const result = await api(`/api/source/${state.currentSourceId}/pages`, {
+      method: "POST",
+      body: JSON.stringify({ chapterId })
+    });
+
+    if (!result.pages || result.pages.length === 0) {
+      showToast("Error", "No pages found for this chapter", "error");
+      return;
+    }
+
+    // Request download from server
+    const downloadResult = await api(`/api/download/chapter`, {
+      method: "POST",
+      body: JSON.stringify({
+        mangaTitle: state.currentManga?.title || "Unknown",
+        chapterName,
+        chapterId,
+        sourceId: state.currentSourceId,
+        pages: result.pages
+      })
+    });
+
+    if (downloadResult.success) {
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = downloadResult.downloadUrl;
+      link.download = downloadResult.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showToast("Download Complete", `${chapterName} downloaded successfully!`, "success");
+    } else {
+      showToast("Error", downloadResult.error || "Download failed", "error");
+    }
+  } catch (e) {
+    showToast("Error", `Download failed: ${e.message}`, "error");
+  }
+}
+
+function showBulkDownloadModal(chapters) {
+  // Create modal HTML
+  const modalHtml = `
+    <div class="modal-overlay" id="bulkDownloadModal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>📥 Bulk Download Chapters</h2>
+          <button class="modal-close" onclick="closeBulkDownloadModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-description">Select chapters to download as a ZIP file:</p>
+          <div class="bulk-download-controls">
+            <button class="btn btn-sm" onclick="selectAllChapters()">Select All</button>
+            <button class="btn btn-sm" onclick="deselectAllChapters()">Deselect All</button>
+            <span class="selected-count">0 selected</span>
+          </div>
+          <div class="bulk-chapters-list" id="bulkChaptersList">
+            ${chapters.map((ch, i) => `
+              <label class="bulk-chapter-item">
+                <input type="checkbox" class="bulk-chapter-checkbox" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
+                <span>${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeBulkDownloadModal()">Cancel</button>
+          <button class="btn" id="confirmBulkDownload">Download Selected</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Add modal to page
+  const existing = $("bulkDownloadModal");
+  if (existing) existing.remove();
+  
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  // Update count on checkbox change
+  const updateCount = () => {
+    const checked = document.querySelectorAll('.bulk-chapter-checkbox:checked').length;
+    document.querySelector('.selected-count').textContent = `${checked} selected`;
+  };
+
+  document.querySelectorAll('.bulk-chapter-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateCount);
+  });
+
+  // Confirm download button
+  $("confirmBulkDownload").onclick = async () => {
+    const selected = Array.from(document.querySelectorAll('.bulk-chapter-checkbox:checked'))
+      .map(cb => ({ id: cb.dataset.chapterId, name: cb.dataset.chapterName }));
+    
+    if (selected.length === 0) {
+      showToast("No Selection", "Please select at least one chapter", "warning");
+      return;
+    }
+
+    closeBulkDownloadModal();
+    await downloadBulkChapters(selected);
+  };
+}
+
+window.closeBulkDownloadModal = function() {
+  const modal = $("bulkDownloadModal");
+  if (modal) modal.remove();
+};
+
+window.selectAllChapters = function() {
+  document.querySelectorAll('.bulk-chapter-checkbox').forEach(cb => cb.checked = true);
+  const count = document.querySelectorAll('.bulk-chapter-checkbox').length;
+  document.querySelector('.selected-count').textContent = `${count} selected`;
+};
+
+window.deselectAllChapters = function() {
+  document.querySelectorAll('.bulk-chapter-checkbox').forEach(cb => cb.checked = false);
+  document.querySelector('.selected-count').textContent = `0 selected`;
+};
+
+async function downloadBulkChapters(selectedChapters) {
+  try {
+    showToast("Bulk Download Started", `Preparing ${selectedChapters.length} chapters...`, "info");
+
+    // Request bulk download from server
+    const downloadResult = await api(`/api/download/bulk`, {
+      method: "POST",
+      body: JSON.stringify({
+        mangaTitle: state.currentManga?.title || "Unknown",
+        sourceId: state.currentSourceId,
+        chapters: selectedChapters
+      })
+    });
+
+    if (downloadResult.success) {
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = downloadResult.downloadUrl;
+      link.download = downloadResult.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showToast("Download Complete", `${selectedChapters.length} chapters downloaded!`, "success");
+    } else {
+      showToast("Error", downloadResult.error || "Bulk download failed", "error");
+    }
+  } catch (e) {
+    showToast("Error", `Bulk download failed: ${e.message}`, "error");
+  }
+}
+
+// ============================================================================
+// CHAPTER INTEGRITY CHECK
+// ============================================================================
+
+function checkChapterIntegrity(chapters) {
+  if (!chapters || chapters.length === 0) {
+    showToast("No Chapters", "No chapters available to check", "info");
+    return;
+  }
+
+  analyzeChapterIntegrityWithMangaUpdates(chapters, state.currentManga);
+}
+
+async function analyzeChapterIntegrityWithMangaUpdates(chapters, mangaDetails = null) {
+  const report = analyzeChapterIntegrity(chapters, mangaDetails);
+  
+  // If no external data, try to fetch from MangaUpdates
+  if (!mangaDetails?.lastChapter && state.currentManga?.title) {
+    try {
+      const response = await api("/api/mangaupdates/search", {
+        method: "POST",
+        body: JSON.stringify({ title: state.currentManga.title })
+      });
+      
+      if (response.found && response.latestChapter) {
+        // Re-analyze with MangaUpdates data
+        const enhancedMangaDetails = {
+          ...mangaDetails,
+          lastChapter: response.latestChapter,
+          status: response.status,
+          mangaUpdatesUrl: response.url
+        };
+        const enhancedReport = analyzeChapterIntegrity(chapters, enhancedMangaDetails);
+        displayIntegrityReport(enhancedReport, response);
+        return;
+      }
+    } catch (e) {
+      console.warn("MangaUpdates lookup failed:", e.message);
+    }
+  }
+  
+  displayIntegrityReport(report);
+}
+
+function analyzeChapterIntegrity(chapters, mangaDetails = null) {
+  const issues = [];
+  const warnings = [];
+  const info = [];
+
+  // Extract chapter numbers
+  const chapterNumbers = chapters
+    .map(ch => parseFloat(ch.chapter))
+    .filter(num => !isNaN(num))
+    .sort((a, b) => a - b);
+
+  if (chapterNumbers.length === 0) {
+    issues.push("⚠️ No valid chapter numbers found");
+    return { issues, warnings, info, stats: {} };
+  }
+
+  // Statistics
+  const stats = {
+    total: chapters.length,
+    withNumbers: chapterNumbers.length,
+    minChapter: Math.min(...chapterNumbers),
+    maxChapter: Math.max(...chapterNumbers),
+    range: Math.max(...chapterNumbers) - Math.min(...chapterNumbers) + 1
+  };
+
+  // Use external data if available (from manga details)
+  const expectedTotalChapters = mangaDetails?.lastChapter 
+    ? parseFloat(mangaDetails.lastChapter) 
+    : null;
+
+  info.push(`Total chapters available: ${stats.total}`);
+  info.push(`Chapter range: ${stats.minChapter} - ${stats.maxChapter}`);
+  
+  if (expectedTotalChapters) {
+    info.push(`Expected total chapters: ${expectedTotalChapters} (from source)`);
+  }
+
+  // Check for duplicates
+  const duplicates = chapterNumbers.filter((num, idx) => 
+    chapterNumbers.indexOf(num) !== idx
+  );
+  const uniqueDuplicates = [...new Set(duplicates)];
+
+  if (uniqueDuplicates.length > 0) {
+    warnings.push(`${uniqueDuplicates.length} duplicate chapter(s): ${uniqueDuplicates.slice(0, 5).join(', ')}${uniqueDuplicates.length > 5 ? '...' : ''}`);
+  }
+
+  // Check for gaps in sequence
+  const gaps = [];
+  for (let i = 0; i < chapterNumbers.length - 1; i++) {
+    const current = chapterNumbers[i];
+    const next = chapterNumbers[i + 1];
+    const diff = next - current;
+    
+    if (diff > 1.5) { // Allow for .5 chapters
+      const missingStart = Math.ceil(current + 0.5);
+      const missingEnd = Math.floor(next - 0.5);
+      if (missingStart <= missingEnd) {
+        gaps.push({ start: missingStart, end: missingEnd });
+      }
+    }
+  }
+
+  if (gaps.length > 0) {
+    const gapCount = gaps.reduce((sum, g) => sum + (g.end - g.start + 1), 0);
+    issues.push(`${gapCount} missing chapter(s) detected in ${gaps.length} gap(s)`);
+    gaps.slice(0, 3).forEach(g => {
+      if (g.start === g.end) {
+        warnings.push(`   Missing: Chapter ${g.start}`);
+      } else {
+        warnings.push(`   Missing: Chapters ${g.start}-${g.end}`);
+      }
+    });
+    if (gaps.length > 3) {
+      warnings.push(`   ... and ${gaps.length - 3} more gap(s)`);
+    }
+  } else {
+    info.push(`No gaps detected in available sequence`);
+  }
+
+  // Check for expected completeness
+  const actualUnique = new Set(chapterNumbers).size;
+  let completeness;
+  let completenessBase;
+
+  if (expectedTotalChapters && expectedTotalChapters > 0) {
+    // Use external data for accurate completeness
+    completenessBase = expectedTotalChapters;
+    completeness = (actualUnique / expectedTotalChapters * 100).toFixed(1);
+  } else {
+    // Fallback to local range-based calculation
+    completenessBase = stats.maxChapter - stats.minChapter + 1;
+    completeness = (actualUnique / completenessBase * 100).toFixed(1);
+    warnings.push(`⚠️ Using local range for completeness (no external data)`);
+  }
+
+  if (completeness >= 95) {
+    info.push(`✅ ${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
+  } else if (completeness >= 80) {
+    warnings.push(`⚠️ ${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
+  } else {
+    issues.push(`❌ Only ${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
+  }
+
+  // Additional warnings if using external data
+  if (expectedTotalChapters && stats.maxChapter < expectedTotalChapters) {
+    const missingFromEnd = expectedTotalChapters - stats.maxChapter;
+    warnings.push(`📉 Missing latest ${missingFromEnd} chapter(s) (up to ${expectedTotalChapters})`);
+  }
+
+  return { issues, warnings, info, stats, gaps, duplicates: uniqueDuplicates, completeness: parseFloat(completeness) };
+}
+
+function displayIntegrityReport(report, mangaUpdatesData = null) {
+  const reportDiv = $("integrityReport");
+  if (!reportDiv) return;
+
+  const { issues, warnings, info } = report;
+  const hasIssues = issues.length > 0;
+  const hasWarnings = warnings.length > 0;
+
+  let statusClass = "integrity-good";
+  let statusIcon = "✅";
+  let statusText = "All Good";
+
+  if (hasIssues) {
+    statusClass = "integrity-error";
+    statusIcon = "❌";
+    statusText = "Issues Found";
+  } else if (hasWarnings) {
+    statusClass = "integrity-warning";
+    statusIcon = "⚠️";
+    statusText = "Warnings";
+  }
+
+  let mangaUpdatesSection = "";
+  if (mangaUpdatesData && mangaUpdatesData.found) {
+    mangaUpdatesSection = `
+      <div class="integrity-section integrity-mangaupdates">
+        <div style="font-weight: 600; margin-bottom: 0.5rem;">📚 MangaUpdates Data:</div>
+        <div>Latest Chapter: ${mangaUpdatesData.latestChapter || "Unknown"}</div>
+        <div>Status: ${mangaUpdatesData.status || "Unknown"}</div>
+        ${mangaUpdatesData.url ? `<div><a href="${mangaUpdatesData.url}" target="_blank" style="color: var(--primary);">View on MangaUpdates →</a></div>` : ''}
+      </div>
+    `;
+  }
+
+  reportDiv.innerHTML = `
+    <div class="integrity-report ${statusClass}">
+      <div class="integrity-header">
+        <span class="integrity-icon">${statusIcon}</span>
+        <strong>Integrity Check: ${statusText}</strong>
+        <button class="btn-close-report" onclick="closeIntegrityReport()">✕</button>
+      </div>
+      <div class="integrity-body">
+        ${mangaUpdatesSection}
+        ${issues.length > 0 ? `
+          <div class="integrity-section integrity-issues">
+            ${issues.map(issue => `<div>${issue}</div>`).join('')}
+          </div>
+        ` : ''}
+        ${warnings.length > 0 ? `
+          <div class="integrity-section integrity-warnings">
+            ${warnings.map(warning => `<div>${warning}</div>`).join('')}
+          </div>
+        ` : ''}
+        ${info.length > 0 ? `
+          <div class="integrity-section integrity-info">
+            ${info.map(i => `<div>${i}</div>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+
+  reportDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+window.closeIntegrityReport = function() {
+  const reportDiv = $("integrityReport");
+  if (reportDiv) reportDiv.innerHTML = '';
+};
 
 // Record session duration when navigating away from chapter
 async function recordReadingSession() {
@@ -962,9 +1960,19 @@ function renderPage() {
   if (mode === "webtoon") {
     pageWrap.className = "reader-content reading-mode-webtoon";
     const validPages = pages.filter(p => p.img);
+    const nextWIdx = getNextChapterIndex(state.currentChapterIndex);
+    const nextWCh  = nextWIdx < (state.allChapters?.length || 0) ? state.allChapters[nextWIdx] : null;
+    const nextWLabel = nextWCh ? (nextWCh.name || `Chapter ${nextWCh.chapter || nextWIdx + 1}`) : null;
     pageWrap.innerHTML = `
       <div class="page-zoom-wrap webtoon-wrap" ${zoomStyle}>
         ${validPages.map((p, i) => `<img src="${escapeHtml(p.img)}" alt="Page ${i + 1}" class="webtoon-page" loading="lazy">`).join("")}
+      </div>
+      <div class="chapter-end-wrap">
+        ${nextWLabel
+          ? `<p class="chapter-end-label">Next Chapter</p>
+             <p class="chapter-end-name">${escapeHtml(nextWLabel)}</p>
+             <button class="btn chapter-next-btn" onclick="goToNextChapter()">Read Next →</button>`
+          : `<p class="chapter-end-label">You've reached the last chapter!</p>`}
       </div>`;
     $("pageCounter").textContent = `Webtoon Mode — ${validPages.length} pages`;
     $("prevPage").style.display = "none";
@@ -973,11 +1981,27 @@ function renderPage() {
   } else {
     pageWrap.className = "reader-content";
     if (idx < 0 || idx >= pages.length) return;
-    const page = pages[idx];
+    const page     = pages[idx];
+    const isLast   = idx === pages.length - 1;
     const imgClass = state.settings.panWideImages ? "page-img pannable" : "page-img";
+    const nextIdx  = isLast ? getNextChapterIndex(state.currentChapterIndex) : -1;
+    const nextCh   = (isLast && nextIdx < (state.allChapters?.length || 0)) ? state.allChapters[nextIdx] : null;
+    const nextLabel = nextCh ? (nextCh.name || `Chapter ${nextCh.chapter || nextIdx + 1}`) : null;
+    const endBanner = isLast ? `
+      <div class="chapter-end-wrap">
+        <div class="chapter-end-divider"></div>
+        ${nextLabel
+          ? `<p class="chapter-end-label">Next Chapter</p>
+             <p class="chapter-end-name">${escapeHtml(nextLabel)}</p>
+             <button class="btn chapter-next-btn" onclick="goToNextChapter()">Read Next →</button>`
+          : `<p class="chapter-end-label">Last chapter reached!</p>`}
+      </div>` : "";
     pageWrap.innerHTML = page.img
-      ? `<div class="page-zoom-wrap" ${zoomStyle}><img src="${escapeHtml(page.img)}" alt="Page ${idx + 1}" class="${imgClass}"></div>`
+      ? `<div class="page-zoom-wrap" ${zoomStyle}><img src="${escapeHtml(page.img)}" alt="Page ${idx + 1}" class="${imgClass}"></div>${endBanner}`
       : `<div class="muted">Page not available</div>`;
+    // Scroll to top on new page (not when same chapter end-banner update)
+    if (!isLast) pageWrap.scrollTop = 0;
+    else pageWrap.scrollTo({ top: 0, behavior: "smooth" });
 
     $("pageCounter").textContent = `${idx + 1} / ${pages.length}`;
     $("prevPage").disabled = false;
@@ -1093,161 +2117,9 @@ function showSettings() {
 // CUSTOM LISTS VIEW
 // ============================================================================
 
-async function refreshLists() {
-  try {
-    const data = await api("/api/lists");
-    state.customLists = data.lists || [];
-  } catch (e) { /* non-fatal */ }
-}
-
-function renderListsView() {
-  const grid = $("listsGrid");
-  if (!grid) return;
-  if (!state.customLists.length) {
-    grid.innerHTML = `<div class="muted">No lists yet. Create one with the button above!</div>`;
-    return;
-  }
-  grid.innerHTML = state.customLists.map(l => `
-    <div class="list-card" data-list-id="${escapeHtml(l.id)}">
-      <div class="list-card-actions">
-        <button class="btn-icon btn-icon-edit" data-action="edit" title="Edit">✏️</button>
-        <button class="btn-icon btn-icon-delete" data-action="delete" title="Delete">🗑️</button>
-      </div>
-      <div class="list-card-title">${escapeHtml(l.name)}</div>
-      <div class="list-card-desc">${escapeHtml(l.description || "No description")}</div>
-      <div class="list-card-meta">
-        <span class="list-card-count">${l.mangaItems.length} manga</span>
-        <span>${new Date(l.createdAt).toLocaleDateString()}</span>
-      </div>
-    </div>
-  `).join("");
-
-  grid.querySelectorAll(".list-card").forEach(card => {
-    const listId = card.dataset.listId;
-    card.onclick = (e) => {
-      if (e.target.closest("[data-action]")) return; // handled below
-      renderListDetail(listId);
-    };
-    card.querySelector("[data-action='edit']")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      showCreateListModal(state.customLists.find(l => l.id === listId));
-    });
-    card.querySelector("[data-action='delete']")?.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (!confirm(`Delete list "${state.customLists.find(l => l.id === listId)?.name}"?`)) return;
-      try {
-        await api(`/api/lists/${listId}`, { method: "DELETE" });
-        await refreshLists();
-        renderListsView();
-        showToast("List deleted", "", "info");
-      } catch (err) { showToast("Error", err.message, "error"); }
-    });
-  });
-}
-
-function renderListDetail(listId) {
-  const list = state.customLists.find(l => l.id === listId);
-  if (!list) return;
-
-  setView("list-detail");
-  const content = $("listDetailContent");
-  content.innerHTML = `
-    <div class="list-detail-header">
-      <div class="list-detail-info">
-        <h2>${escapeHtml(list.name)}</h2>
-        <p>${escapeHtml(list.description || "No description")}</p>
-      </div>
-      <div class="manga-actions">
-        <span class="library-stats">${list.mangaItems.length} manga</span>
-      </div>
-    </div>
-    <div class="results-grid" id="listDetailGrid">
-      ${list.mangaItems.length === 0
-        ? `<div class="muted">This list is empty. Add manga from their detail pages.</div>`
-        : list.mangaItems.map(m => `
-          <div class="manga-card" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(m.sourceId || state.currentSourceId || 'mangadex')}">
-            <div class="manga-card-cover">
-              ${m.cover ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy">` : '<div class="no-cover">?</div>'}
-              <div style="position:absolute;top:4px;right:4px">
-                <button class="btn-icon btn-icon-delete" data-remove-id="${escapeHtml(m.id)}" style="opacity:0.8" title="Remove from list">✕</button>
-              </div>
-            </div>
-            <div class="manga-card-info">
-              <h3 class="manga-card-title">${escapeHtml(m.title)}</h3>
-              <p class="manga-card-author">${escapeHtml(m.author || "")}</p>
-            </div>
-          </div>`).join("")}
-    </div>
-  `;
-
-  const grid = $("listDetailGrid");
-  if (grid) {
-    grid.querySelectorAll("[data-manga-id]").forEach(el => {
-      const mangaId  = el.dataset.mangaId;
-      const sourceId = el.dataset.sourceId;
-      el.onclick = (e) => {
-        if (e.target.closest("[data-remove-id]")) return;
-        state.currentSourceId = sourceId || state.currentSourceId;
-        loadMangaDetails(mangaId);
-      };
-      el.querySelector("[data-remove-id]")?.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        try {
-          await api(`/api/lists/${listId}/manga/${mangaId}`, { method: "DELETE" });
-          await refreshLists();
-          renderListDetail(listId);
-          showToast("Removed from list", "", "info");
-        } catch (err) { showToast("Error", err.message, "error"); }
-      });
-    });
-  }
-}
-
-function showCreateListModal(existingList = null) {
-  const modal = document.createElement("div");
-  modal.className = "settings-modal";
-  modal.innerHTML = `
-    <div class="settings-content">
-      <div class="settings-header">
-        <h2>${existingList ? "Edit List" : "Create New List"}</h2>
-        <button class="btn secondary" id="closeListModal">✕</button>
-      </div>
-      <div class="settings-body">
-        <div class="setting-group">
-          <label>List Name *</label>
-          <input type="text" class="input" id="listNameInput" value="${escapeHtml(existingList?.name || "")}" maxlength="100" placeholder="My Favorites...">
-        </div>
-        <div class="setting-group">
-          <label>Description</label>
-          <textarea class="review-textarea" id="listDescInput" maxlength="500" placeholder="Optional description...">${escapeHtml(existingList?.description || "")}</textarea>
-        </div>
-        <button class="btn" id="saveListBtn">${existingList ? "Save Changes" : "Create List"}</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  $("closeListModal").onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-  $("saveListBtn").onclick = async () => {
-    const name = $("listNameInput").value.trim();
-    const desc = $("listDescInput").value.trim();
-    if (!name) { showToast("Name is required", "", "error"); return; }
-    try {
-      if (existingList) {
-        await api(`/api/lists/${existingList.id}`, { method: "PUT", body: JSON.stringify({ name, description: desc }) });
-        showToast("List updated", name, "success");
-      } else {
-        await api("/api/lists", { method: "POST", body: JSON.stringify({ name, description: desc }) });
-        showToast("List created!", name, "success");
-      }
-      await refreshLists();
-      renderListsView();
-      modal.remove();
-      await checkAndUnlockAchievements();
-    } catch (e) { showToast("Error", e.message, "error"); }
-  };
-}
+// ============================================================================
+// CUSTOM LISTS VIEW (REMOVED)
+// ============================================================================
 
 // ============================================================================
 // ANALYTICS VIEW
@@ -1317,59 +2189,103 @@ async function renderAnalyticsView() {
 
 async function checkAndUnlockAchievements() {
   try {
-    const [anaData, achievData] = await Promise.all([
-      api("/api/analytics"),
-      api("/api/achievements")
-    ]);
-
-    const earned = new Set(achievData.achievements || []);
+    // Fetch current analytics data
+    const anaData = await api("/api/analytics");
     const a = anaData.analytics || {};
-    const stats = {
+    
+    // Build analytics object for achievement checking
+    const analytics = {
       totalChaptersRead: a.totalChaptersRead || state.readChapters.size,
       totalTimeSpent:    a.totalTimeSpent || 0,
       totalFavorites:    (anaData.totalFavorites || 0),
       completedCount:    (anaData.statusDistribution?.completed || 0),
       totalLists:        (anaData.totalLists || 0),
+      statusDistribution: anaData.statusDistribution || {},
+      dailyStreak:       a.dailyStreak || 0
     };
 
-    for (const ach of ACHIEVEMENTS) {
-      if (!earned.has(ach.id) && ach.check(stats)) {
-        const result = await api("/api/achievements/unlock", {
+    // Check achievements using AchievementManager
+    const newlyUnlocked = achievementManager.checkAchievements(analytics);
+    
+    // Send newly unlocked achievements to backend
+    for (const achievementId of newlyUnlocked) {
+      try {
+        await api("/api/achievements/unlock", {
           method: "POST",
-          body: JSON.stringify({ achievementId: ach.id })
+          body: JSON.stringify({ achievementId })
         });
-        if (result.isNew) {
-          showToast(`Achievement Unlocked! ${ach.icon}`, `${ach.label}: ${ach.desc}`, "success");
+        
+        // Show toast notification
+        const achievement = achievementManager.getAchievement(achievementId);
+        if (achievement) {
+          showToast(
+            `Achievement Unlocked! 🏆`, 
+            `${achievement.name}: ${achievement.description}`, 
+            "success"
+          );
         }
-        earned.add(ach.id);
+      } catch (err) {
+        console.error(`Failed to sync achievement ${achievementId}:`, err);
       }
     }
-    state.earnedAchievements = earned;
-  } catch (e) { /* non-fatal */ }
+    
+    // Update state
+    state.earnedAchievements = achievementManager.unlockedAchievements;
+  } catch (e) {
+    console.error('Error checking achievements:', e);
+  }
 }
 
 async function renderAchievementsGrid() {
   const grid = $("achievementsGrid");
   if (!grid) return;
+  
   try {
-    const data = await api("/api/achievements");
-    const earned = new Set(data.achievements || []);
-    state.earnedAchievements = earned;
-
-    const total = ACHIEVEMENTS.length;
-    const count = earned.size;
+    // Get achievement stats
+    const stats = achievementManager.getStats();
     const countEl = $("achievementCount");
-    if (countEl) countEl.textContent = `${count}/${total}`;
+    if (countEl) countEl.textContent = `${stats.unlocked}/${stats.total}`;
 
-    grid.innerHTML = ACHIEVEMENTS.map(a => `
-      <div class="achievement-item ${earned.has(a.id) ? 'earned' : 'locked'}">
-        <div class="achievement-emoji">${a.icon}</div>
-        <div class="achievement-info">
-          <h4>${escapeHtml(a.label)}</h4>
-          <p>${escapeHtml(a.desc)}</p>
+    // Render achievements by category
+    const html = achievementManager.categories.map(category => {
+      const achievements = achievementManager.getAchievementsByCategory(category.id);
+      
+      return `
+        <div class="achievement-category">
+          <h3 class="achievement-category-title">${escapeHtml(category.name)}</h3>
+          <p class="achievement-category-desc">${escapeHtml(category.description)}</p>
+          <div class="achievement-category-grid">
+            ${achievements.map(a => {
+              const isUnlocked = achievementManager.isUnlocked(a.id);
+              const rarityClass = a.rarity || 'common';
+              
+              return `
+                <div class="achievement-item ${isUnlocked ? 'earned' : 'locked'} rarity-${rarityClass}">
+                  <div class="achievement-icon">
+                    <i data-feather="${escapeHtml(a.icon)}" ${isUnlocked ? '' : 'class="locked-icon"'}></i>
+                  </div>
+                  <div class="achievement-info">
+                    <h4>${escapeHtml(a.name)}</h4>
+                    <p>${escapeHtml(a.description)}</p>
+                    ${a.points ? `<span class="achievement-points">+${a.points} pts</span>` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
-      </div>`).join("");
+      `;
+    }).join('');
+
+    grid.innerHTML = html || '<div class="muted">No achievements available.</div>';
+    
+    // Initialize Feather icons if available
+    if (typeof feather !== 'undefined') {
+      feather.replace();
+    }
+    
   } catch (e) {
+    console.error('Error rendering achievements:', e);
     grid.innerHTML = `<div class="muted">Could not load achievements.</div>`;
   }
 }
@@ -1404,36 +2320,54 @@ function searchByGenre(genre) {
 // ADVANCED SEARCH
 // ============================================================================
 
-async function advancedSearch() {
+async function advancedSearch(page = 1) {
   const query   = $("advancedSearchInput").value.trim();
   const orderBy = $("advancedOrderBy").value;
+  const publicationStatus = $("advancedPublicationStatus")?.value || "";
+  const contentRating = $("advancedContentRating")?.value || "";
+  const format = $("advancedFormat")?.value || "";
+  const selectedGenres = Array.from(document.querySelectorAll('#genreGrid input[type="checkbox"]:checked')).map(cb => cb.value);
 
   if (!state.currentSourceId) {
     $("advancedSearchStatus").textContent = "Select a source first.";
     return;
   }
 
+  state.advSearchPage = page;
   $("advancedSearchStatus").textContent = "Searching...";
   try {
+    // Build tags array from selected filters
+    const tags = [...selectedGenres];
+    if (format) tags.push(format);
+
     const result = await api(`/api/source/${state.currentSourceId}/search`, {
       method: "POST",
       body: JSON.stringify({
-        query: query || "*",
-        page: 1,
+        query: query || "",
+        page,
         orderBy,
-        statuses: Array.from(state.advancedFilters.statuses),
-        tags:     Array.from(state.advancedFilters.tags)
+        statuses: publicationStatus ? [publicationStatus] : [],
+        tags: tags
       })
     });
 
     let results = result.results || [];
-    if (state.advancedFilters.statuses.size > 0) {
-      results = results.filter(m => state.advancedFilters.statuses.has(m.status?.toLowerCase()));
+    const hasNextPage = result.hasNextPage || false;
+    state.advSearchHasNextPage = hasNextPage;
+
+    // Client-side filtering for additional criteria
+    if (publicationStatus) {
+      results = results.filter(m => m.status?.toLowerCase() === publicationStatus.toLowerCase());
     }
-    if (state.advancedFilters.tags.size > 0) {
+
+    if (contentRating) {
+      results = results.filter(m => m.contentRating?.toLowerCase() === contentRating.toLowerCase());
+    }
+
+    if (selectedGenres.length > 0) {
       results = results.filter(m => {
         const mt = (m.genres || []).map(g => g.toLowerCase());
-        return Array.from(state.advancedFilters.tags).some(t => mt.some(g => g.includes(t.toLowerCase())));
+        return selectedGenres.some(t => mt.some(g => g.includes(t.toLowerCase())));
       });
     }
 
@@ -1441,12 +2375,15 @@ async function advancedSearch() {
     if (!results.length) {
       resultsDiv.innerHTML = `<div class="muted">No results found</div>`;
       $("advancedSearchStatus").textContent = "0 result(s) found";
+      renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
       return;
     }
     renderMangaGrid(resultsDiv, results);
-    $("advancedSearchStatus").textContent = `${results.length} result(s) found`;
+    $("advancedSearchStatus").textContent = `${results.length} result(s) found — Page ${page}`;
+    renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
   } catch (e) {
     $("advancedSearchStatus").textContent = `Error: ${e.message}`;
+    renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
   }
 }
 
@@ -1456,7 +2393,7 @@ async function randomManga() {
   try {
     const result = await api(`/api/source/${state.currentSourceId}/search`, {
       method: "POST",
-      body: JSON.stringify({ query: "*", page: 1, orderBy: "random" })
+      body: JSON.stringify({ query: "", page: 1, orderBy: "random" })
     });
     const results = result.results || [];
     if (results.length > 0) {
@@ -1470,34 +2407,53 @@ async function randomManga() {
 }
 
 function initAdvancedFilters() {
-  document.querySelectorAll(".advanced-status-check").forEach(check => {
-    check.onchange = (e) => {
-      if (e.target.checked) state.advancedFilters.statuses.add(e.target.value);
-      else                   state.advancedFilters.statuses.delete(e.target.value);
-    };
+  // Auto-refresh on dropdown changes
+  const dropdownFilters = [
+    "advancedOrderBy",
+    "advancedPublicationStatus",
+    "advancedContentRating",
+    "advancedFormat"
+  ];
+
+  dropdownFilters.forEach(id => {
+    const el = $(id);
+    if (el) {
+      el.onchange = () => {
+        const view = document.querySelector("#view-advanced-search");
+        if (view && !view.classList.contains("hidden")) advancedSearch();
+      };
+    }
   });
-  document.querySelectorAll(".advanced-tags-section .genre-chip").forEach(chip => {
-    chip.onclick = () => {
-      const tag = chip.dataset.tag;
-      if (state.advancedFilters.tags.has(tag)) {
-        state.advancedFilters.tags.delete(tag);
-        chip.classList.remove("active");
-      } else {
-        state.advancedFilters.tags.add(tag);
-        chip.classList.add("active");
-      }
+
+  // Genre checkboxes — debounced auto-search
+  const genreGrid = $("genreGrid");
+  if (genreGrid) {
+    genreGrid.addEventListener("change", () => {
+      const view = document.querySelector("#view-advanced-search");
+      if (view && !view.classList.contains("hidden")) advancedSearch();
+    });
+  }
+
+  // Clear genres button
+  const clearBtn = $("clearGenresBtn");
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      document.querySelectorAll('#genreGrid input[type="checkbox"]').forEach(cb => cb.checked = false);
+      const view = document.querySelector("#view-advanced-search");
+      if (view && !view.classList.contains("hidden")) advancedSearch();
     };
-  });
-  const ob = $("advancedOrderBy");
-  if (ob) ob.onchange = (e) => { state.advancedFilters.orderBy = e.target.value; };
+  }
 }
 
 // ============================================================================
 // VIEW MANAGEMENT
 // ============================================================================
 
-function setView(view) {
-  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "lists", "list-detail", "analytics"];
+function setView(view, context = {}, replace = false) {
+  // Update navigation manager
+  navigationManager.navigateTo(view, context, replace);
+
+  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history"];
   for (const v of ALL_VIEWS) {
     const el = $(`view-${v}`);
     if (el) el.classList.toggle("hidden", v !== view);
@@ -1512,10 +2468,16 @@ function setView(view) {
   // On-enter actions per view
   if (view === "library") {
     renderLibrary();
-  } else if (view === "lists") {
-    renderListsView();
   } else if (view === "analytics") {
     renderAnalyticsView();
+  } else if (view === "history") {
+    renderHistoryView();
+  } else if (view === "manga-details") {
+    // Restore context if available
+    const ctx = navigationManager.getContext();
+    if (ctx.mangaId && ctx.sourceId) {
+      // Context is already set, renderMangaDetails will use it
+    }
   }
 }
 
@@ -1543,10 +2505,23 @@ function bindUI() {
 
   // Back buttons
   const backBtn = $("backBtn");
-  if (backBtn) backBtn.onclick = () => setView(state.previousView || "discover");
-
-  const backToListsBtn = $("backToListsBtn");
-  if (backToListsBtn) backToListsBtn.onclick = () => setView("lists");
+  if (backBtn) {
+    backBtn.onclick = () => {
+      const previous = navigationManager.goBack();
+      if (previous) {
+        // Restore specific view states
+        if (previous.view === 'manga-details' && previous.context.mangaId && previous.context.sourceId) {
+          // Temporarily set the source and load the manga details
+          const prevSource = state.currentSourceId;
+          state.currentSourceId = previous.context.sourceId;
+          loadMangaDetails(previous.context.mangaId);
+          // Note: loadMangaDetails will call setView internally
+        } else {
+          setView(previous.view, previous.context, true);
+        }
+      }
+    };
+  }
 
   // Search
   const searchBtn   = $("searchBtn");
@@ -1647,13 +2622,19 @@ function bindUI() {
   if (advInput) advInput.onkeypress = (e) => { if (e.key === "Enter") advancedSearch(); };
   if (randBtn)  randBtn.onclick  = randomManga;
 
-  // Create list button
-  const createListBtn = $("createListBtn");
-  if (createListBtn) createListBtn.onclick = () => showCreateListModal();
+  // Initialize advanced filters
+  initAdvancedFilters();
 
   // Library status filter
   const libFilter = $("libraryStatusFilter");
   if (libFilter) libFilter.onchange = renderLibrary;
+
+  // Language selector
+  const langSelector = $("languageSelector");
+  if (langSelector) {
+    langSelector.value = currentLanguage;
+    langSelector.onchange = () => setLanguage(langSelector.value);
+  }
 }
 
 // ============================================================================
@@ -1662,9 +2643,24 @@ function bindUI() {
 
 (async function main() {
   initTheme();
+  applyTranslations();
   loadSettings();
+  
+  // Load achievements from JSON
+  try {
+    await achievementManager.loadAchievements();
+  } catch (err) {
+    console.error('Failed to load achievements:', err);
+  }
+  
   await refreshState();
   bindUI();
+  
+  // Initialize Feather icons for static HTML
+  if (typeof feather !== 'undefined') {
+    feather.replace();
+  }
+  
   // Check achievements on startup based on existing data
   await checkAndUnlockAchievements();
 })();

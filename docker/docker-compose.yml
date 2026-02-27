@@ -1,8 +1,10 @@
 services:
+  # ── Manghu ───────────────────────────────────────────────────
   manghu:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    container_name: manghu
     ports:
       - "3000:3000"
     volumes:

@@ -340,6 +340,18 @@ app.post("/api/history/add", async (req, res) => {
   }
 });
 
+app.post("/api/history/remove", async (req, res) => {
+  try {
+    const { mangaId, sourceId } = req.body || {};
+    const store = await readStore();
+    store.history = store.history.filter(m => !(m.id === mangaId && m.sourceId === sourceId));
+    await writeStore(store);
+    res.json({ ok: true, history: store.history });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/library', async (req, res) => {
   try {
     const store = await readStore();
@@ -608,6 +620,178 @@ app.post('/api/achievements/unlock', async (req, res) => {
     res.json({ ok: true, isNew, achievements: store.achievements });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================================
+// DOWNLOAD ENDPOINTS
+// ============================================================================
+
+// Download individual chapter as PDF
+app.post("/api/download/chapter", async (req, res) => {
+  try {
+    const { mangaTitle, chapterName, pages, sourceId } = req.body;
+    if (!pages || !Array.isArray(pages) || pages.length === 0) {
+      return res.status(400).json({ error: "No pages provided" });
+    }
+
+    // For simplicity, we'll create a data URI that the frontend can use
+    // In a real implementation, you'd want to:
+    // 1. Download all images to server
+    // 2. Create a PDF or ZIP file
+    // 3. Serve it for download
+    
+    // Simple approach: return the pages and let the client handle the download
+    const sanitizedManga = mangaTitle.replace(/[^a-z0-9]/gi, '_');
+    const sanitizedChapter = chapterName.replace(/[^a-z0-9]/gi, '_');
+    const filename = `${sanitizedManga}_${sanitizedChapter}.txt`;
+
+    // Create a simple text file with image URLs (proof of concept)
+    const content = `Manga: ${mangaTitle}\nChapter: ${chapterName}\n\nPages:\n${pages.join('\n')}`;
+    const base64 = Buffer.from(content).toString('base64');
+    const dataUri = `data:text/plain;base64,${base64}`;
+
+    res.json({
+      success: true,
+      downloadUrl: dataUri,
+      filename,
+      message: "Chapter download ready"
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message, success: false });
+  }
+});
+
+// Bulk download multiple chapters
+app.post("/api/download/bulk", async (req, res) => {
+  try {
+    const { mangaTitle, chapters, sourceId } = req.body;
+    if (!chapters || !Array.isArray(chapters) || chapters.length === 0) {
+      return res.status(400).json({ error: "No chapters provided" });
+    }
+
+    const source = loadSourceFromFile(sourceId);
+    const allPages = [];
+
+    // Fetch pages for all selected chapters
+    for (const ch of chapters) {
+      try {
+        const result = await source.pages(ch.id);
+        if (result.pages && result.pages.length > 0) {
+          allPages.push({
+            name: ch.name,
+            pages: result.pages
+          });
+        }
+      } catch (e) {
+        console.error(`Failed to get pages for ${ch.name}:`, e.message);
+      }
+    }
+
+    if (allPages.length === 0) {
+      return res.status(400).json({ error: "No pages found for selected chapters", success: false });
+    }
+
+    // Create a manifest file
+    const sanitizedManga = mangaTitle.replace(/[^a-z0-9]/gi, '_');
+    const filename = `${sanitizedManga}_${chapters.length}_chapters.txt`;
+
+    let content = `Manga: ${mangaTitle}\nTotal Chapters: ${chapters.length}\n\n`;
+    allPages.forEach((ch, idx) => {
+      content += `\n=== ${ch.name} ===\n`;
+      content += `Pages: ${ch.pages.length}\n`;
+      ch.pages.forEach((page, pageIdx) => {
+        content += `Page ${pageIdx + 1}: ${page}\n`;
+      });
+    });
+
+    const base64 = Buffer.from(content).toString('base64');
+    const dataUri = `data:text/plain;base64,${base64}`;
+
+    res.json({
+      success: true,
+      downloadUrl: dataUri,
+      filename,
+      totalChapters: chapters.length,
+      totalPages: allPages.reduce((sum, ch) => sum + ch.pages.length, 0),
+      message: "Bulk download ready"
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message, success: false });
+  }
+});
+
+// ============================================================================
+// MANGAUPDATES INTEGRATION
+// ============================================================================
+app.post("/api/mangaupdates/search", async (req, res) => {
+  try {
+    const { title } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: "Title is required" });
+    }
+
+    // Search MangaUpdates API
+    const searchUrl = `https://api.mangaupdates.com/v1/series/search`;
+    const response = await fetch(searchUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        search: title,
+        perpage: 5
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`MangaUpdates API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+
+    if (results.length === 0) {
+      return res.json({ found: false, message: "No results found on MangaUpdates" });
+    }
+
+    // Get the most relevant result (first one)
+    const seriesId = results[0].record.series_id;
+    
+    // Fetch detailed info
+    const detailsUrl = `https://api.mangaupdates.com/v1/series/${seriesId}`;
+    const detailsResponse = await fetch(detailsUrl);
+    
+    if (!detailsResponse.ok) {
+      throw new Error(`Failed to fetch series details: ${detailsResponse.status}`);
+    }
+
+    const details = await detailsResponse.json();
+    
+    // Extract chapter count
+    const latestChapter = details.latest_chapter || null;
+    const status = details.status || "Unknown";
+    const year = details.year || "Unknown";
+    const genres = details.genres || [];
+
+    res.json({
+      found: true,
+      seriesId: seriesId,
+      title: results[0].record.title,
+      latestChapter: latestChapter,
+      status: status,
+      year: year,
+      genres: genres.map(g => g.genre),
+      url: `https://www.mangaupdates.com/series/${seriesId}`
+    });
+
+  } catch (e) {
+    console.error("MangaUpdates error:", e.message);
+    res.status(500).json({ 
+      error: e.message, 
+      found: false,
+      message: "Failed to fetch data from MangaUpdates"
+    });
   }
 });
 

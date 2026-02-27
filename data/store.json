@@ -8,17 +8,57 @@
       "author": "MangaDex API",
       "icon": "",
       "installedAt": "2026-02-01T23:02:03.715Z"
-    },
-    "mangakakalot": {
-      "id": "mangakakalot",
-      "name": "MangaKakalot",
-      "version": "1.0.0",
-      "author": "MangaKakalot",
-      "icon": "",
-      "installedAt": "2026-02-20T00:15:53.869Z"
     }
   },
   "history": [
+    {
+      "id": "1fc3d326-c037-43fa-8953-ed52a56caa18",
+      "title": "Osoraku Kanojo wa Ore no Aniki wo Neratteru",
+      "altTitle": "おそらくカノジョは俺の兄貴を狙ってる",
+      "author": "Ise Maruno",
+      "description": "A high school guy who doesn't trust girls anymore has been tricked too many times by girls who just wanted to get close to his good-looking older brother. After all that, he decides he'll never trust a girl again. But then, a pretty girl in his class suddenly starts talking to him a lot. Is she just trying to get to his brother too...? Or does she actually mean something else?",
+      "cover": "https://uploads.mangadex.org/covers/1fc3d326-c037-43fa-8953-ed52a56caa18/7c5576a8-3f69-44a6-a4af-1466d36fe5ab.jpg.512.jpg",
+      "status": "ongoing",
+      "year": 2025,
+      "genres": [
+        "Romance",
+        "Comedy",
+        "School Life",
+        "Slice of Life"
+      ],
+      "lastChapter": null,
+      "sourceId": "mangadex",
+      "chapterId": "d1870abb-aeea-4e7b-a5a8-f4993549d88a",
+      "readAt": "2026-02-27T16:18:27.320Z"
+    },
+    {
+      "id": "36e01733-448f-4f06-b5e4-8acba673825c",
+      "title": "Peerless Martial Spirit (Reboot)",
+      "altTitle": "绝世武魂 (2021)",
+      "author": "Palm Reading (掌阅文化)",
+      "description": "The Dragon Pulse Continent (or “Longmai” Continent) is home to millions of clans, countless sects and martial artists. Strong people have the ability to manoeuvre the land, whilst the weak can only crawl like ants. A young man, Chen Feng, with a core like iron, was unable to cultivate and was treated by cold eyes. But then he found the divine Dragon’s Blood and a mysterious ancient cauldron, and from then on he rose against the odds and emerged into the eyes of the world! Beautiful demon foxes, cold and highly empresses, demon clan princesses and divine clan princesses will all be in my arms. I will cultivate the supreme inheritance, condense the strongest martial soul, embrace all beauties, and stand proudly high up above the clouds.",
+      "cover": "https://uploads.mangadex.org/covers/36e01733-448f-4f06-b5e4-8acba673825c/2dde2671-f1d6-4bc2-9999-16c1c7e5253a.jpg.512.jpg",
+      "status": "hiatus",
+      "year": 2020,
+      "genres": [
+        "Historical",
+        "Action",
+        "Long Strip",
+        "Romance",
+        "Adventure",
+        "Wuxia",
+        "Drama",
+        "Fantasy",
+        "Web Comic",
+        "Supernatural",
+        "Adaptation",
+        "Full Color"
+      ],
+      "lastChapter": null,
+      "sourceId": "mangadex",
+      "chapterId": "542c9e2c-b175-436e-b38c-fc45a70d282f",
+      "readAt": "2026-02-20T15:43:35.345Z"
+    },
     {
       "id": "801513ba-a712-498c-8f57-cae55b38cc92",
       "title": "Berserk",
@@ -45,8 +85,8 @@
       ],
       "lastChapter": null,
       "sourceId": "mangadex",
-      "chapterId": "8ceadc31-e41e-4038-8aef-d002aab344a5",
-      "readAt": "2026-02-19T23:51:47.342Z"
+      "chapterId": "a5170650-08a9-4083-96bd-219d3d16194d",
+      "readAt": "2026-02-20T15:42:12.452Z"
     },
     {
       "id": "27b47848-26af-495f-bbcf-7f1bc5fc0284",
@@ -119,18 +159,6 @@
       "readAt": "2026-02-08T20:36:00.643Z"
     },
     {
-      "id": "bd6d0982-0091-4945-ad70-c028ed3c0917",
-      "title": "Mushoku Tensei: Isekai Ittara Honki Dasu",
-      "author": "Rifujin na Magonote",
-      "description": "A 34-year-old NEET gets killed in a traffic accident and finds himself in a world of magic. Rather than waking up as a full-grown mage, he gets reincarnated as a newborn baby, retaining the memories of his past life. Before he can even properly move his body, he resolves to never make the same mistakes he made in his first life ever again and instead live a life with no regrets with the new one that was given to him. Because he has the knowledge of a middle-aged man, by the age of two, he has already become a prodigy and possesses power unthinkable for anyone his age and even older. Thus begins the chronicles of Rudeus Greyrat, son of swordsman Paul and healer Zenith, as he enters a new world to become the strongest mage known to man, with powers rivaling even the gods themselves.",
-      "cover": "https://uploads.mangadex.org/covers/bd6d0982-0091-4945-ad70-c028ed3c0917/7a0f2758-07c4-45da-8d11-a42038f66c29.jpg.512.jpg",
-      "status": "ongoing",
-      "sourceId": "mangadex",
-      "addedAt": "2026-02-07T22:35:53.646Z",
-      "chapterId": "a74cdf6b-44ac-4874-a854-b7fbc31ef40c",
-      "readAt": "2026-02-07T22:49:45.768Z"
-    },
-    {
       "id": "003ef8e4-0ae6-4dfe-8195-cd42a8cf37dc",
       "title": "High School Boy",
       "author": "Park Gee/Ji (박지)",
@@ -146,9 +174,45 @@
   "reviews": {},
   "customLists": [],
   "analytics": {
-    "totalChaptersRead": 6,
-    "totalTimeSpent": 2.4,
+    "totalChaptersRead": 12,
+    "totalTimeSpent": 6.300000000000001,
     "readingSessions": [
+      {
+        "mangaId": "bd6d0982-0091-4945-ad70-c028ed3c0917",
+        "chapterId": "e42d2ef6-cb87-4a2c-b347-b3109c645513",
+        "duration": 1.9,
+        "date": "2026-02-27T15:53:47.056Z"
+      },
+      {
+        "mangaId": "1fc3d326-c037-43fa-8953-ed52a56caa18",
+        "chapterId": "d1870abb-aeea-4e7b-a5a8-f4993549d88a",
+        "duration": 0.1,
+        "date": "2026-02-27T15:51:29.338Z"
+      },
+      {
+        "mangaId": "bd6d0982-0091-4945-ad70-c028ed3c0917",
+        "chapterId": "e42d2ef6-cb87-4a2c-b347-b3109c645513",
+        "duration": 0.9,
+        "date": "2026-02-27T15:39:08.486Z"
+      },
+      {
+        "mangaId": "36e01733-448f-4f06-b5e4-8acba673825c",
+        "chapterId": "542c9e2c-b175-436e-b38c-fc45a70d282f",
+        "duration": 0.6,
+        "date": "2026-02-20T15:44:11.417Z"
+      },
+      {
+        "mangaId": "801513ba-a712-498c-8f57-cae55b38cc92",
+        "chapterId": "a5170650-08a9-4083-96bd-219d3d16194d",
+        "duration": 0.2,
+        "date": "2026-02-20T15:42:24.484Z"
+      },
+      {
+        "mangaId": "801513ba-a712-498c-8f57-cae55b38cc92",
+        "chapterId": "a5170650-08a9-4083-96bd-219d3d16194d",
+        "duration": 0.2,
+        "date": "2026-02-20T15:08:09.811Z"
+      },
       {
         "mangaId": "801513ba-a712-498c-8f57-cae55b38cc92",
         "chapterId": "8ceadc31-e41e-4038-8aef-d002aab344a5",
@@ -187,7 +251,7 @@
       }
     ],
     "dailyStreak": 1,
-    "lastReadDate": "Thu Feb 19 2026"
+    "lastReadDate": "Fri Feb 27 2026"
   },
   "achievements": [
     "first_read",
@@ -234,6 +298,54 @@
       "status": "ongoing",
       "sourceId": "mangadex",
       "addedAt": "2026-02-19T00:31:21.116Z"
+    },
+    {
+      "id": "801513ba-a712-498c-8f57-cae55b38cc92",
+      "title": "Berserk",
+      "altTitle": "ベルセルク",
+      "author": "Miura Kentarou",
+      "description": "Guts, known as the Black Swordsman, seeks sanctuary from the demonic forces attracted to him and his woman because of a demonic mark on their necks, and also vengeance against the man who branded him as an unholy sacrifice. Aided only by his titanic strength gained from a harsh childhood lived with mercenaries, a gigantic sword, and an iron prosthetic left hand, Guts must struggle against his bleak destiny, all the while fighting with a rage that might strip him of his humanity.\n___\nWon the 6th Osamu Tezuka Cultural Prize Excellence Award in 2002.\n\nNote: Following Miura Kenta's death in 2021, the series has been taken over by Kouji Mori, who supervises the series with art done by Studio Gaga.",
+      "cover": "https://uploads.mangadex.org/covers/801513ba-a712-498c-8f57-cae55b38cc92/81e1c82d-6672-400c-8c58-4ff9bfb89031.jpg.512.jpg",
+      "status": "ongoing",
+      "year": 1989,
+      "genres": [
+        "Award Winning",
+        "Monsters",
+        "Action",
+        "Demons",
+        "Psychological",
+        "Adventure",
+        "Sexual Violence",
+        "Military",
+        "Philosophical",
+        "Gore",
+        "Drama",
+        "Horror",
+        "Fantasy"
+      ],
+      "lastChapter": null,
+      "sourceId": "mangadex",
+      "addedAt": "2026-02-27T02:45:10.805Z"
+    },
+    {
+      "id": "76424fe0-ec26-400c-a0c9-93a17114a4ae",
+      "title": "My Favorite VTuber Is Scary IRL",
+      "altTitle": "Haitatsusaki no Onee-san ga Kowa Sugiru",
+      "author": "Yorima Riyo",
+      "description": "An introverted part-time food delivery guy working in the countryside receives a food delivery order. When he reaches the delivery address, he discovers that the recipient is a tall and intimidating-like woman. However, as the story unfolds, he eventually discovers…",
+      "cover": "https://uploads.mangadex.org/covers/76424fe0-ec26-400c-a0c9-93a17114a4ae/9a8eafc9-218f-462b-ac4c-29dae306931e.jpg.512.jpg",
+      "status": "ongoing",
+      "year": 2023,
+      "genres": [
+        "Romance",
+        "Comedy",
+        "Drama",
+        "Web Comic",
+        "Slice of Life"
+      ],
+      "lastChapter": null,
+      "sourceId": "mangadex",
+      "addedAt": "2026-02-27T15:50:51.412Z"
     }
   ]
 }

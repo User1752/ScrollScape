@@ -1,10 +1,12 @@
 - Corrigir o webtoonmode                                FEITO
-- Deixar os Filtros mais bonitos
-- Adicionar mais sources
-- Certificar que os mangas estao completos
-- Homepage mais profissional   
-- Download dos mangas/capitulos(individual ou bulk)
-- Remover tudo associado a comunidade                    FEITO
+- Deixar os Filtros mais bonitos                        FEITO ✨
+- Adicionar mais sources                                FEITO 📚 (MangaNato, Asura, MangaFire, TCB)
+- Certificar que os mangas estao completos              FEITO ✅
+- Homepage mais profissional                            FEITO 🎨
+- Download dos mangas/capitulos(individual ou bulk)     FEITO 📥
+- Remover tudo associado a comunidade                   FEITO
 - Integrar o Anlist na aplicação para dar track
-- Adicionar idiomas
-- AutoScroll                                                 FEITO
+- Adicionar idiomas                                     FEITO 🌐 (EN/PT)
+- AutoScroll                                            FEITO
+- Melhorar o menu dropdown dos generos
+- Melhorar o metodo de download (esta a descarregar txt)

@@ -1,0 +1,236 @@
+{
+  "book": {
+    "class": "icon-book",
+    "featherIcon": "book",
+    "description": "Book icon",
+    "category": "reading"
+  },
+  "book-open": {
+    "class": "icon-book-open",
+    "featherIcon": "book-open",
+    "description": "Open book icon",
+    "category": "reading"
+  },
+  "book-stack": {
+    "class": "icon-book-stack",
+    "featherIcon": "layers",
+    "description": "Stack of books",
+    "category": "reading"
+  },
+  "trophy": {
+    "class": "icon-trophy",
+    "featherIcon": "award",
+    "description": "Trophy icon",
+    "category": "achievement"
+  },
+  "star": {
+    "class": "icon-star",
+    "featherIcon": "star",
+    "description": "Star icon",
+    "category": "achievement"
+  },
+  "crown": {
+    "class": "icon-crown",
+    "featherIcon": "crown",
+    "description": "Crown icon",
+    "category": "achievement"
+  },
+  "heart": {
+    "class": "icon-heart",
+    "featherIcon": "heart",
+    "description": "Heart icon",
+    "category": "favorite"
+  },
+  "check": {
+    "class": "icon-check",
+    "featherIcon": "check",
+    "description": "Checkmark",
+    "category": "status"
+  },
+  "check-circle": {
+    "class": "icon-check-circle",
+    "featherIcon": "check-circle",
+    "description": "Check circle",
+    "category": "status"
+  },
+  "medal": {
+    "class": "icon-medal",
+    "featherIcon": "award",
+    "description": "Medal icon",
+    "category": "achievement"
+  },
+  "award": {
+    "class": "icon-award",
+    "featherIcon": "award",
+    "description": "Award icon",
+    "category": "achievement"
+  },
+  "moon": {
+    "class": "icon-moon",
+    "featherIcon": "moon",
+    "description": "Moon icon",
+    "category": "time"
+  },
+  "fire": {
+    "class": "icon-fire",
+    "featherIcon": "zap",
+    "description": "Fire icon",
+    "category": "streak"
+  },
+  "flame": {
+    "class": "icon-flame",
+    "featherIcon": "zap",
+    "description": "Flame icon",
+    "category": "streak"
+  },
+  "calendar": {
+    "class": "icon-calendar",
+    "featherIcon": "calendar",
+    "description": "Calendar icon",
+    "category": "time"
+  },
+  "clock": {
+    "class": "icon-clock",
+    "featherIcon": "clock",
+    "description": "Clock icon",
+    "category": "time"
+  },
+  "activity": {
+    "class": "icon-activity",
+    "featherIcon": "activity",
+    "description": "Activity icon",
+    "category": "streak"
+  },
+  "trending-up": {
+    "class": "icon-trending-up",
+    "featherIcon": "trending-up",
+    "description": "Trending up icon",
+    "category": "streak"
+  },
+  "zap": {
+    "class": "icon-zap",
+    "featherIcon": "zap",
+    "description": "Lightning bolt",
+    "category": "streak"
+  },
+  "infinity": {
+    "class": "icon-infinity",
+    "featherIcon": "repeat",
+    "description": "Infinity icon",
+    "category": "special"
+  },
+  "sparkles": {
+    "class": "icon-sparkles",
+    "featherIcon": "sparkles",
+    "description": "Sparkles icon",
+    "category": "special"
+  },
+  "box": {
+    "class": "icon-box",
+    "featherIcon": "package",
+    "description": "Box icon",
+    "category": "collection"
+  },
+  "boxes": {
+    "class": "icon-boxes",
+    "featherIcon": "layers",
+    "description": "Multiple boxes",
+    "category": "collection"
+  },
+  "archive": {
+    "class": "icon-archive",
+    "featherIcon": "archive",
+    "description": "Archive icon",
+    "category": "collection"
+  },
+  "library": {
+    "class": "icon-library",
+    "featherIcon": "book-open",
+    "description": "Library icon",
+    "category": "collection"
+  },
+  "runner": {
+    "class": "icon-runner",
+    "featherIcon": "activity",
+    "description": "Runner icon",
+    "category": "time"
+  },
+  "edit": {
+    "class": "icon-edit",
+    "featherIcon": "edit-2",
+    "description": "Edit icon",
+    "category": "action"
+  },
+  "compass": {
+    "class": "icon-compass",
+    "featherIcon": "compass",
+    "description": "Compass icon",
+    "category": "special"
+  },
+  "globe": {
+    "class": "icon-globe",
+    "featherIcon": "globe",
+    "description": "Globe icon",
+    "category": "sources"
+  },
+  "sunrise": {
+    "class": "icon-sunrise",
+    "featherIcon": "sunrise",
+    "description": "Sunrise icon",
+    "category": "time"
+  },
+  "map": {
+    "class": "icon-map",
+    "featherIcon": "map",
+    "description": "Map icon",
+    "category": "exploration"
+  },
+  "gift": {
+    "class": "icon-gift",
+    "featherIcon": "gift",
+    "description": "Gift icon",
+    "category": "special"
+  },
+  "target": {
+    "class": "icon-target",
+    "featherIcon": "target",
+    "description": "Target icon",
+    "category": "general"
+  },
+  "books": {
+    "class": "icon-books",
+    "featherIcon": "layers",
+    "description": "Books icon",
+    "category": "reading"
+  },
+  "palette": {
+    "class": "icon-palette",
+    "featherIcon": "droplet",
+    "description": "Palette icon",
+    "category": "theme"
+  },
+  "chart-bar": {
+    "class": "icon-chart-bar",
+    "featherIcon": "bar-chart-2",
+    "description": "Bar chart icon",
+    "category": "analytics"
+  },
+  "search": {
+    "class": "icon-search",
+    "featherIcon": "search",
+    "description": "Search icon",
+    "category": "action"
+  },
+  "dice": {
+    "class": "icon-dice",
+    "featherIcon": "shuffle",
+    "description": "Dice icon",
+    "category": "random"
+  },
+  "folder": {
+    "class": "icon-folder",
+    "featherIcon": "folder",
+    "description": "Folder icon",
+    "category": "organization"
+  }
+}
