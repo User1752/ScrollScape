@@ -262,6 +262,7 @@ const state = {
   readChapters: new Set(),
   flaggedChapters: new Set(),
   allChapters: [],
+  chaptersReversed: false,
   selectedGenres: new Set(),
   selectedStatuses: new Set(),
   sortBy: "relevance",
@@ -825,8 +826,9 @@ async function loadLatestUpdates() {
 
 function mangaCardHTML(m) {
   const genres = (m.genres || []).slice(0, 3);
+  const sourceAttr = m.sourceId ? ` data-source-id="${escapeHtml(m.sourceId)}"` : "";
   return `
-    <div class="manga-card" data-manga-id="${escapeHtml(m.id)}">
+    <div class="manga-card" data-manga-id="${escapeHtml(m.id)}"${sourceAttr}>
       <div class="manga-card-cover">
         ${m.cover && !m.cover.endsWith('.pdf')
           ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy" referrerpolicy="no-referrer">`
@@ -913,7 +915,15 @@ function renderMangaGrid(container, mangaList) {
 
 function bindMangaCards(container) {
   container.querySelectorAll("[data-manga-id]").forEach(el => {
-    el.onclick = () => loadMangaDetails(el.dataset.mangaId);
+    el.onclick = () => {
+      const sid = el.dataset.sourceId;
+      if (sid && sid !== state.currentSourceId && state.installedSources[sid]) {
+        state.currentSourceId = sid;
+        const sel = $("sourceSelect");
+        if (sel) sel.value = sid;
+      }
+      loadMangaDetails(el.dataset.mangaId);
+    };
   });
 }
 
@@ -925,7 +935,10 @@ function bindMangaCards(container) {
 async function loadRecommendations() {
   const section = $("recommendedSection");
   const row     = $("recommendedRow");
-  if (!section || !row || !state.currentSourceId) return;
+  if (!section || !row) return;
+
+  const installedSourceIds = Object.keys(state.installedSources);
+  if (installedSourceIds.length === 0) return;
 
   // Build genre profile from history (weighted 2x) + favorites (weighted 1x)
   const genreScore = new Map();
@@ -940,41 +953,79 @@ async function loadRecommendations() {
 
   if (genreScore.size === 0) return;
 
-  // Pick top 5 genres
+  // Top 3 genres — these drive both the API query and the label
   const topGenres = [...genreScore.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([g]) => g.charAt(0).toUpperCase() + g.slice(1)); // capitalise for MangaDex
+    .slice(0, 3)
+    .map(([g]) => g.charAt(0).toUpperCase() + g.slice(1));
 
-  try {
-    const result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
-      method: "POST",
-      body: JSON.stringify({ genres: topGenres })
-    });
+  const topGenresLower = topGenres.map(g => g.toLowerCase());
 
-    const libraryIds = new Set([
-      ...state.favorites.map(m => m.id),
-      ...state.history.map(m => m.id)
-    ]);
-    const topGenresLower = topGenres.map(g => g.toLowerCase());
-    const list = (result.results || [])
-      .filter(m => !libraryIds.has(m.id))
-      .filter(m => (m.genres || []).some(g => topGenresLower.includes(g.toLowerCase())))
-      .slice(0, 15);
+  const libraryIds = new Set([
+    ...state.favorites.map(m => m.id),
+    ...state.history.map(m => m.id)
+  ]);
 
-    if (!list.length) return;
-    section.style.display = "block";
+  // Score a result by how many label genres it matches (used for sources that return genres)
+  const genreMatchScore = m => {
+    const mg = (m.genres || []).map(g => g.toLowerCase());
+    return mg.length === 0
+      ? 1 // source doesn't return genres (MangaPill) — treat as neutral match
+      : topGenresLower.filter(g => mg.includes(g)).length;
+  };
 
-    // Show which genres drove the recommendations
-    const labelEl = section.querySelector(".recommended-genres-label");
-    if (labelEl) labelEl.textContent = `Based on: ${topGenres.slice(0, 3).join(", ")}`;
+  // Fetch from every installed source in parallel using exactly the label genres
+  const perSource = await Promise.all(
+    installedSourceIds.map(async sid => {
+      try {
+        const result = await api(`/api/source/${sid}/byGenres`, {
+          method: "POST",
+          body: JSON.stringify({ genres: topGenres })
+        });
+        return (result.results || [])
+          .filter(m => !libraryIds.has(m.id))
+          .map(m => ({ ...m, sourceId: sid, _score: genreMatchScore(m) }))
+          // Sort within each source: best genre match first
+          .sort((a, b) => b._score - a._score);
+      } catch (_) {
+        return [];
+      }
+    })
+  );
 
-    row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
-    bindMangaCards(row);
-    initRowAutoScroll(row);
-  } catch (e) {
-    // Fail silently
+  // Interleave results from all sources for diversity, then deduplicate by normalised title
+  const interleaved = [];
+  const maxLen = Math.max(...perSource.map(a => a.length));
+  for (let i = 0; i < maxLen; i++) {
+    for (const arr of perSource) {
+      if (i < arr.length) interleaved.push(arr[i]);
+    }
   }
+  const seenTitles = new Set();
+  const list = interleaved.filter(m => {
+    const key = m.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30);
+    if (seenTitles.has(key)) return false;
+    seenTitles.add(key);
+    return true;
+  }).slice(0, 24);
+
+  if (!list.length) return;
+  section.style.display = "block";
+
+  // Label: show top 3 genres with their relative consumption weight
+  const labelEl = section.querySelector(".recommended-genres-label");
+  if (labelEl) {
+    const total = [...genreScore.values()].reduce((a, b) => a + b, 0) || 1;
+    const labelGenres = topGenres.map(g => {
+      const pct = Math.round((genreScore.get(g.toLowerCase()) || 0) / total * 100);
+      return pct >= 5 ? `${g} (${pct}%)` : g;
+    });
+    labelEl.textContent = `Based on: ${labelGenres.join(", ")}`;
+  }
+
+  row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
+  bindMangaCards(row);
+  initRowAutoScroll(row);
 }
 
 // ============================================================================
@@ -1611,7 +1662,9 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
                 ).join('')}
               </div>
             </span>
+            <span class="badge badge-adaptation-check" id="adaptationCheckBtn" onclick="checkAnimeAdaptation('${escapeHtml(result.title.replace(/'/g, "\\'"))}')">🎬 Check</span>
           </div>
+          <div id="adaptationResult"></div>
           ${result.genres?.length ? `
             <div class="manga-genres">
               ${result.genres.map(g => `<span class="genre-tag" data-genre="${escapeHtml(g)}" title="Search: ${escapeHtml(g)}">${escapeHtml(g)}</span>`).join("")}
@@ -1767,86 +1820,115 @@ async function loadChapters() {
       body: JSON.stringify({ mangaId: state.currentManga.id })
     });
     state.allChapters = result.chapters || [];
-    let displayChapters = state.allChapters;
-    if (state.settings.skipReadChapters) {
-      displayChapters = state.allChapters.filter(ch => !isChapterRead(state.currentManga.id, ch.id));
-    }
-    if (!displayChapters.length) {
-      chapDiv.innerHTML = `<div class="muted">${state.settings.skipReadChapters ? "All chapters read" : "No chapters found"}</div>`;
-      return;
-    }
-    chapDiv.innerHTML = `
-      <div class="chapters-header">
-        <strong>${displayChapters.length} Chapter${displayChapters.length !== 1 ? "s" : ""} ${state.settings.skipReadChapters ? "Unread" : "Available"}</strong>
-        <div class="chapters-header-actions">
-          <button class="btn-check-integrity" id="checkIntegrityBtn" title="Check Chapter Integrity">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            Check Integrity
-          </button>
-          <button class="btn-download-bulk" id="downloadBulkBtn" title="Download Multiple Chapters">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Bulk Download
-          </button>
-        </div>
-      </div>
-      <div id="integrityReport"></div>
-      <div class="chapters-list">
-        ${displayChapters.map((ch, i) => {
-          const isRead    = isChapterRead(state.currentManga.id, ch.id);
-          const realIndex = state.allChapters.findIndex(c => c.id === ch.id);
-          const isFlagged = state.flaggedChapters.has(`${state.currentManga.id}:${ch.id}`);
-          return `
-            <div class="chapter-item ${isRead ? 'chapter-read' : ''} ${isFlagged ? 'chapter-flagged' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
-              <div class="chapter-info">
-                <div class="chapter-name">${isFlagged ? '<span class="chapter-flag-icon">🚩</span> ' : ''}${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</div>
-                ${ch.date ? `<div class="chapter-date">${new Date(ch.date).toLocaleDateString("en-US", { day:"2-digit", month:"short", year:"numeric" })}</div>` : ""}
-              </div>
-              <div class="chapter-action">
-                ${isRead ? `<span class="read-badge">✓</span>` : ""}
-                <button class="btn-download-chapter" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}" title="Download this chapter" onclick="event.stopPropagation();">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </button>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
-            </div>`;
-        }).join("")}
-      </div>`;
-
-    chapDiv.querySelectorAll(".chapter-item[data-chapter-id]").forEach(el => {
-      el.onclick = () => loadChapter(
-        el.dataset.chapterId,
-        el.dataset.chapterName,
-        parseInt(el.dataset.chapterIndex)
-      );
-      el.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showChapterContextMenu(e, el.dataset.chapterId, state.currentManga?.id);
-      });
-    });
-
-    // Download individual chapters
-    chapDiv.querySelectorAll(".btn-download-chapter").forEach(btn => {
-      btn.onclick = async (e) => {
-        e.stopPropagation();
-        await downloadChapter(btn.dataset.chapterId, btn.dataset.chapterName);
-      };
-    });
-
-    // Bulk download button
-    const bulkBtn = $("downloadBulkBtn");
-    if (bulkBtn) {
-      bulkBtn.onclick = () => showBulkDownloadModal(displayChapters);
-    }
-
-    // Check integrity button
-    const integrityBtn = $("checkIntegrityBtn");
-    if (integrityBtn) {
-      integrityBtn.onclick = () => checkChapterIntegrity(state.allChapters);
-    }
-
+    state.chaptersReversed = false;
+    renderChaptersList();
   } catch (e) {
     chapDiv.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
+  }
+}
+
+function renderChaptersList() {
+  if (!state.currentManga) return;
+  const chapDiv = $("chapters");
+
+  let displayChapters = state.allChapters;
+  if (state.settings.skipReadChapters) {
+    displayChapters = state.allChapters.filter(ch => !isChapterRead(state.currentManga.id, ch.id));
+  }
+  if (state.chaptersReversed) {
+    displayChapters = [...displayChapters].reverse();
+  }
+
+  if (!displayChapters.length) {
+    chapDiv.innerHTML = `<div class="muted">${state.settings.skipReadChapters ? "All chapters read" : "No chapters found"}</div>`;
+    return;
+  }
+
+  const reverseIcon = state.chaptersReversed
+    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`
+    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`;
+
+  chapDiv.innerHTML = `
+    <div class="chapters-header">
+      <strong>${displayChapters.length} Chapter${displayChapters.length !== 1 ? "s" : ""} ${state.settings.skipReadChapters ? "Unread" : "Available"}</strong>
+      <div class="chapters-header-actions">
+        <button class="btn-reverse-chapters ${state.chaptersReversed ? 'btn-reverse-active' : ''}" id="reverseChaptersBtn" title="${state.chaptersReversed ? 'Oldest first (reversed)' : 'Newest first (default)'}">
+          ${reverseIcon}
+          ${state.chaptersReversed ? "Oldest First" : "Newest First"}
+        </button>
+        <button class="btn-check-integrity" id="checkIntegrityBtn" title="Check Chapter Integrity">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Check Integrity
+        </button>
+        <button class="btn-download-bulk" id="downloadBulkBtn" title="Download Multiple Chapters">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Bulk Download
+        </button>
+      </div>
+    </div>
+    <div id="integrityReport"></div>
+    <div class="chapters-list">
+      ${displayChapters.map((ch, i) => {
+        const isRead    = isChapterRead(state.currentManga.id, ch.id);
+        const realIndex = state.allChapters.findIndex(c => c.id === ch.id);
+        const isFlagged = state.flaggedChapters.has(`${state.currentManga.id}:${ch.id}`);
+        return `
+          <div class="chapter-item ${isRead ? 'chapter-read' : ''} ${isFlagged ? 'chapter-flagged' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
+            <div class="chapter-info">
+              <div class="chapter-name">${isFlagged ? '<span class="chapter-flag-icon">🚩</span> ' : ''}${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</div>
+              ${ch.date ? `<div class="chapter-date">${new Date(ch.date).toLocaleDateString("en-US", { day:"2-digit", month:"short", year:"numeric" })}</div>` : ""}
+            </div>
+            <div class="chapter-action">
+              ${isRead ? `<span class="read-badge">✓</span>` : ""}
+              <button class="btn-download-chapter" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}" title="Download this chapter" onclick="event.stopPropagation();">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>`;
+      }).join("")}
+    </div>`;
+
+  chapDiv.querySelectorAll(".chapter-item[data-chapter-id]").forEach(el => {
+    el.onclick = () => loadChapter(
+      el.dataset.chapterId,
+      el.dataset.chapterName,
+      parseInt(el.dataset.chapterIndex)
+    );
+    el.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showChapterContextMenu(e, el.dataset.chapterId, state.currentManga?.id);
+    });
+  });
+
+  // Download individual chapters
+  chapDiv.querySelectorAll(".btn-download-chapter").forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      await downloadChapter(btn.dataset.chapterId, btn.dataset.chapterName);
+    };
+  });
+
+  // Reverse order button
+  const reverseBtn = $("reverseChaptersBtn");
+  if (reverseBtn) {
+    reverseBtn.onclick = () => {
+      state.chaptersReversed = !state.chaptersReversed;
+      renderChaptersList();
+    };
+  }
+
+  // Bulk download button
+  const bulkBtn = $("downloadBulkBtn");
+  if (bulkBtn) {
+    bulkBtn.onclick = () => showBulkDownloadModal(displayChapters);
+  }
+
+  // Check integrity button
+  const integrityBtn = $("checkIntegrityBtn");
+  if (integrityBtn) {
+    integrityBtn.onclick = () => checkChapterIntegrity(state.allChapters);
   }
 }
 
@@ -1882,6 +1964,17 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
         manga: state.currentManga,
         chapterId
       })
+    }).then(() => {
+      // Keep in-memory history in sync (with full manga object including genres)
+      const existing = state.history.findIndex(
+        m => m.id === state.currentManga.id && m.sourceId === state.currentSourceId
+      );
+      const entry = { ...state.currentManga, sourceId: state.currentSourceId, chapterId, readAt: new Date().toISOString() };
+      if (existing >= 0) state.history.splice(existing, 1);
+      state.history.unshift(entry);
+      state.history = state.history.slice(0, 100);
+      // Refresh recommendations so "Based on:" label reflects updated consumption
+      loadRecommendations();
     }).catch(() => {});
 
     showReader();
@@ -2157,9 +2250,15 @@ function analyzeChapterIntegrity(chapters, mangaDetails = null) {
   const warnings = [];
   const info = [];
 
-  // Extract chapter numbers
+  // Extract chapter numbers (handles numeric strings and "Chapter X" style names)
   const chapterNumbers = chapters
-    .map(ch => parseFloat(ch.chapter))
+    .map(ch => {
+      const direct = parseFloat(ch.chapter);
+      if (!isNaN(direct)) return direct;
+      // Fallback: extract the first number from strings like "Chapter 1191"
+      const match = String(ch.chapter || ch.name || '').match(/\d+(?:\.\d+)?/);
+      return match ? parseFloat(match[0]) : NaN;
+    })
     .filter(num => !isNaN(num))
     .sort((a, b) => a - b);
 
@@ -2333,6 +2432,104 @@ function displayIntegrityReport(report, mangaUpdatesData = null) {
 window.closeIntegrityReport = function() {
   const reportDiv = $("integrityReport");
   if (reportDiv) reportDiv.innerHTML = '';
+};
+
+// ============================================================================
+// ANIME / FILM ADAPTATION CHECK (via AniList GraphQL)
+// ============================================================================
+window.checkAnimeAdaptation = async function(title) {
+  const btn       = $("adaptationCheckBtn");
+  const resultDiv = $("adaptationResult");
+  if (!resultDiv) return;
+
+  if (btn) { btn.textContent = "🎬 Checking..."; btn.classList.add("badge-adaptation-loading"); }
+
+  // Dual query:
+  // 1. Look up the manga entry and follow its ADAPTATION relations to anime
+  // 2. Directly search AniList for anime with the same title (catches cases
+  //    where the manga<->anime relation isn't populated on AniList)
+  const query = `
+    query ($search: String) {
+      mangaEntry: Media(search: $search, type: MANGA) {
+        id
+        relations {
+          edges {
+            relationType
+            node {
+              id type format status
+              title { romaji english native }
+              siteUrl
+              coverImage { medium }
+            }
+          }
+        }
+      }
+      animeDirect: Page(perPage: 6) {
+        media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+          id format status
+          title { romaji english native }
+          siteUrl
+          coverImage { medium }
+        }
+      }
+    }
+  `;
+
+  try {
+    const res = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ query, variables: { search: title } })
+    });
+    const data = await res.json();
+
+    // --- Source 1: ADAPTATION relations from the manga entry ---
+    const relationEdges = data?.data?.mangaEntry?.relations?.edges || [];
+    const fromRelations = relationEdges
+      .filter(e => e.relationType === "ADAPTATION" && e.node.type === "ANIME")
+      .map(e => e.node);
+
+    // --- Source 2: Direct anime search ---
+    const directAnime = data?.data?.animeDirect?.media || [];
+
+    // Merge, deduplicate by AniList ID — relation entries take priority
+    const seen = new Set(fromRelations.map(n => n.id));
+    const merged = [
+      ...fromRelations,
+      ...directAnime.filter(n => !seen.has(n.id))
+    ];
+
+    if (merged.length === 0) {
+      resultDiv.innerHTML = `<div class="adaptation-result adaptation-none">🎬 No anime or film adaptations found on AniList.</div>`;
+    } else {
+      resultDiv.innerHTML = `
+        <div class="adaptation-result">
+          <div class="adaptation-result-title">🎬 Adaptations found (${merged.length})</div>
+          <div class="adaptation-list">
+            ${merged.map(n => {
+              const t    = n.title.english || n.title.romaji || n.title.native || "Unknown";
+              const fmt  = n.format ? n.format.replace(/_/g, ' ') : '';
+              const st   = n.status  ? n.status.replace(/_/g, ' ')  : '';
+              const meta = [fmt, st].filter(Boolean).join(' · ');
+              return `<a class="adaptation-item" href="${escapeHtml(n.siteUrl)}" target="_blank" rel="noopener noreferrer">
+                ${n.coverImage?.medium
+                  ? `<img src="${escapeHtml(n.coverImage.medium)}" alt="" class="adaptation-cover">`
+                  : `<div class="adaptation-cover-placeholder">📺</div>`}
+                <div class="adaptation-item-info">
+                  <span class="adaptation-item-name">${escapeHtml(t)}</span>
+                  ${meta ? `<span class="adaptation-item-meta">${escapeHtml(meta)}</span>` : ''}
+                </div>
+              </a>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+  } catch (e) {
+    resultDiv.innerHTML = `<div class="adaptation-result adaptation-none">⚠️ Error checking adaptations: ${escapeHtml(e.message)}</div>`;
+  } finally {
+    if (btn) { btn.textContent = "🎬 Check"; btn.classList.remove("badge-adaptation-loading"); }
+  }
 };
 
 // Record session duration when navigating away from chapter
@@ -3257,6 +3454,7 @@ function setView(view, context = {}, replace = false) {
   } else if (view === "history") {
     renderHistoryView();
   } else if (view === "manga-details") {
+    window.scrollTo({ top: 0, behavior: "instant" });
     // Restore context if available
     const ctx = navigationManager.getContext();
     if (ctx.mangaId && ctx.sourceId) {

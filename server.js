@@ -22,6 +22,11 @@ const PORT = process.env.PORT || 3000;
 const reposCache = new Map();
 const upload = multer({ dest: TMP_DIR, limits: { fileSize: 500 * 1024 * 1024 } });
 
+// In-memory store cache — eliminates read/write race conditions.
+// All requests read from and write to this object; disk is only
+// used for persistence (written after every mutation).
+let _store = null;
+
 function safeId(id) {
   if (typeof id !== "string") return null;
   return /^[a-z0-9_-]{1,80}$/i.test(id) ? id : null;
@@ -45,35 +50,43 @@ async function ensureDirs() {
 }
 
 async function readStore() {
-  const raw = await fsp.readFile(STORE_PATH, "utf8");
-  const store = JSON.parse(raw);
-  store.repos = Array.isArray(store.repos) ? store.repos.map(r => ({
+  if (!_store) {
+    // Fallback: read from disk (should normally only run at startup via initStore)
+    const raw = await fsp.readFile(STORE_PATH, "utf8");
+    _store = JSON.parse(raw);
+  }
+  // Normalise / migrate fields in-place
+  _store.repos = Array.isArray(_store.repos) ? _store.repos.map(r => ({
     ...r,
     kind: r.kind || "jsrepo",
     name: r.name || r.url
   })) : [];
-  store.installedSources = store.installedSources || {};
-  store.history = store.history || [];
-  store.favorites = store.favorites || [];
-
-  // --- New feature fields: migrate existing stores gracefully ---
-  store.readingStatus = store.readingStatus || {};
-  store.reviews = store.reviews || {};
-  store.customLists = store.customLists || [];
-  store.analytics = store.analytics || {
+  _store.installedSources = _store.installedSources || {};
+  _store.history   = _store.history   || [];
+  _store.favorites = _store.favorites || [];
+  _store.readingStatus = _store.readingStatus || {};
+  _store.reviews   = _store.reviews   || {};
+  _store.customLists = _store.customLists || [];
+  _store.analytics = _store.analytics || {
     totalChaptersRead: 0,
-    totalTimeSpent: 0,  // minutes
+    totalTimeSpent: 0,
     readingSessions: [],
     dailyStreak: 0,
     lastReadDate: null
   };
-  store.achievements = store.achievements || [];
-
-  return store;
+  _store.achievements = _store.achievements || [];
+  return _store;
 }
 
 async function writeStore(store) {
+  _store = store; // update in-memory cache synchronously so concurrent reads see the new state
   await fsp.writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf8");
+}
+
+async function initStore() {
+  if (!fs.existsSync(STORE_PATH)) return; // ensureDirs already created it; readStore will handle the empty case
+  const raw = await fsp.readFile(STORE_PATH, "utf8");
+  _store = JSON.parse(raw);
 }
 
 async function fetchJson(url) {
@@ -1060,6 +1073,7 @@ app.post("/api/mangaupdates/search", async (req, res) => {
 app.use("/", express.static(path.join(__dirname, "public")));
 
 ensureDirs()
+  .then(() => initStore())
   .then(() => autoInstallLocalSources())
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {
