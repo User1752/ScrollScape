@@ -80,6 +80,31 @@ async function getFromChaptersPage(limit = 20) {
     .slice(0, limit);
 }
 
+// ── Genre enrichment ─────────────────────────────────────────────────────────
+
+// MangaPill search cards contain no genre data — fetch detail pages in parallel
+// to enrich results. Runs up to `concurrency` requests at a time.
+async function enrichGenres(results, concurrency = 5) {
+  const out = results.map(r => ({ ...r }));
+  let i = 0;
+  async function worker() {
+    while (i < out.length) {
+      const idx = i++;
+      const item = out[idx];
+      if (!item.id) continue;
+      try {
+        const html = await getHtml(`${BASE}/manga/${item.id}`);
+        const $    = cheerio.load(html);
+        const genres = [];
+        $('a[href*="/search?genre"]').each((_, el) => genres.push($(el).text().trim()));
+        item.genres = genres;
+      } catch (_) { /* leave genres empty on error */ }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, out.length) }, worker));
+  return out;
+}
+
 // ── Module export ─────────────────────────────────────────────────────────────
 
 // Client-side sort for MangaPill (no server-side sort support)
@@ -102,7 +127,8 @@ module.exports = {
   async search(query, page = 1, orderBy = '') {
     const html = await getHtml(`${BASE}/search?q=${encodeURIComponent(query)}&page=${page}`);
     const $ = cheerio.load(html);
-    return { results: sortResults(parseSearchCards($), orderBy), hasNextPage: !!$('a.btn.btn-sm').length };
+    const results = await enrichGenres(sortResults(parseSearchCards($), orderBy));
+    return { results, hasNextPage: !!$('a.btn.btn-sm').length };
   },
 
   async trending()      { return { results: await getFromChaptersPage() }; },
@@ -118,7 +144,8 @@ module.exports = {
     const params = genres.map(g => `genre=${encodeURIComponent(norm(g))}`).join('&');
     const html = await getHtml(`${BASE}/search?${params}`);
     const $ = cheerio.load(html);
-    return { results: sortResults(parseSearchCards($), orderBy) };
+    const results = await enrichGenres(sortResults(parseSearchCards($), orderBy));
+    return { results };
   },
 
   async authorSearch(authorName) {

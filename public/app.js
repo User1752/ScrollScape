@@ -470,6 +470,55 @@ const navigationManager = new NavigationManager();
 const achievementManager = new AchievementManager();
 
 // ============================================================================
+// THEME SHOP — definitions & AP helpers
+// ============================================================================
+
+const SHOP_THEMES = [
+  { id: 'default',     name: 'Default',        desc: 'Classic purple theme',            cost: 0,  primary: '#913FE2', primaryDark: '#6F2598', primaryLight: '#A855F7', preview: 'linear-gradient(135deg,#913FE2,#A855F7)' },
+  { id: 'dragonball',  name: 'Dragon Ball',    desc: "Power up with Goku's energy",     cost: 5,  primary: '#FF6B00', primaryDark: '#CC4400', primaryLight: '#FFB800', preview: 'linear-gradient(135deg,#FF6B00,#FFB800)' },
+  { id: 'naruto',      name: 'Naruto',         desc: 'Believe it! Run like a ninja',     cost: 5,  primary: '#F96E0A', primaryDark: '#bf4e00', primaryLight: '#FFB347', preview: 'linear-gradient(135deg,#F96E0A,#FFB347)' },
+  { id: 'onepiece',    name: 'One Piece',      desc: 'Set sail for adventure',           cost: 5,  primary: '#C0392B', primaryDark: '#922B21', primaryLight: '#E74C3C', preview: 'linear-gradient(135deg,#C0392B,#E74C3C)' },
+  { id: 'demonslayer', name: 'Demon Slayer',   desc: 'Total concentration breathing',    cost: 8,  primary: '#C53030', primaryDark: '#7B1FA2', primaryLight: '#E57373', preview: 'linear-gradient(135deg,#C53030,#7B1FA2)' },
+  { id: 'aot',         name: 'Attack on Titan',desc: 'On that day, humanity remembered…',cost: 8,  primary: '#2E6B5E', primaryDark: '#1A4A40', primaryLight: '#4DB6AC', preview: 'linear-gradient(135deg,#2E6B5E,#4DB6AC)' },
+  { id: 'jjk',         name: 'Jujutsu Kaisen', desc: 'Hollow Purple',                    cost: 10, primary: '#6B21A8', primaryDark: '#1A237E', primaryLight: '#A78BFA', preview: 'linear-gradient(135deg,#1A237E,#A78BFA)' },
+  { id: 'bleach',      name: 'Bleach',         desc: 'Bankai',                           cost: 10, primary: '#00B4B4', primaryDark: '#007878', primaryLight: '#4DEEEE', preview: 'linear-gradient(135deg,#007878,#4DEEEE)' },
+];
+
+function getSpentAP()   { return parseInt(localStorage.getItem('manghu_ap_spent')  || '0', 10); }
+function getBonusAP()   { return parseInt(localStorage.getItem('manghu_ap_bonus')  || '0', 10); }
+function addBonusAP(n)  { localStorage.setItem('manghu_ap_bonus', getBonusAP() + n); }
+function spendAP(n)     { localStorage.setItem('manghu_ap_spent', Math.max(0, getSpentAP() + n)); }
+function getAvailableAP() { return Math.max(0, achievementManager.unlockedAchievements.size + getBonusAP() - getSpentAP()); }
+
+function getPurchasedThemes() {
+  try { return JSON.parse(localStorage.getItem('manghu_purchased_themes') || '["default"]'); }
+  catch { return ['default']; }
+}
+function addPurchasedTheme(id) {
+  const p = getPurchasedThemes();
+  if (!p.includes(id)) { p.push(id); localStorage.setItem('manghu_purchased_themes', JSON.stringify(p)); }
+}
+function getActiveTheme() { return localStorage.getItem('manghu_active_theme') || 'default'; }
+function setActiveTheme(id) { localStorage.setItem('manghu_active_theme', id); applyTheme(id); }
+function applyTheme(id) {
+  const t = SHOP_THEMES.find(x => x.id === id) || SHOP_THEMES[0];
+  const root = document.documentElement;
+  root.style.setProperty('--primary',       t.primary);
+  root.style.setProperty('--primary-dark',  t.primaryDark);
+  root.style.setProperty('--primary-light', t.primaryLight);
+  root.setAttribute('data-color-theme', id === 'default' ? '' : id);
+}
+function updateApBadge() {
+  const ap = getAvailableAP();
+  const badge = document.getElementById('sidebarApBadge');
+  if (badge) badge.textContent = `${ap} AP`;
+  const achEl  = document.getElementById('achPageApBalance');
+  const shopEl = document.getElementById('shopApBalance');
+  if (achEl)  achEl.textContent  = ap;
+  if (shopEl) shopEl.textContent = ap;
+}
+
+// ============================================================================
 // ACHIEVEMENT DEFINITIONS
 // Loaded dynamically from data/achievements.json via AchievementManager
 // Legacy hardcoded achievements kept for backwards compatibility
@@ -1155,13 +1204,15 @@ function renderLibrary() {
       ? `<div class="library-card-status status-badge-${status}">${statusLabel(status).split(' ')[0]}</div>`
       : "";
     const currentRating = state.ratings[manga.id] || 0;
+    const lastChapterId = state.lastReadChapter?.[manga.id];
+    const btnLabel = lastChapterId ? "Continue Reading" : "Start Reading";
     return `
       <div class="library-card" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || state.currentSourceId)}">
         <div class="library-card-cover">
           ${manga.cover && !manga.cover.endsWith('.pdf') ? `<img src="${escapeHtml(manga.cover)}" alt="${escapeHtml(manga.title)}" loading="lazy">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
           ${statusBadge}
           <div class="library-card-overlay">
-            <button class="btn-read">Continue Reading</button>
+            <button class="btn-read">${btnLabel}</button>
           </div>
         </div>
         <div class="library-card-info">
@@ -1213,6 +1264,39 @@ function renderLibrary() {
         const srcName = state.installedSources[sourceId]?.name || sourceId;
         showToast("Source switched", srcName, "info");
       }
+
+      // "Continue Reading" overlay button — jump directly to last chapter + page
+      if (e.target.closest(".btn-read") && state.lastReadChapter?.[mangaId]) {
+        const lastChapterId = state.lastReadChapter[mangaId];
+        const lastPageIndex = state.lastReadPages?.[`${mangaId}:${lastChapterId}`] || 0;
+        try {
+          showToast("Resuming...", "", "info");
+          // Load manga details silently so state.currentManga is populated
+          const result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
+            method: "POST",
+            body: JSON.stringify({ mangaId })
+          });
+          state.currentManga = result;
+          // Load chapters so state.allChapters is populated
+          const cr = await api(`/api/source/${state.currentSourceId}/chapters`, {
+            method: "POST",
+            body: JSON.stringify({ mangaId })
+          });
+          state.allChapters = cr.chapters || [];
+          const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
+          if (idx >= 0) {
+            const ch = state.allChapters[idx];
+            await loadChapter(lastChapterId, ch.name || `Chapter ${ch.chapter || idx + 1}`, idx, lastPageIndex);
+          } else {
+            // Chapter no longer exists — fall back to detail page
+            await loadMangaDetails(mangaId, "library");
+          }
+        } catch (err) {
+          showToast("Error", err.message, "error");
+        }
+        return;
+      }
+
       await loadMangaDetails(mangaId, "library");
       if (!state.currentSourceId) state.currentSourceId = prevSource;
     };
@@ -3546,9 +3630,6 @@ async function renderAnalyticsView() {
         </div>`).join("");
     }
 
-    // Achievements
-    await renderAchievementsGrid();
-
     // Recent sessions
     const sessionsEl = $("recentSessions");
     if (sessionsEl) {
@@ -3617,6 +3698,7 @@ async function checkAndUnlockAchievements() {
     
     // Update state
     state.earnedAchievements = achievementManager.unlockedAchievements;
+    updateApBadge();
   } catch (e) {
     console.error('Error checking achievements:', e);
   }
@@ -3674,6 +3756,170 @@ async function renderAchievementsGrid() {
     console.error('Error rendering achievements:', e);
     grid.innerHTML = `<div class="muted">Could not load achievements.</div>`;
   }
+}
+
+// ============================================================================
+// DRAGON BALL EASTER EGG HELPERS
+// ============================================================================
+
+function dragonBallSVG(n) {
+  return `<img src="/dragon-ball-${n}.png" class="db-sprite" draggable="false" alt="${n}-star Dragon Ball">`;
+}
+
+function summonShenlong() {
+  addBonusAP(50);
+  updateApBadge();
+  const overlay = document.getElementById('shenlong-overlay');
+  const gif = document.getElementById('shenlong-gif');
+  if (overlay) {
+    // Reset GIF src so it replays from frame 1 every time
+    if (gif) {
+      const src = gif.getAttribute('src');
+      gif.setAttribute('src', '');
+      requestAnimationFrame(() => gif.setAttribute('src', src));
+    }
+    overlay.classList.remove('hidden');
+    overlay.classList.add('shenlong-show');
+    setTimeout(() => {
+      overlay.classList.add('shenlong-hide');
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('shenlong-show', 'shenlong-hide');
+      }, 800);
+    }, 2800);
+  }
+  showToast('🐉 Shenlong appears!', 'Your wish is granted — +50 AP!', 'success');
+}
+
+// ============================================================================
+// ACHIEVEMENTS PAGE VIEW
+// ============================================================================
+
+function renderAchievementsView() {
+  const content = document.getElementById('achPageContent');
+  if (!content) return;
+  updateApBadge();
+
+  // Secret Dragon Ball easter egg: collect all 7 dragon balls → Shenlong grants 50 AP
+  const db = document.getElementById('achDragonBall');
+  if (db) {
+    if (!db.dataset.eggBound) {
+      db.dataset.eggBound = '1';
+      db.dataset.ball = '1';
+      let eggTimer = null;
+      db.addEventListener('click', () => {
+        let ball = parseInt(db.dataset.ball || '1');
+        db.style.transform = `scale(1.25) rotate(${ball * 52}deg)`;
+        setTimeout(() => { db.style.transform = ''; }, 250);
+        clearTimeout(eggTimer);
+        if (ball === 7) {
+          // All 7 balls collected — summon Shenlong!
+          db.dataset.ball = '1';
+          setTimeout(() => { db.innerHTML = dragonBallSVG(1); }, 3000);
+          summonShenlong();
+        } else {
+          ball++;
+          db.dataset.ball = ball;
+          db.innerHTML = dragonBallSVG(ball);
+          // Reset if idle for 3 seconds without reaching 7
+          eggTimer = setTimeout(() => {
+            db.dataset.ball = '1';
+            db.innerHTML = dragonBallSVG(1);
+          }, 3000);
+        }
+      });
+    }
+    // Render current ball if empty
+    if (!db.innerHTML.trim()) db.innerHTML = dragonBallSVG(1);
+  }
+  const total    = achievementManager.achievements.length;
+  const unlocked = achievementManager.unlockedAchievements.size;
+  const countEl  = document.getElementById('achievementCount');
+  if (countEl) countEl.textContent = `${unlocked}/${total}`;
+  const html = achievementManager.categories.map(cat => {
+    const achs = achievementManager.getAchievementsByCategory(cat.id);
+    const catUnlocked = achs.filter(a => achievementManager.isUnlocked(a.id)).length;
+    return `
+      <div class="ach-page-category">
+        <div class="ach-category-header">
+          <h3>${escapeHtml(cat.name)}</h3>
+          <span class="ach-category-count">${catUnlocked}/${achs.length}</span>
+        </div>
+        <div class="ach-category-grid">
+          ${achs.map(a => {
+            const isUnlocked = achievementManager.isUnlocked(a.id);
+            return `
+              <div class="ach-card ${isUnlocked ? 'ach-unlocked' : 'ach-locked'} ach-rarity-${escapeHtml(a.rarity || 'common')}" title="${escapeHtml(a.description)}">
+                <div class="ach-card-icon"><i data-feather="${escapeHtml(a.icon)}"></i></div>
+                <div class="ach-card-name">${escapeHtml(a.name)}</div>
+                ${isUnlocked
+                  ? `<div class="ach-card-ap">+1 AP</div>`
+                  : `<div class="ach-card-locked-desc">${escapeHtml(a.description)}</div>`}
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+  content.innerHTML = html || '<div class="muted">No achievements yet.</div>';
+  if (typeof feather !== 'undefined') feather.replace();
+}
+
+// ============================================================================
+// SHOP VIEW
+// ============================================================================
+
+function renderShopView() {
+  const grid = document.getElementById('shopGrid');
+  if (!grid) return;
+  updateApBadge();
+  const ap        = getAvailableAP();
+  const purchased = getPurchasedThemes();
+  const active    = getActiveTheme();
+  grid.innerHTML = SHOP_THEMES.map(t => {
+    const owned    = purchased.includes(t.id);
+    const isActive = active === t.id;
+    const canAfford = ap >= t.cost;
+    let btn, badge = '';
+    if (isActive) {
+      btn = `<button class="shop-btn shop-btn-active" disabled>Active</button>`;
+      badge = `<span class="shop-active-badge">✓ Active</span>`;
+    } else if (owned) {
+      btn = `<button class="shop-btn shop-btn-owned" onclick="setActiveTheme('${t.id}');renderShopView()">Apply</button>`;
+    } else if (t.cost === 0) {
+      btn = `<button class="shop-btn shop-btn-buy" onclick="addPurchasedTheme('${t.id}');setActiveTheme('${t.id}');renderShopView()">Get Free</button>`;
+    } else if (canAfford) {
+      btn = `<button class="shop-btn shop-btn-buy" onclick="buyTheme('${t.id}')">Buy</button>`;
+    } else {
+      btn = `<button class="shop-btn shop-btn-afford" disabled>Need ${t.cost} AP</button>`;
+    }
+    const costStr = t.cost === 0 ? '<span style="color:var(--success)">Free</span>' : `<span class="ap-star">⭐</span>${t.cost} AP`;
+    return `
+      <div class="shop-card ${isActive ? 'shop-active' : owned ? 'shop-owned' : ''}">
+        <div class="shop-card-preview" style="background:${t.preview}"></div>
+        <div class="shop-card-body">
+          <div class="shop-card-name">${escapeHtml(t.name)}</div>
+          <div class="shop-card-desc">${escapeHtml(t.desc)}</div>
+          <div class="shop-card-footer">
+            <span class="shop-card-cost">${costStr}</span>
+            ${btn}
+          </div>
+          ${badge}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function buyTheme(id) {
+  const t  = SHOP_THEMES.find(x => x.id === id);
+  if (!t) return;
+  const ap = getAvailableAP();
+  if (ap < t.cost) { showToast('Not enough AP', `You need ${t.cost} AP`, 'warning'); return; }
+  spendAP(t.cost);
+  addPurchasedTheme(id);
+  setActiveTheme(id);
+  showToast('Theme unlocked! 🎨', t.name, 'success');
+  renderShopView();
+  updateApBadge();
 }
 
 // ============================================================================
@@ -3891,7 +4137,7 @@ function setView(view, context = {}, replace = false) {
   // Update navigation manager
   navigationManager.navigateTo(view, context, replace);
 
-  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history"];
+  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history", "achievements", "shop"];
   for (const v of ALL_VIEWS) {
     const el = $(`view-${v}`);
     if (el) el.classList.toggle("hidden", v !== view);
@@ -3910,6 +4156,10 @@ function setView(view, context = {}, replace = false) {
     renderAnalyticsView();
   } else if (view === "history") {
     renderHistoryView();
+  } else if (view === "achievements") {
+    renderAchievementsView();
+  } else if (view === "shop") {
+    renderShopView();
   } else if (view === "manga-details") {
     window.scrollTo({ top: 0, behavior: "instant" });
     // Restore context if available
@@ -4093,6 +4343,7 @@ function bindUI() {
   initTheme();
   applyTranslations();
   loadSettings();
+  applyTheme(getActiveTheme());
 
   // Configure PDF.js worker
   if (window.pdfjsLib) {
