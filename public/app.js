@@ -776,6 +776,7 @@ async function loadPopularToday() {
     if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     row.innerHTML = list.slice(0, 10).map(m => mangaCardHTML(m)).join("");
     bindMangaCards(row);
+    initRowAutoScroll(row);
   } catch (e) {
     console.error("Error loading popular manga:", e);
     row.innerHTML = `<div class="muted">Error loading manga.</div>`;
@@ -794,6 +795,7 @@ async function loadRecentlyAdded() {
     const list = result.results || [];
     if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     renderMangaGrid(row, list.slice(0, 12));
+    initRowAutoScroll(row);
   } catch (e) {
     console.error("Error loading recently added:", e);
     row.innerHTML = `<div class="muted">Error loading manga.</div>`;
@@ -812,6 +814,7 @@ async function loadLatestUpdates() {
     const list = result.results || [];
     if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     renderMangaGrid(row, list.slice(0, 12));
+    initRowAutoScroll(row);
   } catch (e) {
     console.error("Error loading latest updates:", e);
     row.innerHTML = `<div class="muted">Error loading manga.</div>`;
@@ -824,7 +827,7 @@ function mangaCardHTML(m) {
     <div class="manga-card" data-manga-id="${escapeHtml(m.id)}">
       <div class="manga-card-cover">
         ${m.cover
-          ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy">`
+          ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy" referrerpolicy="no-referrer">`
           : '<div class="no-cover">?</div>'}
       </div>
       <div class="manga-card-info">
@@ -951,7 +954,11 @@ async function loadRecommendations() {
       ...state.favorites.map(m => m.id),
       ...state.history.map(m => m.id)
     ]);
-    const list = (result.results || []).filter(m => !libraryIds.has(m.id)).slice(0, 10);
+    const topGenresLower = topGenres.map(g => g.toLowerCase());
+    const list = (result.results || [])
+      .filter(m => !libraryIds.has(m.id))
+      .filter(m => (m.genres || []).some(g => topGenresLower.includes(g.toLowerCase())))
+      .slice(0, 15);
 
     if (!list.length) return;
     section.style.display = "block";
@@ -962,9 +969,79 @@ async function loadRecommendations() {
 
     row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
     bindMangaCards(row);
+    initRowAutoScroll(row);
   } catch (e) {
     // Fail silently
   }
+}
+
+// ============================================================================
+// ROW AUTO-SCROLL + DRAG
+// ============================================================================
+
+function initRowAutoScroll(row) {
+  if (row._autoScrollId) cancelAnimationFrame(row._autoScrollId);
+
+  const SPEED = 0.4; // px per frame
+  let pos = 0;
+
+  row.style.scrollSnapType = "none";
+
+  function tick() {
+    if (!row._dragging) {
+      pos += SPEED;
+      const max = row.scrollWidth - row.clientWidth;
+      if (max <= 0) { row._autoScrollId = requestAnimationFrame(tick); return; }
+      if (pos >= max) pos = 0;
+      row.scrollLeft = pos;
+    } else {
+      pos = row.scrollLeft;
+    }
+    row._autoScrollId = requestAnimationFrame(tick);
+  }
+  row._autoScrollId = requestAnimationFrame(tick);
+
+  initRowDrag(row);
+}
+
+function initRowDrag(row) {
+  if (row._dragInit) return;
+  row._dragInit = true;
+
+  let startX    = 0;
+  let startLeft = 0;
+  let hasMoved  = false;
+
+  row.style.cursor = "grab";
+
+  row.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    startX    = e.clientX;
+    startLeft = row.scrollLeft;
+    hasMoved  = false;
+    row.style.cursor = "grabbing";
+  }, { passive: true });
+
+  row.addEventListener("pointermove", e => {
+    if (e.buttons !== 1) return;
+    const dx = e.clientX - startX;
+    if (!hasMoved && Math.abs(dx) < 5) return; // threshold: ignore tiny jitter
+    hasMoved = true;
+    row._dragging = true;
+    row.scrollLeft = startLeft - dx;
+  }, { passive: true });
+
+  const stopDrag = () => { row._dragging = false; row.style.cursor = "grab"; };
+  row.addEventListener("pointerup",     stopDrag);
+  row.addEventListener("pointercancel", () => { hasMoved = false; stopDrag(); });
+
+  // Block click from opening manga only if user actually dragged (not just clicked)
+  row.addEventListener("click", e => {
+    if (hasMoved) {
+      e.stopPropagation();
+      hasMoved = false;
+    }
+  }, true); // capture phase — fires before card onclick
 }
 
 // ============================================================================
@@ -1072,7 +1149,12 @@ function renderLibrary() {
     const sourceId = card.dataset.sourceId;
     card.onclick = async (e) => {
       const prevSource = state.currentSourceId;
-      state.currentSourceId = sourceId;
+      if (sourceId && sourceId !== state.currentSourceId) {
+        state.currentSourceId = sourceId;
+        renderSourceSelect();
+        const srcName = state.installedSources[sourceId]?.name || sourceId;
+        showToast("Source switched", srcName, "info");
+      }
       await loadMangaDetails(mangaId, "library");
       if (!state.currentSourceId) state.currentSourceId = prevSource;
     };
@@ -1408,6 +1490,7 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
           <div class="manga-meta">
             ${result.status ? `<span class="badge badge-${result.status === 'ongoing' ? 'success' : 'secondary'}">${escapeHtml(result.status)}</span>` : ""}
             ${result.year   ? `<span class="badge">📅 ${escapeHtml(String(result.year))}</span>` : ""}
+            <span class="badge badge-source">🌐 ${escapeHtml(state.installedSources[state.currentSourceId]?.name || state.currentSourceId)}</span>
           </div>
           ${result.genres?.length ? `
             <div class="manga-genres">

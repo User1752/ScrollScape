@@ -8,9 +8,72 @@
       "author": "MangaDex API",
       "icon": "",
       "installedAt": "2026-02-01T23:02:03.715Z"
+    },
+    "mangapill": {
+      "id": "mangapill",
+      "name": "MangaPill",
+      "version": "1.0.0",
+      "author": "scraper",
+      "icon": "",
+      "installedAt": "2026-02-28T00:02:14.396Z"
     }
   },
   "history": [
+    {
+      "id": "2/one-piece",
+      "title": "One Piece",
+      "cover": "/api/proxy-image?url=https%3A%2F%2Fcdn.readdetectiveconan.com%2Ffile%2Fmangapill%2Fi%2F2.webp%3Fh%3D01971742-5d7f-7f32-8d2b-d038279f8a73",
+      "description": "Gol D. Roger, a man referred to as the \"Pirate King,\" is set to be executed by the World Government. But just before his demise, he confirms the existence of a great treasure, One Piece, located somewhere within the vast ocean known as the Grand Line. Announcing that One Piece can be claimed by anyone worthy enough to reach it, the Pirate King is executed and the Great Age of Pirates begins.\n\nTwenty-two years later, a young man by the name of Monkey D. Luffy is ready to embark on his own adventure, searching for One Piece and striving to become the new Pirate King. Armed with just a straw hat, a small boat, and an elastic body, he sets out on a fantastic journey to gather his own crew and a worthy ship that will take them across the Grand Line to claim the greatest status on the high seas.\n\n[Written by MAL Rewrite]",
+      "status": "publishing",
+      "genres": [
+        "Action",
+        "Adventure",
+        "Comedy",
+        "Fantasy",
+        "Shounen",
+        "Super Power"
+      ],
+      "author": "",
+      "url": "https://mangapill.com/manga/2/one-piece",
+      "sourceId": "mangapill",
+      "chapterId": "2-10001000/one-piece-chapter-1",
+      "readAt": "2026-02-28T00:42:35.322Z"
+    },
+    {
+      "id": "6214/shiunji-ke-no-kodomotachi",
+      "title": "Shiunji-ke no Kodomotachi",
+      "cover": "/api/proxy-image?url=https%3A%2F%2Fcdn.readdetectiveconan.com%2Ffile%2Fmangapill%2Fi%2F6214.jpeg",
+      "description": "",
+      "status": "publishing",
+      "genres": [
+        "Comedy",
+        "Romance"
+      ],
+      "author": "",
+      "url": "https://mangapill.com/manga/6214/shiunji-ke-no-kodomotachi",
+      "sourceId": "mangapill",
+      "chapterId": "6214-10066000/shiunji-ke-no-kodomotachi-chapter-66",
+      "readAt": "2026-02-28T00:37:06.855Z"
+    },
+    {
+      "id": "9005/douyara-ore-wa-imadoki-gal-na-toshiue-osananajimi-kara-gekiomo-kanjou-wo-mukerareteiru-rashii",
+      "title": "Douyara Ore wa Imadoki Gal na Toshiue Osananajimi kara Gekiomo Kanjou wo Mukerareteiru Rashii",
+      "cover": "https://mangapill.com/api/proxy-image?url=https%3A%2F%2Fcdn.readdetectiveconan.com%2Ffile%2Fmangapill%2Fi%2F9005.jpeg%3Fh%3D0197f965-e74d-796d-ba02-968cb74b648a",
+      "description": "Yuuto Kujo discovers that his childhood friend Yuuki Suzuno, with whom he had an unrequited love for, is actually in love with his older brother. Being always compared to his better older brother is something he has become quite used to but he's not quite ready to give up. Meanwhile, Suzuno's older sister Yuuki Kano, a college student, unexpectedly begins to show some intense feelings for Yuuto!",
+      "status": "publishing",
+      "genres": [
+        "Comedy",
+        "Ecchi",
+        "Romance",
+        "School",
+        "Seinen"
+      ],
+      "author": "",
+      "url": "https://mangapill.com/manga/9005/douyara-ore-wa-imadoki-gal-na-toshiue-osananajimi-kara-gekiomo-kanjou-wo-mukerareteiru-rashii",
+      "sourceId": "mangapill",
+      "chapterId": "9005-10010000/douyara-ore-wa-imadoki-gal-na-toshiue-osananajimi-kara-gekiomo-kanjou-wo-mukerareteiru-rashii-chapter-10",
+      "readAt": "2026-02-28T00:28:54.496Z"
+    },
     {
       "id": "175e71fa-aa12-4a3e-89c9-298e64210f80",
       "title": "\"Saikyou Status\" wo Hikitsuide Ningen ni Tensei Shita Seijuu Behemoth, Yuusha no Konyakusha (Ohimesama) wo Ukkari Netotteshimau",
@@ -314,9 +377,57 @@
   },
   "customLists": [],
   "analytics": {
-    "totalChaptersRead": 30,
-    "totalTimeSpent": 21.099999999999998,
+    "totalChaptersRead": 38,
+    "totalTimeSpent": 22.6,
     "readingSessions": [
+      {
+        "mangaId": "2/one-piece",
+        "chapterId": "2-10001000/one-piece-chapter-1",
+        "duration": 0.5,
+        "date": "2026-02-28T00:43:03.403Z"
+      },
+      {
+        "mangaId": "2/one-piece",
+        "chapterId": "2-10001000/one-piece-chapter-1",
+        "duration": 0.1,
+        "date": "2026-02-28T00:39:56.278Z"
+      },
+      {
+        "mangaId": "2/one-piece",
+        "chapterId": "2-11175000/one-piece-chapter-1175",
+        "duration": 0,
+        "date": "2026-02-28T00:39:49.634Z"
+      },
+      {
+        "mangaId": "2/one-piece",
+        "chapterId": "2-11175000/one-piece-chapter-1175",
+        "duration": 0,
+        "date": "2026-02-28T00:36:57.623Z"
+      },
+      {
+        "mangaId": "2/one-piece",
+        "chapterId": "2-11175000/one-piece-chapter-1175",
+        "duration": 0.7,
+        "date": "2026-02-28T00:36:52.985Z"
+      },
+      {
+        "mangaId": "6214/shiunji-ke-no-kodomotachi",
+        "chapterId": "6214-10066000/shiunji-ke-no-kodomotachi-chapter-66",
+        "duration": 0,
+        "date": "2026-02-28T00:29:07.807Z"
+      },
+      {
+        "mangaId": "9005/douyara-ore-wa-imadoki-gal-na-toshiue-osananajimi-kara-gekiomo-kanjou-wo-mukerareteiru-rashii",
+        "chapterId": "9005-10010000/douyara-ore-wa-imadoki-gal-na-toshiue-osananajimi-kara-gekiomo-kanjou-wo-mukerareteiru-rashii-chapter-10",
+        "duration": 0.1,
+        "date": "2026-02-28T00:28:58.785Z"
+      },
+      {
+        "mangaId": "9005/douyara-ore-wa-imadoki-gal-na-toshiue-osananajimi-kara-gekiomo-kanjou-wo-mukerareteiru-rashii",
+        "chapterId": "9005-10011000/douyara-ore-wa-imadoki-gal-na-toshiue-osananajimi-kara-gekiomo-kanjou-wo-mukerareteiru-rashii-chapter-11",
+        "duration": 0.1,
+        "date": "2026-02-28T00:28:54.159Z"
+      },
       {
         "mangaId": "175e71fa-aa12-4a3e-89c9-298e64210f80",
         "chapterId": "33f12e7e-b8c2-40da-9dbf-f0ba3d5c886e",
@@ -498,8 +609,8 @@
         "date": "2026-02-19T00:28:35.681Z"
       }
     ],
-    "dailyStreak": 1,
-    "lastReadDate": "Fri Feb 27 2026"
+    "dailyStreak": 2,
+    "lastReadDate": "Sat Feb 28 2026"
   },
   "achievements": [
     "first_read",
@@ -644,6 +755,25 @@
       "lastChapter": 519,
       "sourceId": "mangadex",
       "addedAt": "2026-02-27T22:53:50.966Z"
+    },
+    {
+      "id": "2/one-piece",
+      "title": "One Piece",
+      "cover": "/api/proxy-image?url=https%3A%2F%2Fcdn.readdetectiveconan.com%2Ffile%2Fmangapill%2Fi%2F2.webp%3Fh%3D01971742-5d7f-7f32-8d2b-d038279f8a73",
+      "description": "Gol D. Roger, a man referred to as the \"Pirate King,\" is set to be executed by the World Government. But just before his demise, he confirms the existence of a great treasure, One Piece, located somewhere within the vast ocean known as the Grand Line. Announcing that One Piece can be claimed by anyone worthy enough to reach it, the Pirate King is executed and the Great Age of Pirates begins.\n\nTwenty-two years later, a young man by the name of Monkey D. Luffy is ready to embark on his own adventure, searching for One Piece and striving to become the new Pirate King. Armed with just a straw hat, a small boat, and an elastic body, he sets out on a fantastic journey to gather his own crew and a worthy ship that will take them across the Grand Line to claim the greatest status on the high seas.\n\n[Written by MAL Rewrite]",
+      "status": "publishing",
+      "genres": [
+        "Action",
+        "Adventure",
+        "Comedy",
+        "Fantasy",
+        "Shounen",
+        "Super Power"
+      ],
+      "author": "",
+      "url": "https://mangapill.com/manga/2/one-piece",
+      "sourceId": "mangapill",
+      "addedAt": "2026-02-28T00:58:04.603Z"
     }
   ]
 }

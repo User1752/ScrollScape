@@ -101,10 +101,10 @@ module.exports = {
 
     let url;
     if (tagIds.length === 0) {
-      url = `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[followedCount]=desc&hasAvailableChapters=true`;
+      url = `https://api.mangadex.org/manga?limit=50&includes[]=cover_art&includes[]=author&order[followedCount]=desc&hasAvailableChapters=true`;
     } else {
       const tagParams = tagIds.map(id => `includedTags[]=${id}`).join('&');
-      url = `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[followedCount]=desc&includedTagsMode=OR&${tagParams}&hasAvailableChapters=true`;
+      url = `https://api.mangadex.org/manga?limit=50&includes[]=cover_art&includes[]=author&order[followedCount]=desc&includedTagsMode=OR&${tagParams}&hasAvailableChapters=true`;
     }
     const data = await mdFetch(url);
     return { results: (data.data || []).map(mapManga) };

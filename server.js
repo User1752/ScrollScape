@@ -184,6 +184,28 @@ async function autoInstallLocalSources() {
 }
 
 // ============================================================================
+// IMAGE PROXY (used by sources whose CDN requires a specific Referer)
+// ============================================================================
+app.get("/api/proxy-image", async (req, res) => {
+  const { url, ref } = req.query;
+  if (!url || !/^https?:\/\//.test(url)) return res.status(400).end();
+  try {
+    const imgRes = await fetch(url, {
+      headers: {
+        "Referer": ref || "https://mangapill.com",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+    if (!imgRes.ok) return res.status(imgRes.status).end();
+    res.set("Content-Type", imgRes.headers.get("content-type") || "image/jpeg");
+    res.set("Cache-Control", "public, max-age=86400");
+    imgRes.body.pipe(res);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
+// ============================================================================
 // EXISTING ENDPOINTS
 // ============================================================================
 
