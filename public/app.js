@@ -2554,17 +2554,50 @@ async function recordReadingSession() {
 // READER & PAGE RENDERING
 // ============================================================================
 
+// ── Auto-hide header state ──────────────────────────────────────────────────
+let _headerHideTimer = null;
+
+function _readerMouseMove(e) {
+  const readerEl = $("reader");
+  if (!readerEl) return;
+  const SHOW_ZONE = 72; // px from top of viewport
+  if (e.clientY <= SHOW_ZONE) {
+    // Mouse is in the header zone — show and cancel any pending hide
+    readerEl.classList.remove("header-hidden");
+    clearTimeout(_headerHideTimer);
+    _headerHideTimer = null;
+  } else {
+    // Mouse left the zone — schedule hide if not already pending
+    if (!_headerHideTimer && !readerEl.classList.contains("header-hidden")) {
+      _headerHideTimer = setTimeout(() => {
+        readerEl.classList.add("header-hidden");
+        _headerHideTimer = null;
+      }, 2000);
+    }
+  }
+}
+
 function showReader() {
-  $("reader").classList.remove("hidden");
+  const readerEl = $("reader");
+  readerEl.classList.remove("hidden", "header-hidden");
   const chapterName = state.currentChapter?.name || "Chapter";
   $("readerTitle").textContent = `${state.currentManga?.title || ""} — ${chapterName}`;
   updateZoomUI();
+  // Auto-hide header after 3 s of inactivity and on mouse position
+  clearTimeout(_headerHideTimer);
+  _headerHideTimer = setTimeout(() => { readerEl.classList.add("header-hidden"); _headerHideTimer = null; }, 3000);
+  readerEl.addEventListener("mousemove", _readerMouseMove);
 }
 
 async function hideReader() {
   stopAutoScroll();
   await recordReadingSession();
-  $("reader").classList.add("hidden");
+  const readerEl = $("reader");
+  readerEl.classList.add("hidden");
+  readerEl.classList.remove("header-hidden");
+  readerEl.removeEventListener("mousemove", _readerMouseMove);
+  clearTimeout(_headerHideTimer);
+  _headerHideTimer = null;
 }
 
 // ============================================================================
@@ -2652,6 +2685,9 @@ function renderPage() {
   } else if (mode === "rtl") {
     renderBookSpread();
     return;
+  } else if (mode === "ltr") {
+    renderLTRSpread();
+    return;
   } else {
     pageWrap.className = "reader-content";
     if (idx < 0 || idx >= pages.length) return;
@@ -2700,6 +2736,14 @@ function getBookSpread(idx, pages) {
   };
 }
 
+// LTR (Western) spread: left = pages[idx], right = pages[idx+1]
+function getLTRSpread(idx, pages) {
+  return {
+    left:  pages[idx]?.img     || null,
+    right: pages[idx + 1]?.img || null
+  };
+}
+
 function renderBookSpread() {
   if (!state.currentChapter?.pages) return;
   const pages    = state.currentChapter.pages;
@@ -2714,7 +2758,11 @@ function renderBookSpread() {
   const total = pages.length;
   const { right: rightImg, left: leftImg } = getBookSpread(idx, pages);
 
+  const zoom = state.zoomLevel ?? 1.0;
   pageWrap.className = "reader-content reading-mode-rtl";
+  // Allow scrolling in both axes when zoomed in
+  pageWrap.style.overflow = zoom > 1.0 ? "auto" : "";
+
   const pv = $("prevPage"), nx = $("nextPage");
   if (pv) { pv.style.display = "block"; pv.disabled = idx === 0; }
   if (nx) { nx.style.display = "block"; nx.disabled = idx + 2 >= total; }
@@ -2722,8 +2770,12 @@ function renderBookSpread() {
   const r = idx + 1, l = idx + 2;
   $("pageCounter").textContent = l <= total ? `${r}-${l} / ${total}` : `${r} / ${total}`;
 
+  const wrapZoomStyle = zoom !== 1.0
+    ? `style="transform:scale(${zoom});transform-origin:top center;"`
+    : "";
+
   pageWrap.innerHTML = `
-    <div class="book-reader-wrap">
+    <div class="book-reader-wrap" id="bookReaderWrap" ${wrapZoomStyle}>
       <div class="book-spread" id="bookSpread">
         <div class="book-side book-left" id="bookLeft">
           ${leftImg
@@ -2742,6 +2794,7 @@ function renderBookSpread() {
 
   updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, idx);
   attachBookDragEvents();
+  preloadBookPages(idx, pages);
 }
 
 function attachBookDragEvents() {
@@ -2766,8 +2819,9 @@ function attachBookDragEvents() {
     active = false;
     const dx = e.clientX - startX;
     const tap = Math.abs(dx) < 12;
-    if (dragSide === "right" && (dx < -50 || tap))  navigateBook("forward");
-    if (dragSide === "left"  && (dx >  50 || tap))  navigateBook("backward");
+    const _navigate = state.settings.readingMode === "ltr" ? navigateLTR : navigateBook;
+    if (dragSide === "right" && (dx < -50 || tap))  _navigate("forward");
+    if (dragSide === "left"  && (dx >  50 || tap))  _navigate("backward");
   });
 }
 
@@ -2791,61 +2845,314 @@ function navigateBook(direction) {
   playBookFlip(direction, idx, newIdx, pages, () => {
     state.currentPageIndex = newIdx;
     _bookFlipAnimating = false;
-    renderBookSpread();
+    // Update counter + nav buttons in-place — no DOM rebuild, no flash
+    const total2 = pages.length;
+    const r = newIdx + 1, l = newIdx + 2;
+    const ctr = $("pageCounter");
+    if (ctr) ctr.textContent = l <= total2 ? `${r}-${l} / ${total2}` : `${r} / ${total2}`;
+    const pv2 = $("prevPage"), nx2 = $("nextPage");
+    if (pv2) pv2.disabled = newIdx === 0;
+    if (nx2) nx2.disabled = newIdx + 2 >= total2;
+    updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, newIdx);
+    preloadBookPages(newIdx, pages);
+    attachBookDragEvents();
   });
 }
 
-function playBookFlip(direction, oldIdx, newIdx, pages, onComplete) {
+function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = getBookSpread) {
   const spread = $("bookSpread");
   if (!spread) { onComplete(); return; }
 
-  const { right: oldRight, left: oldLeft } = getBookSpread(oldIdx, pages);
-  const { right: newRight, left: newLeft  } = getBookSpread(newIdx, pages);
+  const { right: newRight, left: newLeft } = getSpread(newIdx, pages);
+  const isForward = direction === "forward";
 
-  // Update static background sides to the NEW spread (hidden under flipper during anim)
   const sL = document.getElementById("bookLeft");
   const sR = document.getElementById("bookRight");
-  if (sL) sL.innerHTML = newLeft  ? `<img class="book-page-img" src="${escapeHtml(newLeft)}">`  : `<div class="book-page-blank"></div>`;
-  if (sR) sR.innerHTML = newRight ? `<img class="book-page-img" src="${escapeHtml(newRight)}">` : `<div class="book-page-blank"></div>`;
+
+  // ── Helper ─────────────────────────────────────────────────────────────────
+  const mkImg = (src) =>
+    src ? `<img class="book-page-img" src="${escapeHtml(src)}">` : `<div class="book-page-blank"></div>`;
+
+  // Clone the existing rendered <img> from the panel that is about to flip.
+  // Cloning guarantees the image is already loaded — no fetch needed, no blank frame.
+  const flipPanel   = isForward ? sR : sL;
+  const existingImg = flipPanel?.querySelector("img");
+  const frontClone  = existingImg ? existingImg.cloneNode() : null;
+
+  // Panel UNDER the flipper: set to the new destination page immediately.
+  // It is fully hidden by the flipper at t=0 so the image can load silently.
+  if (isForward) {
+    if (sR) sR.innerHTML = mkImg(newRight);
+  } else {
+    if (sL) sL.innerHTML = mkImg(newLeft);
+  }
 
   const w = spread.offsetWidth / 2;
   const h = spread.offsetHeight;
-  const srcImg = direction === "forward" ? oldRight : oldLeft;
 
-  // Build flipper
+  // ── FLIPPER ────────────────────────────────────────────────────────────────
   const flipper = document.createElement("div");
   Object.assign(flipper.style, {
-    position: "absolute",
-    top: "0",
-    width: w + "px",
-    height: h + "px",
-    transformStyle: "preserve-3d",
-    zIndex: "20",
-    left: direction === "forward" ? w + "px" : "0px",
-    transformOrigin: direction === "forward" ? "left center" : "right center"
+    position:        "absolute",
+    top:             "0",
+    width:           w + "px",
+    height:          h + "px",
+    transformStyle:  "preserve-3d",
+    zIndex:          "20",
+    left:            isForward ? w + "px" : "0px",
+    transformOrigin: isForward ? "left center" : "right center",
+    willChange:      "transform",
   });
 
-  flipper.innerHTML = `
-    <div class="book-flipper-face book-flipper-front">
-      ${srcImg ? `<img class="book-page-img" src="${escapeHtml(srcImg)}" alt="">` : ""}
+  // ── Front face: the currently visible page (cloned → always loaded) ─────────
+  const front = document.createElement("div");
+  front.className = "book-flipper-face book-flipper-front";
+  if (frontClone) {
+    frontClone.className = "book-page-img";
+    front.appendChild(frontClone);
+  } else {
+    front.innerHTML = `<div class="book-page-blank"></div>`;
+  }
+
+  // Curl-shadow on front face (darkens toward the fold seam)
+  const curlShadow = document.createElement("div");
+  curlShadow.style.cssText = [
+    "position:absolute;top:0;left:0;right:0;bottom:0;",
+    "pointer-events:none;z-index:3;opacity:0;",
+    isForward
+      ? "background:linear-gradient(to right,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.25) 30%,transparent 65%);"
+      : "background:linear-gradient(to left,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.25) 30%,transparent 65%);",
+  ].join("");
+  front.appendChild(curlShadow);
+
+  // ── Back face: the new incoming page (shown as the page lands) ──────────────
+  // Forward: the flipper sweeps right→left, so back face lands on the LEFT → show newLeft
+  // Backward: flipper sweeps left→right, back face lands on the RIGHT → show newRight
+  const backSrc = isForward ? newLeft : newRight;
+  const back = document.createElement("div");
+  back.className = "book-flipper-face book-flipper-back";
+  if (backSrc) {
+    const bi = new Image();
+    bi.className = "book-page-img";
+    bi.src = backSrc;
+    back.appendChild(bi);
+  } else {
+    back.innerHTML = `<div class="book-page-blank"></div>`;
+  }
+
+  // Curl-shadow on back face (mirrored direction)
+  const backShadow = document.createElement("div");
+  backShadow.style.cssText = [
+    "position:absolute;top:0;left:0;right:0;bottom:0;",
+    "pointer-events:none;z-index:3;opacity:0;",
+    isForward
+      ? "background:linear-gradient(to left,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.15) 35%,transparent 65%);"
+      : "background:linear-gradient(to right,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.15) 35%,transparent 65%);",
+  ].join("");
+  back.appendChild(backShadow);
+
+  flipper.appendChild(front);
+  flipper.appendChild(back);
+
+  // ── Cast-shadow on the stationary page ─────────────────────────────────────
+  const castShadow = document.createElement("div");
+  Object.assign(castShadow.style, {
+    position:      "absolute",
+    top:           "0",
+    width:         w + "px",
+    height:        h + "px",
+    left:          isForward ? "0px" : w + "px",
+    zIndex:        "19",
+    pointerEvents: "none",
+    opacity:       "0",
+    background:    isForward
+      ? "linear-gradient(to left,rgba(0,0,0,0.55) 0%,transparent 65%)"
+      : "linear-gradient(to right,rgba(0,0,0,0.55) 0%,transparent 65%)",
+  });
+  spread.appendChild(castShadow);
+  spread.appendChild(flipper);
+
+  // ── RAF animation loop ──────────────────────────────────────────────────────
+  const DURATION = 520;
+  let startTime  = null;
+  let done       = false;
+  let midUpdated = false; // flag: update opposite panel once at ~50% (hidden by flipper)
+
+  function ease(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function frame(ts) {
+    if (done) return;
+    if (!startTime) startTime = ts;
+
+    const raw = Math.min((ts - startTime) / DURATION, 1);
+    const et  = ease(raw);
+    const angle = isForward ? -180 * et : 180 * et;
+
+    flipper.style.transform = `rotateY(${angle}deg)`;
+
+    // At ~50% the flipper is edge-on and covers the opposite panel completely.
+    // Update it now so the image has the remaining ~260ms to decode before reveal.
+    if (!midUpdated && raw >= 0.48) {
+      midUpdated = true;
+      if (isForward) {
+        if (sL) sL.innerHTML = mkImg(newLeft);
+      } else {
+        if (sR) sR.innerHTML = mkImg(newRight);
+      }
+    }
+
+    // Shadow intensity peaks at 90° fold (sin curve)
+    const peak = Math.sin(et * Math.PI);
+    curlShadow.style.opacity = (peak * 0.90).toFixed(3);
+    backShadow.style.opacity = (peak * 0.82).toFixed(3);
+    castShadow.style.opacity = (peak * 0.68).toFixed(3);
+
+    if (raw < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      finish();
+    }
+  }
+
+  function finish() {
+    if (done) return;
+    done = true;
+    flipper.remove();
+    castShadow.remove();
+    // Ensure both panels are showing correct new content before handing back
+    if (!midUpdated) {
+      if (isForward) { if (sL) sL.innerHTML = mkImg(newLeft); }
+      else           { if (sR) sR.innerHTML = mkImg(newRight); }
+    }
+    onComplete();
+  }
+
+  requestAnimationFrame(frame);
+  setTimeout(finish, DURATION + 300); // safety fallback
+}
+
+// Pre-fetch images for the next 3 spreads (6 pages) and 1 previous spread
+function preloadBookPages(idx, pages) {
+  const srcs = new Set();
+  for (let offset = -2; offset <= 8; offset += 2) {
+    const si = idx + offset;
+    if (si < 0 || si >= pages.length) continue;
+    const { right, left } = getBookSpread(si, pages);
+    if (right) srcs.add(right);
+    if (left)  srcs.add(left);
+  }
+  srcs.forEach(src => { const img = new Image(); img.src = src; });
+}
+
+// ============================================================================
+// LTR — Western double-page spread (left-first) with the same 3-D flip engine
+// ============================================================================
+
+let _ltrFlipAnimating = false;
+
+function renderLTRSpread() {
+  if (!state.currentChapter?.pages) return;
+  const pages    = state.currentChapter.pages;
+  const pageWrap = $("pageWrap");
+  if (!pageWrap) return;
+
+  if (state.currentPageIndex % 2 !== 0)
+    state.currentPageIndex = Math.max(0, state.currentPageIndex - 1);
+
+  const idx   = state.currentPageIndex;
+  const total = pages.length;
+  const { left: leftImg, right: rightImg } = getLTRSpread(idx, pages);
+
+  const zoom = state.zoomLevel ?? 1.0;
+  pageWrap.className = "reader-content reading-mode-ltr";
+  pageWrap.style.overflow = zoom > 1.0 ? "auto" : "";
+
+  const pv = $("prevPage"), nx = $("nextPage");
+  if (pv) { pv.style.display = "block"; pv.disabled = idx === 0; }
+  if (nx) { nx.style.display = "block"; nx.disabled = idx + 2 >= total; }
+
+  const l = idx + 1, r = idx + 2;
+  $("pageCounter").textContent = r <= total ? `${l}-${r} / ${total}` : `${l} / ${total}`;
+
+  const wrapZoomStyle = zoom !== 1.0
+    ? `style="transform:scale(${zoom});transform-origin:top center;"`
+    : "";
+
+  pageWrap.innerHTML = `
+    <div class="book-reader-wrap" id="bookReaderWrap" ${wrapZoomStyle}>
+      <div class="book-spread" id="bookSpread">
+        <div class="book-side book-left" id="bookLeft">
+          ${leftImg
+            ? `<img class="book-page-img" src="${escapeHtml(leftImg)}" alt="Page ${idx + 1}">`
+            : `<div class="book-page-blank"></div>`}
+        </div>
+        <div class="book-spine"></div>
+        <div class="book-side book-right" id="bookRight">
+          ${rightImg
+            ? `<img class="book-page-img" src="${escapeHtml(rightImg)}" alt="Page ${idx + 2}">`
+            : `<div class="book-page-blank"></div>`}
+        </div>
+      </div>
     </div>
-    <div class="book-flipper-face book-flipper-back"></div>
   `;
 
-  spread.appendChild(flipper);
-  flipper.getBoundingClientRect(); // force reflow
+  updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, idx);
+  attachBookDragEvents();
+  preloadBookPages(idx, pages);
+}
 
-  flipper.style.transition  = "transform 0.48s cubic-bezier(0.645, 0.045, 0.355, 1.000)";
-  flipper.style.transform   = direction === "forward" ? "rotateY(-180deg)" : "rotateY(180deg)";
+function navigateLTR(direction) {
+  if (_ltrFlipAnimating) return;
+  const pages = state.currentChapter?.pages;
+  if (!pages) return;
+  const idx   = state.currentPageIndex;
+  const total = pages.length;
+  let newIdx;
 
-  const done = () => { flipper.remove(); onComplete(); };
-  flipper.addEventListener("transitionend", done, { once: true });
-  setTimeout(done, 700); // safety fallback
+  if (direction === "forward") {
+    if (idx + 2 >= total) { goToNextChapter(); return; }
+    newIdx = idx + 2;
+  } else {
+    if (idx === 0) { goToPrevChapter(); return; }
+    newIdx = Math.max(0, idx - 2);
+  }
+
+  _ltrFlipAnimating = true;
+  playBookFlip(direction, idx, newIdx, pages, () => {
+    state.currentPageIndex = newIdx;
+    _ltrFlipAnimating = false;
+    const total2 = pages.length;
+    const l = newIdx + 1, r = newIdx + 2;
+    const ctr = $("pageCounter");
+    if (ctr) ctr.textContent = r <= total2 ? `${l}-${r} / ${total2}` : `${l} / ${total2}`;
+    const pv2 = $("prevPage"), nx2 = $("nextPage");
+    if (pv2) pv2.disabled = newIdx === 0;
+    if (nx2) nx2.disabled = newIdx + 2 >= total2;
+    updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, newIdx);
+    preloadBookPages(newIdx, pages);
+    attachBookDragEvents();
+  }, getLTRSpread);
 }
 
 function applyZoom(delta) {
   state.zoomLevel = Math.min(3.0, Math.max(0.5, Math.round((state.zoomLevel + delta) * 10) / 10));
   updateZoomUI();
+
+  // In book (RTL or LTR) mode: update zoom live without rebuilding the DOM
+  if (state.settings.readingMode === "rtl" || state.settings.readingMode === "ltr") {
+    const wrap = document.getElementById("bookReaderWrap");
+    const pageWrap = $("pageWrap");
+    const zoom = state.zoomLevel;
+    if (wrap) {
+      wrap.style.transform = zoom !== 1.0 ? `scale(${zoom})` : "";
+      wrap.style.transformOrigin = "top center";
+    }
+    if (pageWrap) pageWrap.style.overflow = zoom > 1.0 ? "auto" : "";
+    return;
+  }
+
   renderPage();
 }
 
@@ -3537,6 +3844,7 @@ function bindUI() {
 
   if (prevPage) prevPage.onclick = () => {
     if (state.settings.readingMode === "rtl") { navigateBook("backward"); return; }
+    if (state.settings.readingMode === "ltr") { navigateLTR("backward"); return; }
     if (state.currentPageIndex === 0) {
       goToPrevChapter();
     } else {
@@ -3547,6 +3855,7 @@ function bindUI() {
 
   if (nextPage) nextPage.onclick = () => {
     if (state.settings.readingMode === "rtl") { navigateBook("forward"); return; }
+    if (state.settings.readingMode === "ltr") { navigateLTR("forward"); return; }
     if (state.currentPageIndex === (state.currentChapter?.pages?.length ?? 1) - 1) {
       goToNextChapter();
     } else {
@@ -3581,16 +3890,18 @@ function bindUI() {
   // Keyboard shortcuts in reader
   document.addEventListener("keydown", (e) => {
     if ($("reader")?.classList.contains("hidden")) return;
-    const isRtl = state.settings.readingMode === "rtl";
+    const mode = state.settings.readingMode;
     if (e.key === "ArrowRight" || e.key === "d") {
-      if (state.settings.readingMode !== "webtoon") {
-        if (isRtl) { navigateBook("backward"); }
-        else        { if (state.currentPageIndex < (state.currentChapter?.pages?.length ?? 1) - 1) { state.currentPageIndex++; renderPage(); } else goToNextChapter(); }
+      if (mode !== "webtoon") {
+        if (mode === "rtl")      { navigateBook("backward"); }
+        else if (mode === "ltr") { navigateLTR("forward"); }
+        else { if (state.currentPageIndex < (state.currentChapter?.pages?.length ?? 1) - 1) { state.currentPageIndex++; renderPage(); } else goToNextChapter(); }
       }
     } else if (e.key === "ArrowLeft" || e.key === "a") {
-      if (state.settings.readingMode !== "webtoon") {
-        if (isRtl) { navigateBook("forward"); }
-        else        { if (state.currentPageIndex > 0) { state.currentPageIndex--; renderPage(); } else goToPrevChapter(); }
+      if (mode !== "webtoon") {
+        if (mode === "rtl")      { navigateBook("forward"); }
+        else if (mode === "ltr") { navigateLTR("backward"); }
+        else { if (state.currentPageIndex > 0) { state.currentPageIndex--; renderPage(); } else goToPrevChapter(); }
       }
     } else if (e.key === "Escape") {
       hideReader();

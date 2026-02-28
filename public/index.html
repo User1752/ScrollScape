@@ -366,6 +366,8 @@
            MANGA READER (fixed overlay)
       ================================================================== -->
       <div id="reader" class="reader hidden">
+        <!-- Collapsible wrapper — slides up/down for auto-hide header -->
+        <div class="reader-header-outer">
         <div class="reader-header">
           <button id="closeReader" class="btn-close" title="Close reader">✕</button>
           <div id="readerTitle" class="reader-title"></div>
@@ -401,6 +403,7 @@
           </div>
           <span id="autoScrollSpeedLabel" class="autoscroll-speed-label">Medium</span>
         </div>
+        </div><!-- /.reader-header-outer -->
         <div id="pageWrap" class="reader-content"></div>
       </div>
 
