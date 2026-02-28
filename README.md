@@ -9,7 +9,7 @@ Supports **MangaDex** and **MangaPill** as online sources, plus local file impor
 
 **Reading**
 - LTR, RTL, and Webtoon (vertical scroll) reading modes
-- PDF rendering via PDF.js (for imported PDFs)
+- **PDF support** — full Webtoon scroll and single-page LTR/RTL for imported PDFs, rendered client-side via PDF.js
 - Zoom controls (+/−/reset) with keyboard shortcuts
 - Auto-scroll with adjustable speed
 - Automatic progress saving — resume where you left off
@@ -18,8 +18,8 @@ Supports **MangaDex** and **MangaPill** as online sources, plus local file impor
 
 **Sources**
 - **MangaDex** — Official API (stable, no scraping)
-- **MangaPill** — HTML scraper (based on Mihon/keiyoushi extension reference)
-- Source badge on the manga detail page shows which source a manga belongs to
+- **MangaPill** — HTML scraper
+- **Source-switch dropdown** on the manga detail page — click the source badge to search the same title on any other installed source and open it instantly
 - Opening a library manga automatically switches to its original source
 - Drop any `.js` file in `data/sources/` and it is auto-installed on startup
 
@@ -27,10 +27,11 @@ Supports **MangaDex** and **MangaPill** as online sources, plus local file impor
 - Source selector in the top bar — switch between MangaDex and MangaPill at any time
 - Advanced Search with genre checkboxes, status, and sort order
 - Random manga button
-- Personalized recommendations based on your library genres
+- Personalised recommendations based on your library genres
 
 **Local Manga Import**
-- Import CBZ, CBR, and PDF files directly from your device
+- Import CBZ, CBR, and PDF files (up to 500 MB) directly from your device
+- **First page of PDFs is auto-rendered as the cover image** (via PDF.js, no server-side processing)
 - Files are stored on the server and served like any other manga
 - Delete local manga from the library at any time
 
@@ -43,7 +44,7 @@ Supports **MangaDex** and **MangaPill** as online sources, plus local file impor
 **History**
 - Automatic reading history — every manga you open is tracked
 - Dedicated History view in the sidebar
-- Remove individual entries from history
+- Remove individual entries, or **clear all history** from Settings
 
 **Downloads**
 - Download individual chapters as CBZ
@@ -77,6 +78,8 @@ docker compose up --build
 
 Open: http://localhost:3000
 
+> Data is persisted in `data/` on the host via a Docker volume — your library and imported files survive restarts and rebuilds.
+
 ### Local
 
 ```bash
@@ -97,6 +100,11 @@ Open: http://localhost:3000
 3. Click any result to open the manga detail page
 4. For advanced filters (genre, status, sort) use **Advanced Search** in the sidebar
 
+### Switching Source on a Manga
+
+On any manga detail page, click the **🌐 SourceName ▾** badge in the metadata row.  
+A dropdown lists all other installed sources. Selecting one searches the manga title there and opens the first matching result — source context switches automatically.
+
 ### Managing Your Library
 
 - Click **Add to Library** on any manga detail page
@@ -110,9 +118,10 @@ Open: http://localhost:3000
 2. Click **⬆ Import Local**
 3. Drag and drop or select a `.cbz`, `.cbr`, or `.pdf` file
 4. Optionally set a custom title
-5. Click **Import** — the manga appears in the library immediately
+5. Click **Import** — the manga appears in the library immediately with a cover image
 
-Imported files are stored in `data/local/` on the server and persist across restarts.
+Imported files are stored in `data/local/` on the server and persist across restarts.  
+PDF cover images are generated automatically from page 1 on import.
 
 ### Reading a Chapter
 
@@ -137,6 +146,8 @@ Right-click any chapter in the chapter list to:
 
 Go to **History** in the sidebar to see all manga you have opened. Each entry shows the cover, title, and when you last read it. Click **View** to open the details page or **[x]** to remove the entry.
 
+To wipe all history: open **Settings** (⚙) → **Clear Reading History**.
+
 ### Language
 
 Switch between **English** and **Português** in the top bar. The setting persists across sessions.
@@ -156,10 +167,10 @@ Access via the ⚙ button in the sidebar.
 | Language | English / Português |
 | Reading Mode | LTR / RTL / Webtoon |
 | Hide Read Chapters | Only show unread chapters |
-| Skip Duplicate Chapters | Skip chapters with the same number |
+| Skip Duplicate Chapters | Skip chapters with the same chapter number |
 | Pan Wide Images | Horizontal scroll for double-page spreads |
 | Auto-scroll Speed | 1–5 |
-| Clear Reading History | Reset all local reading progress |
+| Clear Reading History | Wipes all server-side history and all local progress |
 
 ---
 
@@ -169,20 +180,26 @@ Access via the ⚙ button in the sidebar.
 Manghu/
 ├── data/
 │   ├── sources/
-│   │   ├── mangadex.js       # MangaDex official API source
-│   │   └── mangapill.js      # MangaPill HTML scraper source
-│   ├── local/                # Imported local manga (auto-created)
-│   ├── tmp/                  # Upload temp dir (auto-created)
-│   ├── cache/                # API response cache
-│   └── store.json            # Library, history, status, analytics, achievements
+│   │   ├── mangadex.js         # MangaDex official API source
+│   │   └── mangapill.js        # MangaPill HTML scraper source
+│   ├── achievements.json       # Achievement definitions
+│   ├── icon-mapping.json       # Source icon map
+│   ├── store.json              # Runtime data — NOT committed (auto-created)
+│   ├── store.json.example      # Template for store.json structure
+│   ├── local/                  # Imported local manga (not committed)
+│   ├── tmp/                    # Upload temp dir (not committed)
+│   └── cache/                  # API response cache (not committed)
 ├── public/
-│   ├── index.html            # App shell
-│   ├── styles.css            # All styles (dark/light themes)
-│   └── app.js                # Frontend logic
+│   ├── index.html              # App shell
+│   ├── styles.css              # All styles (dark/light themes)
+│   ├── app.js                  # Frontend logic
+│   └── achievement-manager.js
 ├── docker/
 │   ├── Dockerfile
 │   └── docker-compose.yml
-├── server.js                 # Express API server
+├── .gitignore
+├── .dockerignore
+├── server.js                   # Express API server
 └── package.json
 ```
 
@@ -208,7 +225,7 @@ Manghu/
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/proxy-image?url=…` | Proxy an image URL server-side. Optional `ref` query param overrides the `Referer` header (defaults to `https://mangapill.com`). Used to bypass CDN hotlink protection. |
+| `GET` | `/api/proxy-image?url=…` | Proxy an image URL server-side. Optional `ref` param overrides the `Referer` header. |
 
 ### Local Manga
 
@@ -216,6 +233,7 @@ Manghu/
 |---|---|---|
 | `GET` | `/api/local/list` | List all imported local manga |
 | `POST` | `/api/local/import` | Import a file. Multipart: `file` + optional `title` |
+| `POST` | `/api/local/:mangaId/cover` | Upload a cover image (JPEG). Body: raw `image/jpeg` |
 | `DELETE` | `/api/local/:mangaId` | Delete a local manga and its files |
 
 ### Library & History
@@ -225,7 +243,8 @@ Manghu/
 | `GET` | `/api/library` | Returns `{ favorites, history }` |
 | `POST` | `/api/favorites/toggle` | Add or remove from library |
 | `POST` | `/api/history/add` | Add manga to history |
-| `POST` | `/api/history/remove` | Remove manga from history |
+| `POST` | `/api/history/remove` | Remove a single entry from history |
+| `DELETE` | `/api/history/clear` | Wipe all history |
 | `GET` | `/api/user/status` | Get all reading statuses |
 | `POST` | `/api/user/status` | Set status for a manga |
 
@@ -285,12 +304,15 @@ Restart the server — the source is auto-installed.
 
 ## Data Storage
 
-| Location | What is stored |
-|---|---|
-| `data/store.json` | Library, history, reading status, reviews, analytics, achievements |
-| `data/sources/` | Manga source scripts |
-| `data/local/` | Extracted pages and metadata for imported CBZ/CBR/PDF files |
-| `localStorage` | Settings, read chapters, flagged chapters, reading progress |
+| Location | Committed | What is stored |
+|---|---|---|
+| `data/store.json` | ✗ | Library, history, reading status, reviews, analytics, achievements |
+| `data/sources/` | ✓ | Manga source scripts |
+| `data/local/` | ✗ | Extracted pages, covers and metadata for imported files |
+| `data/cache/` | ✗ | API response cache |
+| `localStorage` | — | Settings, read chapters, flagged chapters, reading progress |
+
+`store.json` is created automatically on first run. See `data/store.json.example` for the expected structure.
 
 ---
 
@@ -304,6 +326,9 @@ MangaDex may be temporarily unavailable. Check the browser console for errors.
 
 **Images not showing (MangaPill)**  
 MangaPill's CDN requires a valid `Referer` header. All images are proxied through `/api/proxy-image` automatically — if images still fail, the CDN selector may have changed; check `data/sources/mangapill.js`.
+
+**PDF cover not generating**  
+PDF cover generation runs entirely in the browser via PDF.js. Make sure JavaScript is enabled and the browser supports the Canvas API. Covers are re-generated automatically on next library load for any PDF that still shows the placeholder icon.
 
 **Progress not saving**  
 Make sure `localStorage` is enabled and not blocked.

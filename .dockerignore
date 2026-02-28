@@ -4,3 +4,5 @@ npm-debug.log
 .git
 .gitignore
 tools
+# Data is mounted as a volume — never bake it into the image
+data/

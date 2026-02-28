@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# User data — never commit personal library, history or imported files
+data/store.json
+data/local/
+data/cache/
+data/tmp/
+
+# Keep these data files tracked (app config, not user data)
+!data/achievements.json
+!data/icon-mapping.json
+!data/store.json.example
+!data/sources/
+
+# Temp / OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Planning artefacts
+mvp.sql

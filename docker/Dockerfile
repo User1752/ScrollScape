@@ -9,8 +9,8 @@ RUN npm install --omit=dev --no-package-lock
 # Copiar o resto do projeto (incluindo data/sources)
 COPY . .
 
-# Garantir que a pasta data existe
-RUN mkdir -p /app/data/sources /app/data/cache
+# Ensure all required data directories exist (volume is mounted at runtime)
+RUN mkdir -p /app/data/sources /app/data/cache /app/data/local /app/data/tmp
 
 ENV PORT=3000
 EXPOSE 3000
