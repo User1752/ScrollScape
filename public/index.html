@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Manghu - Manga Web Reader</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=3" />
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js" defer crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer crossorigin="anonymous"></script>
   <style>
@@ -144,6 +144,12 @@
               <span class="recommended-genres-label muted" style="font-size:0.8rem;margin-left:0.6rem;"></span>
             </div>
             <div id="recommendedRow" class="popular-row"></div>
+          </div>
+
+          <!-- All-Time Popular (all sources) -->
+          <div class="popular-section" id="allTimePopularSection">
+            <div class="popular-header"><h3>Most Popular of All Time</h3></div>
+            <div id="allTimePopularRow" class="popular-row"></div>
           </div>
 
           <!-- Popular Today -->
@@ -524,7 +530,7 @@
       </div>
     </div>
   </div>
-    <script src="./customSelect.js" defer></script>  <script src="./achievement-manager.js" defer></script>
-  <script src="./app.js" defer></script>
+    <script src="./customSelect.js?v=2" defer></script>  <script src="./achievement-manager.js" defer></script>
+  <script src="./app.js?v=3" defer></script>
 </body>
 </html>

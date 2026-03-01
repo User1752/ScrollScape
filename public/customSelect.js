@@ -8,6 +8,7 @@
 
   const ATTR = 'data-cs-init';
   const SVG_ARROW = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 5 7 10 12 5"/></svg>';
+  const SVG_CHECK = '<svg class="cs-check" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>';
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
   const getLabel = (opt) => opt ? opt.textContent.trim() : '';
@@ -31,7 +32,10 @@
     // Wrapper
     const wrapper = document.createElement('div');
     wrapper.className = 'cs-wrapper';
-    if (native.classList.contains('form-control')) wrapper.classList.add('cs-form-control');
+    if (native.classList.contains('form-control'))   wrapper.classList.add('cs-form-control');
+    if (native.classList.contains('form-control-sm')) wrapper.classList.add('cs-sm');
+    if (native.classList.contains('filter-dropdown')) wrapper.classList.add('cs-filter-dropdown');
+    if (native.classList.contains('language-selector')) wrapper.classList.add('cs-lang');
     if (native.style.width) wrapper.style.width = native.style.width;
     if (native.id) wrapper.dataset.csFor = native.id;
     native.parentNode.insertBefore(wrapper, native);
@@ -68,7 +72,11 @@
         item.setAttribute('aria-selected', String(opt.selected));
         item.dataset.value = opt.value;
         item.dataset.idx = String(i);
-        item.textContent = opt.textContent.trim();
+        const label = document.createElement('span');
+        label.className = 'cs-opt-label';
+        label.textContent = opt.textContent.trim();
+        item.appendChild(label);
+        if (opt.selected) item.insertAdjacentHTML('beforeend', SVG_CHECK);
         frag.appendChild(item);
       }
       list.textContent = '';
@@ -174,7 +182,7 @@
   }
 
   /* ── Global event delegation (2 listeners total, not per-instance) ───── */
-  document.addEventListener('click', () => closeAll(null), true);
+  document.addEventListener('click', () => closeAll(null));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(null); });
 
   /* ── Init & MutationObserver for dynamic selects ─────────────────────── */

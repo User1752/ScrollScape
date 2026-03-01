@@ -9,6 +9,7 @@ services:
       - "3000:3000"
     volumes:
       - ../data:/app/data
+      - ../public:/app/public
     environment:
       - PORT=3000
     restart: unless-stopped

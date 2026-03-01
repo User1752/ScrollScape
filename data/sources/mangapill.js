@@ -205,8 +205,8 @@ module.exports = {
       });
     });
 
-    // MangaPill lists newest-first — reverse so oldest is index 0 (reading order)
-    return { chapters: chapters.reverse() };
+    // MangaPill lists newest-first — matches app's navigation assumption (index 0 = newest)
+    return { chapters };
   },
 
   async pages(chapterId) {

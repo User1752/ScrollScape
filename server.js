@@ -632,6 +632,41 @@ app.post("/api/source/:id/:method", async (req, res) => {
   }
 });
 
+// All-sources popular: fetch trending from every installed source in parallel
+app.get("/api/popular-all", async (req, res) => {
+  try {
+    const store = await readStore();
+    const sourceIds = Object.keys(store.installedSources || {});
+    if (!sourceIds.length) return res.json({ results: [] });
+
+    const settled = await Promise.allSettled(
+      sourceIds.map(async sid => {
+        const mod = loadSourceFromFile(sid);
+        if (typeof mod.trending !== "function") return [];
+        const r = await mod.trending();
+        return (r.results || []).map(m => ({ ...m, sourceId: sid, sourceName: store.installedSources[sid]?.name || sid }));
+      })
+    );
+
+    // Merge results interleaving sources (zip), dedupe by title (case-insensitive)
+    const buckets = settled.filter(s => s.status === "fulfilled").map(s => s.value);
+    const seen = new Set();
+    const merged = [];
+    const maxLen = Math.max(...buckets.map(b => b.length), 0);
+    for (let i = 0; i < maxLen; i++) {
+      for (const bucket of buckets) {
+        if (i < bucket.length) {
+          const key = (bucket[i].title || "").trim().toLowerCase();
+          if (!seen.has(key)) { seen.add(key); merged.push(bucket[i]); }
+        }
+      }
+    }
+    res.json({ results: merged.slice(0, 40) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/library/add", async (req, res) => {
   try {
     const { mangaId, sourceId, manga } = req.body || {};
@@ -1189,7 +1224,10 @@ ensureDirs()
   .then(() => initStore())
   .then(() => autoInstallLocalSources())
   .then(() => {
-    app.listen(PORT, "127.0.0.1", () => {
+    // In Docker: bind 0.0.0.0 so the host port mapping works.
+    // As standalone exe: bind 127.0.0.1 so the server is never reachable from outside the machine.
+    const host = IS_PKG ? "127.0.0.1" : "0.0.0.0";
+    app.listen(PORT, host, () => {
       console.log(`🎌 Manghu running on http://localhost:${PORT}`);
       console.log(`📚 Sources instaladas automaticamente!`);
       if (IS_PKG) {

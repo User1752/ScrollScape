@@ -79,7 +79,7 @@ module.exports = {
       const name = a.text().trim();
       chapters.push({ id, name, chapter: name, url: BASE + href, publishAt: null, pages: [] });
     });
-    return { chapters: chapters.reverse() };
+    return { chapters };
   },
 
   async pages(chapterId) {

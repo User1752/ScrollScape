@@ -767,6 +767,7 @@ async function refreshState() {
 
     renderSourceSelect();
     await Promise.all([
+      loadAllTimePopular(),
       loadPopularToday(),
       loadRecentlyAdded(),
       loadLatestUpdates()
@@ -820,6 +821,41 @@ function renderSourceSelect() {
 // ============================================================================
 // POPULAR TODAY / RECENTLY ADDED / LATEST UPDATES
 // ============================================================================
+
+async function loadAllTimePopular() {
+  const row = $("allTimePopularRow");
+  if (!row) return;
+  row.innerHTML = `<div class="muted">Loading...</div>`;
+  try {
+    const result = await api("/api/popular-all");
+    const list = result.results || [];
+    if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
+    row.innerHTML = list.map(m => {
+      const genres = (m.genres || []).slice(0, 2);
+      const sourceAttr = m.sourceId ? ` data-source-id="${escapeHtml(m.sourceId)}"` : "";
+      return `
+        <div class="manga-card" data-manga-id="${escapeHtml(m.id)}"${sourceAttr}>
+          <div class="manga-card-cover">
+            ${m.cover && !m.cover.endsWith('.pdf')
+              ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+              : `<div class="no-cover">?</div>`}
+            ${m.sourceName ? `<span class="all-pop-source-badge">${escapeHtml(m.sourceName)}</span>` : ""}
+          </div>
+          <div class="manga-card-info">
+            <h3 class="manga-card-title">${escapeHtml(m.title)}</h3>
+            <p class="manga-card-author">${escapeHtml(m.author || "")}</p>
+            ${genres.length ? `<div class="manga-card-genres">${genres.map(g => `<span class="manga-card-genre">${escapeHtml(g)}</span>`).join("")}</div>` : ""}
+            <button class="btn-start-reading" onclick="event.stopPropagation(); startReading('${escapeHtml(m.id)}')">▶ Start Reading</button>
+          </div>
+        </div>`;
+    }).join("");
+    bindMangaCards(row);
+    initRowAutoScroll(row);
+  } catch (e) {
+    console.error("Error loading all-time popular:", e);
+    row.innerHTML = `<div class="muted">Error loading manga.</div>`;
+  }
+}
 
 async function loadPopularToday() {
   const row = $("popularRow");
@@ -909,6 +945,47 @@ async function startReading(mangaId) {
   await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || 1}`, firstIdx);
 }
 
+async function continueReading(mangaId, sourceId) {
+  if (!mangaId) return;
+  // Switch source if needed
+  if (sourceId && state.installedSources[sourceId] && sourceId !== state.currentSourceId) {
+    state.currentSourceId = sourceId;
+    renderSourceSelect();
+  }
+  if (!state.currentSourceId) { showToast("Select a source first", "", "warning"); return; }
+
+  const lastChapterId = state.lastReadChapter?.[mangaId];
+  if (!lastChapterId) {
+    // No progress yet — fall back to start reading
+    await startReading(mangaId);
+    return;
+  }
+
+  const lastPageIndex = state.lastReadPages?.[`${mangaId}:${lastChapterId}`] || 0;
+  try {
+    showToast("Resuming...", "", "info");
+    const result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
+      method: "POST",
+      body: JSON.stringify({ mangaId })
+    });
+    state.currentManga = result;
+    const cr = await api(`/api/source/${state.currentSourceId}/chapters`, {
+      method: "POST",
+      body: JSON.stringify({ mangaId })
+    });
+    state.allChapters = cr.chapters || [];
+    const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
+    if (idx >= 0) {
+      const ch = state.allChapters[idx];
+      await loadChapter(lastChapterId, ch.name || `Chapter ${ch.chapter || idx + 1}`, idx, lastPageIndex);
+    } else {
+      await loadMangaDetails(mangaId);
+    }
+  } catch (err) {
+    showToast("Error", err.message, "error");
+  }
+}
+
 // ============================================================================
 // HISTORY VIEW
 // ============================================================================
@@ -936,18 +1013,25 @@ function renderHistoryView() {
           ${date ? `<p class="history-date">🕐 ${date}</p>` : ""}
         </div>
         <div class="history-actions">
-          <button class="btn history-view-btn" data-mid="${escapeHtml(m.id)}">View Details</button>
-          <button class="btn btn-start-reading-detail history-read-btn" data-mid="${escapeHtml(m.id)}">&#9654; Start Reading</button>
+          <button class="btn history-view-btn" data-mid="${escapeHtml(m.id)}" data-sid="${escapeHtml(m.sourceId || '')}">View Details</button>
+          <button class="btn btn-start-reading-detail history-read-btn" data-mid="${escapeHtml(m.id)}" data-sid="${escapeHtml(m.sourceId || '')}">${state.lastReadChapter?.[m.id] ? '&#9654; Continue Reading' : '&#9654; Start Reading'}</button>
           <button class="history-delete-btn" title="Remove from history" data-mid="${escapeHtml(m.id)}" data-sid="${escapeHtml(m.sourceId || '')}">[x]</button>
         </div>
       </div>`;
   }).join("");
 
   container.querySelectorAll(".history-view-btn").forEach(btn => {
-    btn.onclick = () => loadMangaDetails(btn.dataset.mid);
+    btn.onclick = () => {
+      const sid = btn.dataset.sid;
+      if (sid && state.installedSources[sid]) {
+        state.currentSourceId = sid;
+        renderSourceSelect();
+      }
+      loadMangaDetails(btn.dataset.mid);
+    };
   });
   container.querySelectorAll(".history-read-btn").forEach(btn => {
-    btn.onclick = () => startReading(btn.dataset.mid);
+    btn.onclick = () => continueReading(btn.dataset.mid, btn.dataset.sid);
   });
   container.querySelectorAll(".history-delete-btn").forEach(btn => {
     btn.onclick = async () => {
@@ -2027,6 +2111,8 @@ function renderChaptersList() {
 }
 
 async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex = 0) {
+  _bookFlipAnimating = false;
+  _ltrFlipAnimating  = false;
   $("searchStatus").textContent = "Loading chapter...";
   try {
     const result = await api(`/api/source/${state.currentSourceId}/pages`, {
@@ -2106,9 +2192,12 @@ function getPrevChapterIndex(currentIndex) {
 
 async function goToNextChapter() {
   const next = getNextChapterIndex(state.currentChapterIndex);
-  if (next < 0) { showToast("Last chapter reached", "", "info"); return; }
-  await recordReadingSession();
+  if (next < 0 || next >= (state.allChapters?.length || 0)) {
+    showToast("Last chapter reached", "", "info"); return;
+  }
   const ch = state.allChapters[next];
+  if (!ch) { showToast("Last chapter reached", "", "info"); return; }
+  await recordReadingSession();
   await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || next + 1}`, next);
 }
 
@@ -2759,7 +2848,7 @@ function renderPage() {
     pageWrap.className = "reader-content reading-mode-webtoon";
     const validPages = pages.filter(p => p.img);
     const nextWIdx = getNextChapterIndex(state.currentChapterIndex);
-    const nextWCh  = nextWIdx < (state.allChapters?.length || 0) ? state.allChapters[nextWIdx] : null;
+    const nextWCh  = (nextWIdx >= 0 && nextWIdx < (state.allChapters?.length || 0)) ? state.allChapters[nextWIdx] : null;
     const nextWLabel = nextWCh ? (nextWCh.name || `Chapter ${nextWCh.chapter || nextWIdx + 1}`) : null;
     pageWrap.innerHTML = `
       <div class="page-zoom-wrap webtoon-wrap" ${zoomStyle}>
@@ -2789,7 +2878,7 @@ function renderPage() {
     const isLast   = idx === pages.length - 1;
     const imgClass = state.settings.panWideImages ? "page-img pannable" : "page-img";
     const nextIdx  = isLast ? getNextChapterIndex(state.currentChapterIndex) : -1;
-    const nextCh   = (isLast && nextIdx < (state.allChapters?.length || 0)) ? state.allChapters[nextIdx] : null;
+    const nextCh   = (isLast && nextIdx >= 0 && nextIdx < (state.allChapters?.length || 0)) ? state.allChapters[nextIdx] : null;
     const nextLabel = nextCh ? (nextCh.name || `Chapter ${nextCh.chapter || nextIdx + 1}`) : null;
     const endBanner = isLast ? `
       <div class="chapter-end-wrap">
@@ -2898,7 +2987,8 @@ function _applyWideSplitIfNeeded(idx, pages) {
       const ctr = $('pageCounter');
       if (ctr) ctr.textContent = `${idx + 1} / ${total}`;
       const nx = $('nextPage');
-      if (nx) nx.disabled = idx + 1 >= total;
+      const hasNextCh = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+      if (nx) nx.disabled = idx + 1 >= total && !hasNextCh;
     };
 
     if (imgEl.complete && imgEl.naturalWidth > 0) check();
@@ -2924,8 +3014,10 @@ function renderBookSpread() {
 
   const step = isWide ? 1 : 2;
   const pv = $("prevPage"), nx = $("nextPage");
-  if (pv) { pv.style.display = "block"; pv.disabled = idx === 0; }
-  if (nx) { nx.style.display = "block"; nx.disabled = idx + step >= total; }
+  const hasNextCh = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+  const hasPrevCh = getPrevChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+  if (pv) { pv.style.display = "block"; pv.disabled = idx === 0 && !hasPrevCh; }
+  if (nx) { nx.style.display = "block"; nx.disabled = idx + step >= total && !hasNextCh; }
 
   const r = idx + 1, l = idx + 2;
   $("pageCounter").textContent = isWide
@@ -2961,7 +3053,8 @@ function renderBookSpread() {
 
 function attachBookDragEvents() {
   const spread = $("bookSpread");
-  if (!spread) return;
+  if (!spread || spread.dataset.dragAttached) return;
+  spread.dataset.dragAttached = "1";
 
   let startX = 0;
   let dragSide = null;
@@ -2981,14 +3074,16 @@ function attachBookDragEvents() {
     active = false;
     const dx = e.clientX - startX;
     const tap = Math.abs(dx) < 12;
+    const isRTL = state.settings.readingMode === "rtl";
     const _navigate = state.settings.readingMode === "ltr" ? navigateLTR : navigateBook;
-    if (dragSide === "right" && (dx < -50 || tap))  _navigate("forward");
-    if (dragSide === "left"  && (dx >  50 || tap))  _navigate("backward");
+    // RTL (manga): left side = next pages, right side = previous pages
+    // LTR: right side = next pages, left side = previous pages
+    if (dragSide === "right" && (dx < -50 || tap))  _navigate(isRTL ? "backward" : "forward");
+    if (dragSide === "left"  && (dx >  50 || tap))  _navigate(isRTL ? "forward"  : "backward");
   });
 }
 
 function navigateBook(direction) {
-  if (_bookFlipAnimating) return;
   const pages = state.currentChapter?.pages;
   if (!pages) return;
   const idx   = state.currentPageIndex;
@@ -2997,17 +3092,21 @@ function navigateBook(direction) {
 
   if (direction === "forward") {
     const step = pages[idx]?.isWide ? 1 : 2;
-    if (idx + step >= total) { goToNextChapter(); return; }
+    if (idx + step >= total) { _bookFlipAnimating = false; goToNextChapter(); return; }
     newIdx = idx + step;
   } else {
-    if (idx === 0) { goToPrevChapter(); return; }
+    if (idx === 0) { _bookFlipAnimating = false; goToPrevChapter(); return; }
     // Step back by 1 if the preceding page is a wide page, else by 2
     const backStep = pages[idx - 1]?.isWide ? 1 : 2;
     newIdx = Math.max(0, idx - backStep);
   }
 
+  if (_bookFlipAnimating) return;
+
   _bookFlipAnimating = true;
-  playBookFlip(direction, idx, newIdx, pages, () => {
+  // RTL (manga): spine is on the right. "forward" = left page flips rightward → invert animation direction
+  const animDir = direction === "forward" ? "backward" : "forward";
+  playBookFlip(animDir, idx, newIdx, pages, () => {
     state.currentPageIndex = newIdx;
     _bookFlipAnimating = false;
     // Update counter + nav buttons in-place — no DOM rebuild, no flash
@@ -3018,8 +3117,10 @@ function navigateBook(direction) {
     const ctr = $("pageCounter");
     if (ctr) ctr.textContent = isWide2 ? `${r} / ${total2}` : (l <= total2 ? `${r}-${l} / ${total2}` : `${r} / ${total2}`);
     const pv2 = $("prevPage"), nx2 = $("nextPage");
-    if (pv2) pv2.disabled = newIdx === 0;
-    if (nx2) nx2.disabled = newIdx + step2 >= total2;
+    const hasNextCh2 = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+    const hasPrevCh2 = getPrevChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+    if (pv2) pv2.disabled = newIdx === 0 && !hasPrevCh2;
+    if (nx2) nx2.disabled = newIdx + step2 >= total2 && !hasNextCh2;
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, newIdx);
     preloadBookPages(newIdx, pages);
     attachBookDragEvents();
@@ -3249,8 +3350,10 @@ function renderLTRSpread() {
 
   const step = isWide ? 1 : 2;
   const pv = $("prevPage"), nx = $("nextPage");
-  if (pv) { pv.style.display = "block"; pv.disabled = idx === 0; }
-  if (nx) { nx.style.display = "block"; nx.disabled = idx + step >= total; }
+  const hasNextCh = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+  const hasPrevCh = getPrevChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+  if (pv) { pv.style.display = "block"; pv.disabled = idx === 0 && !hasPrevCh; }
+  if (nx) { nx.style.display = "block"; nx.disabled = idx + step >= total && !hasNextCh; }
 
   const l = idx + 1, r = idx + 2;
   $("pageCounter").textContent = isWide
@@ -3284,7 +3387,6 @@ function renderLTRSpread() {
 }
 
 function navigateLTR(direction) {
-  if (_ltrFlipAnimating) return;
   const pages = state.currentChapter?.pages;
   if (!pages) return;
   const idx   = state.currentPageIndex;
@@ -3293,13 +3395,15 @@ function navigateLTR(direction) {
 
   if (direction === "forward") {
     const step = pages[idx]?.isWide ? 1 : 2;
-    if (idx + step >= total) { goToNextChapter(); return; }
+    if (idx + step >= total) { _ltrFlipAnimating = false; goToNextChapter(); return; }
     newIdx = idx + step;
   } else {
-    if (idx === 0) { goToPrevChapter(); return; }
+    if (idx === 0) { _ltrFlipAnimating = false; goToPrevChapter(); return; }
     const backStep = pages[idx - 1]?.isWide ? 1 : 2;
     newIdx = Math.max(0, idx - backStep);
   }
+
+  if (_ltrFlipAnimating) return;
 
   _ltrFlipAnimating = true;
   playBookFlip(direction, idx, newIdx, pages, () => {
@@ -3312,8 +3416,10 @@ function navigateLTR(direction) {
     const ctr = $("pageCounter");
     if (ctr) ctr.textContent = isWide2 ? `${l} / ${total2}` : (r <= total2 ? `${l}-${r} / ${total2}` : `${l} / ${total2}`);
     const pv2 = $("prevPage"), nx2 = $("nextPage");
-    if (pv2) pv2.disabled = newIdx === 0;
-    if (nx2) nx2.disabled = newIdx + step2 >= total2;
+    const hasNextCh2 = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+    const hasPrevCh2 = getPrevChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
+    if (pv2) pv2.disabled = newIdx === 0 && !hasPrevCh2;
+    if (nx2) nx2.disabled = newIdx + step2 >= total2 && !hasNextCh2;
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, newIdx);
     preloadBookPages(newIdx, pages);
     attachBookDragEvents();
@@ -3404,7 +3510,7 @@ async function renderPDFWebtoon() {
 
   // Append chapter-end banner
   const nextIdx  = getNextChapterIndex(state.currentChapterIndex);
-  const nextCh   = nextIdx < (state.allChapters?.length || 0) ? state.allChapters[nextIdx] : null;
+  const nextCh   = (nextIdx >= 0 && nextIdx < (state.allChapters?.length || 0)) ? state.allChapters[nextIdx] : null;
   const nextLabel = nextCh ? (nextCh.name || `Chapter ${nextCh.chapter || nextIdx + 1}`) : null;
   pageWrap.insertAdjacentHTML('beforeend', `
     <div class="chapter-end-wrap">
