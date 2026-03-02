@@ -31,6 +31,12 @@
   'use strict';
 
   // â”€â”€ Initial D â€” internet asset URLs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Gintama -- internet asset URLs
+  const GT = {
+    bg:   'https://4kwallpapers.com/images/wallpapers/gintama-ultrawide-3840x2160-16166.jpg',
+    logo: 'https://upload.wikimedia.org/wikipedia/fr/0/06/Gintama_logo.png',
+  };
+
   const ID = {
     // Toyota AE86 Sprinter Trueno â€” Wikimedia Commons (CC-BY-SA)
     ae86:  'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Toyota-AE86-Coupe.jpg/640px-Toyota-AE86-Coupe.jpg',
@@ -392,6 +398,90 @@
         [data-color-theme="chainsawman"] input:focus, [data-color-theme="chainsawman"] select:focus { border-color: #CC0000; box-shadow: 0 0 0 3px rgba(204,0,0,.2); }
       `,
     },
+    /* ------------------------------------------------------------------
+     * GINTAMA -- "Odd Jobs Gin"
+     * ------------------------------------------------------------------ */
+    {
+      id:           'gintama',
+      name:         'Gintama',
+      desc:         'Odd Jobs Gin  chaos, comedy & samurai soul',
+      cost:         15,
+      primary:      '#5BB8D4',
+      primaryDark:  '#2E7A9A',
+      primaryLight: '#8DD8F0',
+      preview:      'linear-gradient(135deg,#050C18 0%,#0A1E35 50%,#5BB8D4 100%)',
+      onApply()  { _injectThemeImages({ themeId:'gintama', charUrl:GT.logo, bannerUrl:GT.bg, accent:'#5BB8D4', charOpacity:0.55, bannerDim:0.0 }); },
+      onRemove() { _removeThemeImages('gintama'); },
+      css: `
+        @keyframes gin-shimmer {
+          0%,100% { text-shadow: 0 0 8px #5BB8D4, 0 0 20px rgba(91,184,212,.4); }
+          50%     { text-shadow: 0 0 16px #8DD8F0, 0 0 40px rgba(141,216,240,.6); }
+        }
+        @keyframes gin-silver {
+          0%,100% { opacity:.6; }
+          50%     { opacity:1; }
+        }
+        [data-color-theme="gintama"] {
+          --primary:        #5BB8D4;
+          --primary-dark:   #2E7A9A;
+          --primary-light:  #8DD8F0;
+          --bg-dark:        #050C18;
+          --bg-secondary:   #0A1828;
+          --bg-tertiary:    #0F2238;
+          --text-primary:   #D6EEF8;
+          --text-secondary: #4A7A96;
+          --border-color:   #132840;
+          --success:        #4DD68C;
+          --warning:        #F0C040;
+          --danger:         #E05050;
+        }
+        [data-color-theme="gintama"] body {
+          background:
+            linear-gradient(rgba(5,12,24,.72), rgba(5,12,24,.72)),
+            url('https://4kwallpapers.com/images/wallpapers/gintama-ultrawide-3840x2160-16166.jpg') center / cover fixed;
+          color: #D6EEF8;
+        }
+        [data-color-theme="gintama"] body::before {
+          content: '';
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background: radial-gradient(ellipse at 20% 80%, rgba(91,184,212,.06) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(141,216,240,.04) 0%, transparent 60%);
+        }
+        [data-color-theme="gintama"] .app-shell { position: relative; z-index: 1; }
+        [data-color-theme="gintama"] .topbar {
+          background: linear-gradient(90deg, #050C18 0%, #0A1828 60%, rgba(91,184,212,.12) 100%);
+          border-bottom: 2px solid #5BB8D4;
+          box-shadow: 0 2px 24px rgba(91,184,212,.25);
+        }
+        [data-color-theme="gintama"] .app-brand {
+          color: #8DD8F0;
+          letter-spacing: .1em;
+          animation: gin-shimmer 3s ease-in-out infinite;
+        }
+        [data-color-theme="gintama"] .sidebar {
+          background: linear-gradient(180deg, #050C18 0%, #0A1828 100%);
+          border-right: 1px solid #132840;
+        }
+        [data-color-theme="gintama"] .nav-link { color: #4A7A96; }
+        [data-color-theme="gintama"] .nav-link:hover { color: #D6EEF8; background: rgba(91,184,212,.1); }
+        [data-color-theme="gintama"] .nav-link.active { color: #8DD8F0; background: rgba(91,184,212,.18); border-left: 3px solid #5BB8D4; }
+        [data-color-theme="gintama"] .card { background: rgba(10,24,40,.9); border: 1px solid #132840; }
+        [data-color-theme="gintama"] .card:hover { border-color: rgba(91,184,212,.5); box-shadow: 0 4px 20px rgba(91,184,212,.2); }
+        [data-color-theme="gintama"] .btn-primary { background: #5BB8D4; border-color: #5BB8D4; color: #050C18; font-weight:600; }
+        [data-color-theme="gintama"] .btn-primary:hover { background: #8DD8F0; border-color: #8DD8F0; }
+        [data-color-theme="gintama"] ::-webkit-scrollbar-thumb { background: #2E7A9A; }
+        [data-color-theme="gintama"] ::selection { background: rgba(91,184,212,.35); }
+        [data-color-theme="gintama"] input:focus, [data-color-theme="gintama"] select:focus { border-color: #5BB8D4; box-shadow: 0 0 0 3px rgba(91,184,212,.2); }
+        [data-color-theme="gintama"] .section-title,
+        [data-color-theme="gintama"] h1,
+        [data-color-theme="gintama"] h2,
+        [data-color-theme="gintama"] h3 { color: #5BB8D4; }
+        [data-color-theme="gintama"] hr { border-color: rgba(91,184,212,.25); }
+        [data-color-theme="gintama"] .tab.active { border-bottom: 2px solid #5BB8D4; color: #5BB8D4; }
+        [data-color-theme="gintama"] .progress-bar { background: linear-gradient(90deg, #2E7A9A, #5BB8D4); }
+      `,
+    },
+
 
   ]; // ← end COMMUNITY_THEMES
 
