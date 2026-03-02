@@ -20,12 +20,18 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // Tight CSP: only allow same-origin scripts/styles/fonts; images from
-  // same origin + data URIs (needed for canvas toDataURL).
+  // CSP: allow same-origin + trusted CDNs (PDF.js, feather-icons, Google Fonts).
+  // worker-src blob: is required for the PDF.js web worker spawned via a blob URL.
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'self'"
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "img-src 'self' data: blob: https:; " +
+    "connect-src 'self' https://api.anilist.co https://api.mangaupdates.com; " +
+    "font-src 'self' data: https://fonts.gstatic.com; " +
+    "worker-src blob: 'self'; " +
+    "frame-ancestors 'self'"
   );
   next();
 });

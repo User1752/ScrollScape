@@ -91,6 +91,9 @@ class AchievementManager {
       case 'composite':
         return this.evaluateComposite(condition, analytics);
       
+      case 'library_title_match':
+        return this.evaluateLibraryTitleMatch(condition, analytics);
+      
       default:
         console.warn(`Unknown condition type: ${condition.type}`);
         return false;
@@ -142,6 +145,19 @@ class AchievementManager {
     const statusDistribution = analytics.statusDistribution || {};
     const statusCount = statusDistribution[condition.status] || 0;
     return statusCount >= condition.count;
+  }
+
+  /**
+   * Evaluate library title match condition
+   * @param {object} condition - { pattern: string }
+   * @param {object} analytics - must include libraryTitles: string[]
+   * @returns {boolean}
+   */
+  evaluateLibraryTitleMatch(condition, analytics) {
+    const titles = analytics.libraryTitles || [];
+    const pattern = (condition.pattern || '').toLowerCase();
+    if (!pattern) return false;
+    return titles.some(t => t.toLowerCase().includes(pattern));
   }
 
   /**

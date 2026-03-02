@@ -116,7 +116,7 @@
         },
         {
           "id": "fav_50",
-          "name": "Curator",
+          "name": "Mega Reader",
           "description": "Have 50 manga in your library",
           "icon": "boxes",
           "rarity": "rare",
@@ -152,8 +152,8 @@
       "achievements": [
         {
           "id": "completed_1",
-          "name": "Completionist",
-          "description": "Mark your first manga as completed",
+          "name": "The End",
+          "description": "Complete your first manga series",
           "icon": "check",
           "rarity": "common",
           "points": 25,
@@ -396,6 +396,18 @@
             "stat": "uniqueSources",
             "operator": ">=",
             "value": 11
+          }
+        },
+        {
+          "id": "sayajin",
+          "name": "Sayajin",
+          "description": "Have a Dragon Ball manga in your library",
+          "icon": "zap",
+          "rarity": "epic",
+          "points": 300,
+          "condition": {
+            "type": "library_title_match",
+            "pattern": "dragon ball"
           }
         },
         {

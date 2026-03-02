@@ -1,9 +1,11 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Manghu - Manga Web Reader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" crossorigin>
   <link rel="stylesheet" href="./styles.css?v=3" />
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js" defer crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer crossorigin="anonymous"></script>
@@ -49,7 +51,7 @@
       </div>
 
       <nav class="sidebar-nav">
-        <span class="sidebar-nav-label">Browse</span>
+        <span class="sidebar-nav-label" data-i18n="sidebar.browse">Browse</span>
         <a href="#" class="nav-link active" data-view="discover">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span data-i18n="nav.home">Home</span>
@@ -59,35 +61,39 @@
           <span data-i18n="nav.search">Advanced Search</span>
         </a>
 
-        <span class="sidebar-nav-label">My Content</span>
+        <span class="sidebar-nav-label" data-i18n="sidebar.myContent">My Content</span>
         <a href="#" class="nav-link" data-view="library">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
           <span data-i18n="nav.library">Library</span>
         </a>
         <a href="#" class="nav-link" data-view="history">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>History</span>
+          <span data-i18n="nav.history">History</span>
         </a>
 
-        <span class="sidebar-nav-label">Stats &amp; Rewards</span>
+        <span class="sidebar-nav-label" data-i18n="sidebar.statsRewards">Stats &amp; Rewards</span>
         <a href="#" class="nav-link" data-view="analytics">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span data-i18n="nav.analytics">Analytics</span>
         </a>
         <a href="#" class="nav-link" data-view="achievements">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
-          <span>Achievements <span id="sidebarApBadge" class="sidebar-ap-badge">0 AP</span></span>
+          <span><span data-i18n="nav.achievements">Achievements</span> <span id="sidebarApBadge" class="sidebar-ap-badge">0 AP</span></span>
         </a>
         <a href="#" class="nav-link" data-view="shop">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          <span>Theme Shop</span>
+          <span data-i18n="nav.shop">Theme Shop</span>
+        </a>
+        <a href="#" class="nav-link" data-view="customize">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+          <span data-i18n="nav.customize">Customization</span>
         </a>
       </nav>
 
       <div class="sidebar-footer">
         <button id="btn-settings-sidebar" class="btn-settings-sidebar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Settings
+          <span data-i18n="settings.btn">Settings</span>
         </button>
       </div>
     </aside>
@@ -101,16 +107,8 @@
           <button id="sidebarToggle" class="btn-sidebar-toggle" aria-label="Open menu"><i data-feather="menu"></i></button>
           <div class="brand">Manghu</div>
           <div class="topbar-actions">
-            <!-- Language selector -->
-            <select id="languageSelector" class="language-selector" aria-label="Select language">
-              <option value="en">EN</option>
-              <option value="pt">PT</option>
-            </select>
-            <!-- Theme toggle: sun/moon icon -->
-            <button id="themeToggle" class="btn-theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
-              <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-            </button>
+            <!-- Language toggle -->
+            <button id="langToggleBtn" class="lang-toggle-btn">EN</button>
           </div>
         </div>
       </header>
@@ -140,7 +138,7 @@
           <!-- Recommended For You (populated when there's library data) -->
           <div class="recommended-section" id="recommendedSection" style="display:none">
             <div class="section-header">
-              <h3>Recommended For You</h3>
+              <h3 data-i18n="home.recommended">Recommended For You</h3>
               <span class="recommended-genres-label muted" style="font-size:0.8rem;margin-left:0.6rem;"></span>
             </div>
             <div id="recommendedRow" class="popular-row"></div>
@@ -148,25 +146,25 @@
 
           <!-- All-Time Popular (all sources) -->
           <div class="popular-section" id="allTimePopularSection">
-            <div class="popular-header"><h3>Most Popular of All Time</h3></div>
+            <div class="popular-header"><h3 data-i18n="home.allTimePopular">Most Popular of All Time</h3></div>
             <div id="allTimePopularRow" class="popular-row"></div>
           </div>
 
           <!-- Popular Today -->
           <div class="popular-section">
-            <div class="popular-header"><h3>Most Popular Today</h3></div>
+            <div class="popular-header"><h3 data-i18n="home.popularToday">Most Popular Today</h3></div>
             <div id="popularRow" class="popular-row"></div>
           </div>
 
           <!-- Recently Added -->
           <div class="recent-section">
-            <div class="section-header"><h3>Recently Added</h3></div>
+            <div class="section-header"><h3 data-i18n="home.recentlyAdded">Recently Added</h3></div>
             <div id="recentlyAddedRow" class="results-grid"></div>
           </div>
 
           <!-- Latest Updates -->
           <div class="latest-section">
-            <div class="section-header"><h3>Latest Updates</h3></div>
+            <div class="section-header"><h3 data-i18n="home.latestUpdates">Latest Updates</h3></div>
             <div id="latestUpdatesRow" class="results-grid"></div>
           </div>
         </section>
@@ -176,7 +174,7 @@
         ================================================================== -->
         <section id="view-manga-details" class="view hidden">
           <div class="manga-page">
-            <button id="backBtn" class="btn-back">← Back</button>
+            <button id="backBtn" class="btn-back" data-i18n="manga.back">Back</button>
             <div id="details" class="manga-detail-section"></div>
             <!-- Reading Status Selector (rendered by JS) -->
             <div id="readingStatusSection"></div>
@@ -190,7 +188,7 @@
         <section id="view-library" class="view hidden">
           <div class="library-container">
             <div class="library-header">
-              <h2>My Library</h2>
+              <h2 data-i18n="library.title">My Library</h2>
               <div class="library-controls">
                 <select id="libraryStatusFilter" class="form-control form-control-sm">
                   <option value="all">All Manga</option>
@@ -213,41 +211,41 @@
         ================================================================== -->
         <section id="view-analytics" class="view hidden">
           <div class="analytics-container">
-            <h2 class="analytics-title">My Reading Analytics</h2>
+            <h2 class="analytics-title" data-i18n="analytics.title">My Reading Analytics</h2>
 
             <!-- Summary cards -->
             <div class="analytics-stats">
               <div class="analytics-card">
-                <div class="analytics-icon">📖</div>
+                <div class="analytics-icon">&#x1F4D6;</div>
                 <div class="analytics-value" id="anaChapters">0</div>
-                <div class="analytics-label">Chapters Read</div>
+                <div class="analytics-label" data-i18n="analytics.chaptersRead">Chapters Read</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon">⏱️</div>
+                <div class="analytics-icon">&#x23F1;</div>
                 <div class="analytics-value" id="anaTime">0h</div>
-                <div class="analytics-label">Time Spent</div>
+                <div class="analytics-label" data-i18n="analytics.timeSpent">Time Spent</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon">⭐</div>
-                <div class="analytics-value" id="anaMeanScore">—</div>
-                <div class="analytics-label">Mean Score</div>
+                <div class="analytics-icon">&#x2B50;</div>
+                <div class="analytics-value" id="anaMeanScore">&#8212;</div>
+                <div class="analytics-label" data-i18n="analytics.meanScore">Mean Score</div>
               </div>
               <div class="analytics-card">
                 <div class="analytics-icon"><i data-feather="book" class="icon-medium"></i></div>
                 <div class="analytics-value" id="anaLibrary">0</div>
-                <div class="analytics-label">In Library</div>
+                <div class="analytics-label" data-i18n="analytics.inLibrary">In Library</div>
               </div>
             </div>
 
             <!-- Status distribution -->
             <div class="analytics-section">
-              <h3>Library by Status</h3>
+              <h3 data-i18n="analytics.byStatus">Library by Status</h3>
               <div id="statusDistribution" class="status-distribution"></div>
             </div>
 
             <!-- Recent sessions -->
             <div class="analytics-section">
-              <h3>Recent Reading Sessions</h3>
+              <h3 data-i18n="analytics.recentSessions">Recent Reading Sessions</h3>
               <div id="recentSessions" class="sessions-list"></div>
             </div>
           </div>
@@ -260,13 +258,13 @@
           <div class="ach-page">
             <div class="ach-page-header">
               <div>
-                <h2 class="ach-page-title">Achievements</h2>
-                <p class="ach-page-subtitle">Unlock achievements by reading manga — each one earns 1 AP</p>
+                <h2 class="ach-page-title" data-i18n="achievements.title">Achievements</h2>
+                <p class="ach-page-subtitle" data-i18n="achievements.subtitle">Unlock achievements by reading manga — each one earns 1 AP</p>
               </div>
               <div class="ap-hero-badge">
                 <div id="achDragonBall" class="ach-dragon-ball" title="..."></div>
                 <div class="ap-hero-value" id="achPageApBalance">0</div>
-                <div class="ap-hero-label">AP Available</div>
+                <div class="ap-hero-label" data-i18n="common.apAvailable">AP Available</div>
               </div>
             </div>
             <div id="achPageContent"></div>
@@ -280,13 +278,13 @@
           <div class="shop-page">
             <div class="ach-page-header">
               <div>
-                <h2 class="ach-page-title">🛍️ Theme Shop</h2>
-                <p class="ach-page-subtitle">Spend your Achievement Points on exclusive themes</p>
+                <h2 class="ach-page-title" data-i18n="nav.shop">Theme Shop</h2>
+                <p class="ach-page-subtitle" data-i18n="shop.subtitle">Spend your Achievement Points on exclusive themes</p>
               </div>
               <div class="ap-hero-badge">
-                <div class="ap-hero-icon">⭐</div>
+                <img src="/dragon-ball-1.png" class="db-sprite" alt="Dragon Ball" draggable="false">
                 <div class="ap-hero-value" id="shopApBalance">0</div>
-                <div class="ap-hero-label">AP Available</div>
+                <div class="ap-hero-label" data-i18n="common.apAvailable">AP Available</div>
               </div>
             </div>
             <div id="shopGrid" class="shop-grid"></div>
@@ -294,11 +292,16 @@
         </section>
 
         <!-- ==================================================================
+             CUSTOMIZATION VIEW
+        ================================================================== -->
+        <section id="view-customize" class="view hidden"></section>
+
+        <!-- ==================================================================
              ADVANCED SEARCH VIEW
         ================================================================== -->
         <section id="view-advanced-search" class="view hidden">
           <div class="advanced-search-page">
-            <h1 class="page-title">Advanced Search</h1>
+            <h1 class="page-title" data-i18n="nav.search">Advanced Search</h1>
 
             <div class="search-section">
               <div class="search-container">
@@ -359,10 +362,10 @@
                   <label>Publication Status</label>
                   <select id="advancedPublicationStatus" class="form-control filter-dropdown">
                     <option value="">Any</option>
-                    <option value="ongoing">📖 Ongoing</option>
-                    <option value="completed">✅ Completed</option>
-                    <option value="hiatus">⏸️ Hiatus</option>
-                    <option value="cancelled">❌ Cancelled</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="completed">Completed</option>
+                    <option value="hiatus">Hiatus</option>
+                    <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
               </div>
@@ -424,7 +427,7 @@
         <!-- HISTORY VIEW -->
         <section id="view-history" class="view hidden">
           <div class="page-container">
-            <h1 class="page-title">Reading History</h1>
+            <h1 class="page-title" data-i18n="history.title">Reading History</h1>
             <div id="historyList" class="history-list"></div>
           </div>
         </section>
@@ -438,23 +441,23 @@
         <!-- Collapsible wrapper — slides up/down for auto-hide header -->
         <div class="reader-header-outer">
         <div class="reader-header">
-          <button id="closeReader" class="btn-close" title="Close reader">✕</button>
+          <button id="closeReader" class="btn-close" title="Close reader">&#x2715;</button>
           <div id="readerTitle" class="reader-title"></div>
           <div class="reader-controls">
             <!-- Zoom controls -->
-            <button id="zoomOut" class="btn-zoom" title="Zoom out">−</button>
+            <button id="zoomOut" class="btn-zoom" title="Zoom out">&#x2212;</button>
             <span id="zoomLevel" class="zoom-level">100%</span>
             <button id="zoomIn" class="btn-zoom" title="Zoom in">+</button>
-            <button id="zoomReset" class="btn-zoom" title="Reset zoom">⊙</button>
+            <button id="zoomReset" class="btn-zoom" title="Reset zoom">&#x2299;</button>
             <!-- AutoScroll toggle -->
-            <button id="autoScrollToggle" class="btn-zoom btn-autoscroll" title="Start AutoScroll">⏩ Auto</button>
+            <button id="autoScrollToggle" class="btn-zoom btn-autoscroll" title="Start AutoScroll">Auto</button>
             <!-- Settings shortcut -->
-            <button id="readerSettingsBtn" class="btn-zoom btn-reader-settings" title="Settings">⚙️</button>
+            <button id="readerSettingsBtn" class="btn-zoom btn-reader-settings" title="Settings">&#x2699;</button>
           </div>
           <div class="reader-nav">
-            <button id="prevPage" class="btn-nav">◀ Prev</button>
+            <button id="prevPage" class="btn-nav">&#x25C0; Prev</button>
             <span id="pageCounter" class="page-info"></span>
-            <button id="nextPage" class="btn-nav">Next ▶</button>
+            <button id="nextPage" class="btn-nav">Next &#x25B6;</button>
           </div>
         </div>
         <!-- AutoScroll speed bar (shown when AutoScroll is active) -->
@@ -480,10 +483,10 @@
            CONTEXT MENU (right-click on library cards)
       ================================================================== -->
       <div id="contextMenu" class="context-menu hidden">
-        <button class="context-item" data-action="mark-read">Mark as Read</button>
-        <button class="context-item" data-action="mark-unread">Mark as Unread</button>
+        <button class="context-item" data-action="mark-read" data-i18n="context.markRead">Mark as Read</button>
+        <button class="context-item" data-action="mark-unread" data-i18n="context.markUnread">Mark as Unread</button>
         <div class="context-divider"></div>
-        <button class="context-item" data-action="remove">Remove from Library</button>
+        <button class="context-item" data-action="remove" data-i18n="context.remove">Remove from Library</button>
       </div>
 
       <footer class="footer">
@@ -531,6 +534,7 @@
     </div>
   </div>
     <script src="./customSelect.js?v=2" defer></script>  <script src="./achievement-manager.js" defer></script>
+  <script src="./themes.js" defer></script>
   <script src="./app.js?v=3" defer></script>
 </body>
 </html>

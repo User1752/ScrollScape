@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // API HELPER
 // ============================================================================
 
@@ -111,7 +111,54 @@ const translations = {
     "common.close": "Close",
     "common.confirm": "Confirm",
     "common.yes": "Yes",
-    "common.no": "No"
+    "common.no": "No",
+    "common.apAvailable": "AP Available",
+
+    // Sidebar
+    "sidebar.browse": "Browse",
+    "sidebar.myContent": "My Content",
+    "sidebar.statsRewards": "Stats & Rewards",
+    "settings.btn": "Settings",
+
+    // Navigation extras
+    "nav.history": "History",
+    "nav.achievements": "Achievements",
+    "nav.shop": "Theme Shop",
+    "nav.customize": "Customization",
+
+    // Discover sections
+    "home.recommended": "Recommended For You",
+    "home.allTimePopular": "Most Popular of All Time",
+    "home.popularToday": "Most Popular Today",
+    "home.recentlyAdded": "Recently Added",
+    "home.latestUpdates": "Latest Updates",
+
+    // Analytics
+    "analytics.title": "My Reading Analytics",
+    "analytics.chaptersRead": "Chapters Read",
+    "analytics.timeSpent": "Time Spent",
+    "analytics.meanScore": "Mean Score",
+    "analytics.inLibrary": "In Library",
+    "analytics.byStatus": "Library by Status",
+    "analytics.recentSessions": "Recent Reading Sessions",
+
+    // Achievements page
+    "achievements.title": "Achievements",
+    "achievements.subtitle": "Unlock achievements by reading manga — each one earns 1 AP",
+
+    // Shop
+    "shop.subtitle": "Spend your Achievement Points on exclusive themes",
+
+    // History
+    "history.title": "Reading History",
+
+    // Manga details
+    "manga.back": "Back",
+
+    // Context menu
+    "context.markRead": "Mark as Read",
+    "context.markUnread": "Mark as Unread",
+    "context.remove": "Remove from Library"
   },
   pt: {
     // Navigation
@@ -122,12 +169,12 @@ const translations = {
     "nav.settings": "Configurações",
     
     // Home  
-    "home.title": "Descubra & Leia Mangá",
-    "home.subtitle": "Acesse milhares de títulos de mangá de várias fontes, acompanhe seu progresso de leitura e desfrute de uma experiência perfeita — tudo em um só lugar.",
-    "home.tag": "Seu Destino Definitivo de Mangá",
+    "home.title": "Descobre & Lê Mangá",
+    "home.subtitle": "Acede a milhares de títulos de mangá de várias fontes, acompanha o teu progresso de leitura e desfruta de uma experiência perfeita — tudo num só lugar.",
+    "home.tag": "O Teu Destino de Mangá",
     "home.sources": "Fontes",
     "home.search": "Pesquisar Mangá",
-    "home.searchPlaceholder": "Digite o título do mangá...",
+    "home.searchPlaceholder": "Escreve o título do mangá...",
     "home.searchBtn": "Pesquisar",
     
     // Features
@@ -166,16 +213,16 @@ const translations = {
     "chapters.unread": "Não Lidos",
     "chapters.checkIntegrity": "Verificar Integridade",
     "chapters.bulkDownload": "Download em Massa",
-    "chapters.download": "Baixar",
+    "chapters.download": "Transferir",
     "chapters.read": "Ler",
     
     // Library
-    "library.title": "Minha Biblioteca",
+    "library.title": "A Minha Biblioteca",
     "library.all": "Todos",
-    "library.reading": "Lendo",
-    "library.completed": "Completos",
+    "library.reading": "A Ler",
+    "library.completed": "Concluídos",
     "library.planToRead": "Quero Ler",
-    "library.onHold": "Em Espera",
+    "library.onHold": "Em Pausa",
     "library.dropped": "Abandonados",
     
     // Reader
@@ -197,15 +244,62 @@ const translations = {
     "settings.webtoon": "Webtoon",
     
     // Common
-    "common.loading": "Carregando...",
+    "common.loading": "A carregar...",
     "common.error": "Erro",
     "common.cancel": "Cancelar",
-    "common.save": "Salvar",
-    "common.delete": "Excluir",
+    "common.save": "Guardar",
+    "common.delete": "Eliminar",
     "common.close": "Fechar",
     "common.confirm": "Confirmar",
     "common.yes": "Sim",
-    "common.no": "Não"
+    "common.no": "Não",
+    "common.apAvailable": "AP Disponíveis",
+
+    // Sidebar
+    "sidebar.browse": "Explorar",
+    "sidebar.myContent": "O Meu Conteúdo",
+    "sidebar.statsRewards": "Estatísticas & Recompensas",
+    "settings.btn": "Definições",
+
+    // Navigation extras
+    "nav.history": "Histórico",
+    "nav.achievements": "Conquistas",
+    "nav.shop": "Loja de Temas",
+    "nav.customize": "Personalização",
+
+    // Discover sections
+    "home.recommended": "Recomendado Para Ti",
+    "home.allTimePopular": "Mais Popular de Sempre",
+    "home.popularToday": "Mais Popular Hoje",
+    "home.recentlyAdded": "Adicionado Recentemente",
+    "home.latestUpdates": "Últimas Atualizações",
+
+    // Analytics
+    "analytics.title": "As Minhas Estatísticas de Leitura",
+    "analytics.chaptersRead": "Capítulos Lidos",
+    "analytics.timeSpent": "Tempo Gasto",
+    "analytics.meanScore": "Pontuação Média",
+    "analytics.inLibrary": "Na Biblioteca",
+    "analytics.byStatus": "Biblioteca por Estado",
+    "analytics.recentSessions": "Sessões de Leitura Recentes",
+
+    // Achievements page
+    "achievements.title": "Conquistas",
+    "achievements.subtitle": "Desbloqueia conquistas ao ler mangá — cada uma vale 1 AP",
+
+    // Shop
+    "shop.subtitle": "Gasta os teus Pontos de Conquista em temas exclusivos",
+
+    // History
+    "history.title": "Histórico de Leitura",
+
+    // Manga details
+    "manga.back": "Voltar",
+
+    // Context menu
+    "context.markRead": "Marcar como Lido",
+    "context.markUnread": "Marcar como Não Lido",
+    "context.remove": "Remover da Biblioteca"
   }
 };
 
@@ -219,8 +313,10 @@ function setLanguage(lang) {
   if (translations[lang]) {
     currentLanguage = lang;
     localStorage.setItem('language', lang);
-    // Reload UI with new language
-    location.reload();
+    applyTranslations();
+    // Update toggle button label
+    const btn = document.getElementById('langToggleBtn');
+    if (btn) btn.textContent = lang.toUpperCase();
   }
 }
 
@@ -473,16 +569,11 @@ const achievementManager = new AchievementManager();
 // THEME SHOP — definitions & AP helpers
 // ============================================================================
 
-const SHOP_THEMES = [
-  { id: 'default',     name: 'Default',        desc: 'Classic purple theme',            cost: 0,  primary: '#913FE2', primaryDark: '#6F2598', primaryLight: '#A855F7', preview: 'linear-gradient(135deg,#913FE2,#A855F7)' },
-  { id: 'dragonball',  name: 'Dragon Ball',    desc: "Power up with Goku's energy",     cost: 5,  primary: '#FF6B00', primaryDark: '#CC4400', primaryLight: '#FFB800', preview: 'linear-gradient(135deg,#FF6B00,#FFB800)' },
-  { id: 'naruto',      name: 'Naruto',         desc: 'Believe it! Run like a ninja',     cost: 5,  primary: '#F96E0A', primaryDark: '#bf4e00', primaryLight: '#FFB347', preview: 'linear-gradient(135deg,#F96E0A,#FFB347)' },
-  { id: 'onepiece',    name: 'One Piece',      desc: 'Set sail for adventure',           cost: 5,  primary: '#C0392B', primaryDark: '#922B21', primaryLight: '#E74C3C', preview: 'linear-gradient(135deg,#C0392B,#E74C3C)' },
-  { id: 'demonslayer', name: 'Demon Slayer',   desc: 'Total concentration breathing',    cost: 8,  primary: '#C53030', primaryDark: '#7B1FA2', primaryLight: '#E57373', preview: 'linear-gradient(135deg,#C53030,#7B1FA2)' },
-  { id: 'aot',         name: 'Attack on Titan',desc: 'On that day, humanity remembered…',cost: 8,  primary: '#2E6B5E', primaryDark: '#1A4A40', primaryLight: '#4DB6AC', preview: 'linear-gradient(135deg,#2E6B5E,#4DB6AC)' },
-  { id: 'jjk',         name: 'Jujutsu Kaisen', desc: 'Hollow Purple',                    cost: 10, primary: '#6B21A8', primaryDark: '#1A237E', primaryLight: '#A78BFA', preview: 'linear-gradient(135deg,#1A237E,#A78BFA)' },
-  { id: 'bleach',      name: 'Bleach',         desc: 'Bankai',                           cost: 10, primary: '#00B4B4', primaryDark: '#007878', primaryLight: '#4DEEEE', preview: 'linear-gradient(135deg,#007878,#4DEEEE)' },
+const _BASE_THEMES = [
+  { id: 'default', name: 'Default', desc: 'Classic purple theme', cost: 0, primary: '#913FE2', primaryDark: '#6F2598', primaryLight: '#A855F7', preview: 'linear-gradient(135deg,#913FE2,#A855F7)' },
 ];
+// Merge any community themes registered in themes.js (loaded before this file)
+const SHOP_THEMES = [..._BASE_THEMES, ...(window.COMMUNITY_THEMES || [])];
 
 function getSpentAP()   { return parseInt(localStorage.getItem('manghu_ap_spent')  || '0', 10); }
 function getBonusAP()   { return parseInt(localStorage.getItem('manghu_ap_bonus')  || '0', 10); }
@@ -501,12 +592,21 @@ function addPurchasedTheme(id) {
 function getActiveTheme() { return localStorage.getItem('manghu_active_theme') || 'default'; }
 function setActiveTheme(id) { localStorage.setItem('manghu_active_theme', id); applyTheme(id); }
 function applyTheme(id) {
+  // Call onRemove for the previously active community theme
+  const prevId = document.documentElement.getAttribute('data-color-theme') || '';
+  if (prevId && prevId !== id) {
+    const prev = (window.COMMUNITY_THEMES || []).find(t => t.id === prevId);
+    if (prev?.onRemove) prev.onRemove();
+  }
   const t = SHOP_THEMES.find(x => x.id === id) || SHOP_THEMES[0];
   const root = document.documentElement;
   root.style.setProperty('--primary',       t.primary);
   root.style.setProperty('--primary-dark',  t.primaryDark);
   root.style.setProperty('--primary-light', t.primaryLight);
   root.setAttribute('data-color-theme', id === 'default' ? '' : id);
+  // Call onApply for the newly activated community theme
+  const next = (window.COMMUNITY_THEMES || []).find(t => t.id === id);
+  if (next?.onApply) next.onApply();
 }
 function updateApBadge() {
   const ap = getAvailableAP();
@@ -525,17 +625,17 @@ function updateApBadge() {
 // ============================================================================
 
 const ACHIEVEMENTS = [
-  { id: 'first_read',     icon: '📖', label: 'First Steps',       desc: 'Read your first chapter',           check: (a) => a.totalChaptersRead >= 1 },
-  { id: 'reader_10',      icon: '📚', label: 'Bookworm',           desc: 'Read 10 chapters',                  check: (a) => a.totalChaptersRead >= 10 },
-  { id: 'reader_100',     icon: '🏆', label: 'Manga Addict',        desc: 'Read 100 chapters',                 check: (a) => a.totalChaptersRead >= 100 },
-  { id: 'reader_500',     icon: '⭐', label: 'Legend',              desc: 'Read 500 chapters',                 check: (a) => a.totalChaptersRead >= 500 },
-  { id: 'first_fav',      icon: '❤️', label: 'Collector',           desc: 'Add your first manga to library',   check: (a) => a.totalFavorites >= 1 },
-  { id: 'fav_10',         icon: '📦', label: 'Hoarder',             desc: 'Have 10 manga in your library',     check: (a) => a.totalFavorites >= 10 },
-  { id: 'completed_1',    icon: '✅', label: 'Completionist',       desc: 'Mark your first manga as completed',check: (a) => a.completedCount >= 1 },
-  { id: 'completed_5',    icon: '🎖️', label: 'Veteran Reader',      desc: 'Complete 5 manga',                  check: (a) => a.completedCount >= 5 },
-  { id: 'list_maker',     icon: '📋', label: 'Organizer',           desc: 'Create a custom list',              check: (a) => a.totalLists >= 1 },
-  { id: 'night_owl',      icon: '🦉', label: 'Night Owl',           desc: 'Spend 1 hour reading total',        check: (a) => (a.totalTimeSpent || 0) >= 60 },
-  { id: 'marathon',       icon: '🏃', label: 'Marathon Reader',     desc: 'Spend 5 hours reading total',       check: (a) => (a.totalTimeSpent || 0) >= 300 },
+  { id: 'first_read',     icon: 'book-open', label: 'First Steps',       desc: 'Read your first chapter',           check: (a) => a.totalChaptersRead >= 1 },
+  { id: 'reader_10',      icon: 'book',       label: 'Bookworm',           desc: 'Read 10 chapters',                  check: (a) => a.totalChaptersRead >= 10 },
+  { id: 'reader_100',     icon: 'award',      label: 'Manga Addict',        desc: 'Read 100 chapters',                 check: (a) => a.totalChaptersRead >= 100 },
+  { id: 'reader_500',     icon: 'star',       label: 'Legend',              desc: 'Read 500 chapters',                 check: (a) => a.totalChaptersRead >= 500 },
+  { id: 'first_fav',      icon: 'heart', label: 'Collector',           desc: 'Add your first manga to library',   check: (a) => a.totalFavorites >= 1 },
+  { id: 'fav_10',         icon: 'package', label: 'Hoarder',             desc: 'Have 10 manga in your library',     check: (a) => a.totalFavorites >= 10 },
+  { id: 'completed_1',    icon: 'check-circle', label: 'Completionist',       desc: 'Mark your first manga as completed',check: (a) => a.completedCount >= 1 },
+  { id: 'completed_5',    icon: 'award', label: 'Veteran Reader',      desc: 'Complete 5 manga',                  check: (a) => a.completedCount >= 5 },
+  { id: 'list_maker',     icon: 'clipboard', label: 'Organizer',           desc: 'Create a custom list',              check: (a) => a.totalLists >= 1 },
+  { id: 'night_owl',      icon: 'moon', label: 'Night Owl',           desc: 'Spend 1 hour reading total',        check: (a) => (a.totalTimeSpent || 0) >= 60 },
+  { id: 'marathon',       icon: 'activity', label: 'Marathon Reader',     desc: 'Spend 5 hours reading total',       check: (a) => (a.totalTimeSpent || 0) >= 300 },
 ];
 
 // ============================================================================
@@ -697,7 +797,7 @@ function showChapterContextMenu(e, chapterId, mangaId) {
     </button>
     <div class="context-divider"></div>
     <button class="context-item" id="ctxFlag">
-      🚩 ${isFlagged ? 'Remove Flag' : 'Add Flag'}
+      &#x1F6A9; ${isFlagged ? 'Remove Flag' : 'Add Flag'}
     </button>
   `;
 
@@ -1008,9 +1108,9 @@ function renderHistoryView() {
         </div>
         <div class="history-info">
           <h3 class="history-title">${escapeHtml(m.title)}</h3>
-          ${m.author ? `<p class="history-author">✍️ ${escapeHtml(m.author)}</p>` : ""}
+          ${m.author ? `<p class="history-author">${escapeHtml(m.author)}</p>` : ""}
           ${genres.length ? `<div class="history-genres">${genres.map(g => `<span class="manga-card-genre">${escapeHtml(g)}</span>`).join("")}</div>` : ""}
-          ${date ? `<p class="history-date">🕐 ${date}</p>` : ""}
+          ${date ? `<p class="history-date">${date}</p>` : ""}
         </div>
         <div class="history-actions">
           <button class="btn history-view-btn" data-mid="${escapeHtml(m.id)}" data-sid="${escapeHtml(m.sourceId || '')}">View Details</button>
@@ -1867,19 +1967,19 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
         <div class="manga-info">
           <h2 class="manga-title">${escapeHtml(result.title)}</h2>
           ${result.altTitle ? `<p class="manga-alt-title">${escapeHtml(result.altTitle)}</p>` : ""}
-          ${result.author  ? `<p class="manga-author">✍️ <span class="author-link" data-author="${escapeHtml(result.author)}" onclick="searchByAuthor(this.dataset.author)">${escapeHtml(result.author)}</span></p>` : ""}
+          ${result.author  ? `<p class="manga-author"><span class="author-link" data-author="${escapeHtml(result.author)}" onclick="searchByAuthor(this.dataset.author)">${escapeHtml(result.author)}</span></p>` : ""}
           <div class="manga-meta">
             ${result.status ? `<span class="badge badge-${result.status === 'ongoing' ? 'success' : 'secondary'}">${escapeHtml(result.status)}</span>` : ""}
-            ${result.year   ? `<span class="badge">📅 ${escapeHtml(String(result.year))}</span>` : ""}
+            ${result.year   ? `<span class="badge">${escapeHtml(String(result.year))}</span>` : ""}
             <span class="source-switch-wrap">
-              <span class="badge badge-source source-switch-btn" id="sourceSwitchBtn" onclick="toggleSourceSwitchDropdown(event)" title="Switch source">🌐 ${escapeHtml(state.installedSources[state.currentSourceId]?.name || state.currentSourceId)} ▾</span>
+              <span class="badge badge-source source-switch-btn" id="sourceSwitchBtn" onclick="toggleSourceSwitchDropdown(event)" title="Switch source">${escapeHtml(state.installedSources[state.currentSourceId]?.name || state.currentSourceId)} ▾</span>
               <div class="source-switch-dropdown hidden" id="sourceSwitchDropdown">
                 ${Object.values(state.installedSources).filter(s => s.id !== state.currentSourceId).map(s =>
                   `<button class="source-switch-item" onclick="switchToSourceSearch('${escapeHtml(s.id)}','${escapeHtml(result.title.replace(/'/g, "\\'"))}')">${escapeHtml(s.name)}</button>`
                 ).join('')}
               </div>
             </span>
-            <span class="badge badge-adaptation-check" id="adaptationCheckBtn" onclick="checkAnimeAdaptation('${escapeHtml(result.title.replace(/'/g, "\\'"))}')">🎬 Check</span>
+            <span class="badge badge-adaptation-check" id="adaptationCheckBtn" onclick="checkAnimeAdaptation('${escapeHtml(result.title.replace(/'/g, "\\'"))}')">Check</span>
           </div>
           <div id="adaptationResult"></div>
           ${result.genres?.length ? `
@@ -1896,7 +1996,7 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
             </button>
             <button class="btn btn-start-reading-detail" id="startReadingBtn">&#9654; Start Reading</button>
             ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">Continue</button>` : ""}
-            ${fromView === 'random' ? `<button class="btn btn-reroll" id="rerollBtn" title="Pick another random manga">🎲 Reroll</button>` : ""}
+            ${fromView === 'random' ? `<button class="btn btn-reroll" id="rerollBtn" title="Pick another random manga">Reroll</button>` : ""}
           </div>
           <div id="detailRatingWrap" class="detail-rating-wrap"></div>
         </div>
@@ -2096,11 +2196,11 @@ function renderChaptersList() {
         return `
           <div class="chapter-item ${isRead ? 'chapter-read' : ''} ${isFlagged ? 'chapter-flagged' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
             <div class="chapter-info">
-              <div class="chapter-name">${isFlagged ? '<span class="chapter-flag-icon">🚩</span> ' : ''}${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</div>
+              <div class="chapter-name">${isFlagged ? '<span class="chapter-flag-icon">&#x1F6A9;</span> ' : ''}${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</div>
               ${ch.date ? `<div class="chapter-date">${new Date(ch.date).toLocaleDateString("en-US", { day:"2-digit", month:"short", year:"numeric" })}</div>` : ""}
             </div>
             <div class="chapter-action">
-              ${isRead ? `<span class="read-badge">✓</span>` : ""}
+              ${isRead ? `<span class="read-badge">&#x2713;</span>` : ""}
               <button class="btn-download-chapter" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}" title="Download this chapter" onclick="event.stopPropagation();">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               </button>
@@ -2314,8 +2414,8 @@ function showBulkDownloadModal(chapters) {
     <div class="modal-overlay" id="bulkDownloadModal">
       <div class="modal-content modal-large">
         <div class="modal-header">
-          <h2>📥 Bulk Download Chapters</h2>
-          <button class="modal-close" onclick="closeBulkDownloadModal()">✕</button>
+          <h2>Bulk Download Chapters</h2>
+          <button class="modal-close" onclick="closeBulkDownloadModal()">&#x2715;</button>
         </div>
         <div class="modal-body">
           <p class="modal-description">Select chapters to download as a ZIP file:</p>
@@ -2489,7 +2589,7 @@ function analyzeChapterIntegrity(chapters, mangaDetails = null) {
     .sort((a, b) => a - b);
 
   if (chapterNumbers.length === 0) {
-    issues.push("⚠️ No valid chapter numbers found");
+    issues.push("No valid chapter numbers found");
     return { issues, warnings, info, stats: {} };
   }
 
@@ -2570,21 +2670,21 @@ function analyzeChapterIntegrity(chapters, mangaDetails = null) {
     // Fallback to local range-based calculation
     completenessBase = stats.maxChapter - stats.minChapter + 1;
     completeness = (actualUnique / completenessBase * 100).toFixed(1);
-    warnings.push(`⚠️ Using local range for completeness (no external data)`);
+    warnings.push(`Using local range for completeness (no external data)`);
   }
 
   if (completeness >= 95) {
-    info.push(`✅ ${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
+    info.push(`${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
   } else if (completeness >= 80) {
-    warnings.push(`⚠️ ${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
+    warnings.push(`${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
   } else {
-    issues.push(`❌ Only ${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
+    issues.push(`Only ${completeness}% complete (${actualUnique}/${Math.ceil(completenessBase)} chapters)`);
   }
 
   // Additional warnings if using external data
   if (expectedTotalChapters && stats.maxChapter < expectedTotalChapters) {
     const missingFromEnd = expectedTotalChapters - stats.maxChapter;
-    warnings.push(`📉 Missing latest ${missingFromEnd} chapter(s) (up to ${expectedTotalChapters})`);
+    warnings.push(`Missing latest ${missingFromEnd} chapter(s) (up to ${expectedTotalChapters})`);
   }
 
   return { issues, warnings, info, stats, gaps, duplicates: uniqueDuplicates, completeness: parseFloat(completeness) };
@@ -2599,16 +2699,16 @@ function displayIntegrityReport(report, mangaUpdatesData = null) {
   const hasWarnings = warnings.length > 0;
 
   let statusClass = "integrity-good";
-  let statusIcon = "✅";
+  let statusIcon = "&#x2705;";
   let statusText = "All Good";
 
   if (hasIssues) {
     statusClass = "integrity-error";
-    statusIcon = "❌";
+    statusIcon = "&#x274C;";
     statusText = "Issues Found";
   } else if (hasWarnings) {
     statusClass = "integrity-warning";
-    statusIcon = "⚠️";
+    statusIcon = "!";
     statusText = "Warnings";
   }
 
@@ -2616,7 +2716,7 @@ function displayIntegrityReport(report, mangaUpdatesData = null) {
   if (mangaUpdatesData && mangaUpdatesData.found) {
     mangaUpdatesSection = `
       <div class="integrity-section integrity-mangaupdates">
-        <div style="font-weight: 600; margin-bottom: 0.5rem;">📚 MangaUpdates Data:</div>
+        <div style="font-weight: 600; margin-bottom: 0.5rem;">MangaUpdates Data:</div>
         <div>Latest Chapter: ${mangaUpdatesData.latestChapter || "Unknown"}</div>
         <div>Status: ${mangaUpdatesData.status || "Unknown"}</div>
         ${mangaUpdatesData.url ? `<div><a href="${mangaUpdatesData.url}" target="_blank" style="color: var(--primary);">View on MangaUpdates →</a></div>` : ''}
@@ -2629,7 +2729,7 @@ function displayIntegrityReport(report, mangaUpdatesData = null) {
       <div class="integrity-header">
         <span class="integrity-icon">${statusIcon}</span>
         <strong>Integrity Check: ${statusText}</strong>
-        <button class="btn-close-report" onclick="closeIntegrityReport()">✕</button>
+        <button class="btn-close-report" onclick="closeIntegrityReport()">&#x2715;</button>
       </div>
       <div class="integrity-body">
         ${mangaUpdatesSection}
@@ -2668,7 +2768,7 @@ window.checkAnimeAdaptation = async function(title) {
   const resultDiv = $("adaptationResult");
   if (!resultDiv) return;
 
-  if (btn) { btn.textContent = "🎬 Checking..."; btn.classList.add("badge-adaptation-loading"); }
+  if (btn) { btn.textContent = "Checking..."; btn.classList.add("badge-adaptation-loading"); }
 
   // Dual query:
   // 1. Look up the manga entry and follow its ADAPTATION relations to anime
@@ -2726,11 +2826,11 @@ window.checkAnimeAdaptation = async function(title) {
     ];
 
     if (merged.length === 0) {
-      resultDiv.innerHTML = `<div class="adaptation-result adaptation-none">🎬 No anime or film adaptations found on AniList.</div>`;
+      resultDiv.innerHTML = `<div class="adaptation-result adaptation-none">No anime or film adaptations found on AniList.</div>`;
     } else {
       resultDiv.innerHTML = `
         <div class="adaptation-result">
-          <div class="adaptation-result-title">🎬 Adaptations found (${merged.length})</div>
+          <div class="adaptation-result-title">Adaptations found (${merged.length})</div>
           <div class="adaptation-list">
             ${merged.map(n => {
               const t    = n.title.english || n.title.romaji || n.title.native || "Unknown";
@@ -2740,7 +2840,7 @@ window.checkAnimeAdaptation = async function(title) {
               return `<a class="adaptation-item" href="${escapeHtml(n.siteUrl)}" target="_blank" rel="noopener noreferrer">
                 ${n.coverImage?.medium
                   ? `<img src="${escapeHtml(n.coverImage.medium)}" alt="" class="adaptation-cover">`
-                  : `<div class="adaptation-cover-placeholder">📺</div>`}
+                  : `<div class="adaptation-cover-placeholder">TV</div>`}
                 <div class="adaptation-item-info">
                   <span class="adaptation-item-name">${escapeHtml(t)}</span>
                   ${meta ? `<span class="adaptation-item-meta">${escapeHtml(meta)}</span>` : ''}
@@ -2752,9 +2852,9 @@ window.checkAnimeAdaptation = async function(title) {
       `;
     }
   } catch (e) {
-    resultDiv.innerHTML = `<div class="adaptation-result adaptation-none">⚠️ Error checking adaptations: ${escapeHtml(e.message)}</div>`;
+    resultDiv.innerHTML = `<div class="adaptation-result adaptation-none">Error checking adaptations: ${escapeHtml(e.message)}</div>`;
   } finally {
-    if (btn) { btn.textContent = "🎬 Check"; btn.classList.remove("badge-adaptation-loading"); }
+    if (btn) { btn.textContent = "Check"; btn.classList.remove("badge-adaptation-loading"); }
   }
 };
 
@@ -3986,8 +4086,8 @@ function showSettings() {
   modal.innerHTML = `
     <div class="settings-content">
       <div class="settings-header">
-        <h2>⚙️ Settings</h2>
-        <button class="btn secondary" id="closeSettings">✕</button>
+        <h2>Settings</h2>
+        <button class="btn secondary" id="closeSettings">&#x2715;</button>
       </div>
       <div class="settings-body">
         <div class="setting-group">
@@ -4176,7 +4276,8 @@ async function checkAndUnlockAchievements() {
       completedCount:    (anaData.statusDistribution?.completed || 0),
       totalLists:        (anaData.totalLists || 0),
       statusDistribution: anaData.statusDistribution || {},
-      dailyStreak:       a.dailyStreak || 0
+      dailyStreak:       a.dailyStreak || 0,
+      libraryTitles:     (state.favorites || []).map(m => (m.title || '').toLowerCase())
     };
 
     // Check achievements using AchievementManager
@@ -4194,7 +4295,7 @@ async function checkAndUnlockAchievements() {
         const achievement = achievementManager.getAchievement(achievementId);
         if (achievement) {
           showToast(
-            `Achievement Unlocked! 🏆`, 
+            `Achievement Unlocked! `, 
             `${achievement.name}: ${achievement.description}`, 
             "success"
           );
@@ -4296,7 +4397,7 @@ function summonShenlong() {
       }, 800);
     }, 2800);
   }
-  showToast('🐉 Shenlong appears!', 'Your wish is granted — +50 AP!', 'success');
+  showToast('Shenlong appears!', 'Your wish is granted — +50 AP!', 'success');
 }
 
 // ============================================================================
@@ -4390,7 +4491,7 @@ function renderShopView() {
     let btn, badge = '';
     if (isActive) {
       btn = `<button class="shop-btn shop-btn-active" disabled>Active</button>`;
-      badge = `<span class="shop-active-badge">✓ Active</span>`;
+      badge = `<span class="shop-active-badge">&#x2713; Active</span>`;
     } else if (owned) {
       btn = `<button class="shop-btn shop-btn-owned" onclick="setActiveTheme('${t.id}');renderShopView()">Apply</button>`;
     } else if (t.cost === 0) {
@@ -4400,7 +4501,7 @@ function renderShopView() {
     } else {
       btn = `<button class="shop-btn shop-btn-afford" disabled>Need ${t.cost} AP</button>`;
     }
-    const costStr = t.cost === 0 ? '<span style="color:var(--success)">Free</span>' : `<span class="ap-star">⭐</span>${t.cost} AP`;
+    const costStr = t.cost === 0 ? '<span style="color:var(--success)">Free</span>' : `<span class="ap-star">&#x2B50;</span>${t.cost} AP`;
     return `
       <div class="shop-card ${isActive ? 'shop-active' : owned ? 'shop-owned' : ''}">
         <div class="shop-card-preview" style="background:${t.preview}"></div>
@@ -4425,7 +4526,7 @@ function buyTheme(id) {
   spendAP(t.cost);
   addPurchasedTheme(id);
   setActiveTheme(id);
-  showToast('Theme unlocked! 🎨', t.name, 'success');
+  showToast('Theme unlocked! ', t.name, 'success');
   renderShopView();
   updateApBadge();
 }
@@ -4645,7 +4746,7 @@ function setView(view, context = {}, replace = false) {
   // Update navigation manager
   navigationManager.navigateTo(view, context, replace);
 
-  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history", "achievements", "shop"];
+  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history", "achievements", "shop", "customize"];
   for (const v of ALL_VIEWS) {
     const el = $(`view-${v}`);
     if (el) el.classList.toggle("hidden", v !== view);
@@ -4668,6 +4769,8 @@ function setView(view, context = {}, replace = false) {
     renderAchievementsView();
   } else if (view === "shop") {
     renderShopView();
+  } else if (view === "customize") {
+    renderCustomizeView();
   } else if (view === "manga-details") {
     window.scrollTo({ top: 0, behavior: "instant" });
     // Restore context if available
@@ -4835,13 +4938,423 @@ function bindUI() {
   const libFilter = $("libraryStatusFilter");
   if (libFilter) libFilter.onchange = renderLibrary;
 
-  // Language selector
-  const langSelector = $("languageSelector");
-  if (langSelector) {
-    langSelector.value = currentLanguage;
-    langSelector.onchange = () => setLanguage(langSelector.value);
+  // Language toggle button
+  const langBtn = $("langToggleBtn");
+  if (langBtn) {
+    langBtn.textContent = currentLanguage.toUpperCase();
+    langBtn.onclick = () => setLanguage(currentLanguage === 'en' ? 'pt' : 'en');
   }
 }
+
+// ============================================================================
+
+// CUSTOMIZATION
+
+// ============================================================================
+
+
+
+const CUSTOM_PRESETS_KEY = 'manghu_custom_presets';
+
+const CUSTOM_ACTIVE_KEY  = 'manghu_active_custom';
+
+
+
+function getCustomPresets() {
+
+  try { return JSON.parse(localStorage.getItem(CUSTOM_PRESETS_KEY) || '[]'); } catch (e) { return []; }
+
+}
+
+function saveCustomPresets(arr) {
+
+  localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(arr));
+
+}
+
+function getActiveCustom() {
+
+  try { return JSON.parse(localStorage.getItem(CUSTOM_ACTIVE_KEY) || 'null'); } catch (e) { return null; }
+
+}
+
+function setActiveCustom(cfg) {
+
+  if (cfg) localStorage.setItem(CUSTOM_ACTIVE_KEY, JSON.stringify(cfg));
+
+  else     localStorage.removeItem(CUSTOM_ACTIVE_KEY);
+
+}
+
+
+
+function applyCustomization(cfg) {
+
+  ['custom-char', 'custom-corner', 'custom-bg-layer'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { if (el._obs) el._obs.disconnect(); el.remove(); }
+  });
+
+  var styleEl = document.getElementById('custom-live-style');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'custom-live-style';
+    document.head.appendChild(styleEl);
+  }
+
+  if (!cfg) { styleEl.textContent = ''; return; }
+
+  var bgUrl      = cfg.bgUrl      || '';
+  var bgDim      = cfg.bgDim      != null ? cfg.bgDim      : 0;
+  var bgOpac     = cfg.bgOpac     != null ? cfg.bgOpac     : 0;
+  var headerUrl  = cfg.headerUrl  || '';
+  var headerDim  = cfg.headerDim  != null ? cfg.headerDim  : 0;
+  var headerOpac = cfg.headerOpac != null ? cfg.headerOpac : 0;
+  var charUrl    = cfg.charUrl    || '';
+  var charDim    = cfg.charDim    != null ? cfg.charDim    : 0;
+  var charDark   = cfg.charDark   != null ? cfg.charDark   : 0;
+  var cornerUrl  = cfg.cornerUrl  || '';
+  var cornerDim  = cfg.cornerDim  != null ? cfg.cornerDim  : 0;
+  var cornerDark = cfg.cornerDark != null ? cfg.cornerDark : 0;
+
+  var css = '';
+  if (headerUrl) css += ".topbar { background: linear-gradient(rgba(0,0,0," + (headerDim/100) + "),rgba(0,0,0," + (headerDim/100) + ")), url('" + headerUrl + "') center/cover !important; opacity:" + ((100-headerOpac)/100) + " !important; }\n";
+  styleEl.textContent = css;
+
+  if (bgUrl) {
+    var bgLayer = document.createElement('div');
+    bgLayer.id = 'custom-bg-layer';
+    bgLayer.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;' +
+      "background:linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') center/cover fixed;" +
+      'opacity:' + ((100 - bgOpac) / 100);
+    document.body.appendChild(bgLayer);
+  }
+
+  function _mkOverlay(id, wrapCss, imgCss, opac, src, brightness) {
+    var w = document.createElement('div');
+    w.id = id; w.style.cssText = wrapCss + ';opacity:' + opac;
+    var i = document.createElement('img');
+    i.src = src; i.alt = ''; i.style.cssText = imgCss;
+    if (brightness != null) i.style.filter = 'brightness(' + brightness + ')';
+    w.appendChild(i); document.body.appendChild(w);
+    var re = document.getElementById('reader');
+    if (re) {
+      var sv = function() { w.style.display = re.classList.contains('hidden') ? '' : 'none'; };
+      var ob = new MutationObserver(sv);
+      ob.observe(re, { attributes: true, attributeFilter: ['class'] });
+      w._obs = ob; sv();
+    }
+  }
+
+  if (charUrl) {
+    _mkOverlay(
+      'custom-char',
+      'position:fixed;bottom:0;left:0;width:240px;height:100vh;pointer-events:none;overflow:hidden;z-index:10;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.8) 0%,transparent 100%);mask-image:linear-gradient(to top,rgba(0,0,0,.8) 0%,transparent 100%)',
+      'position:absolute;bottom:0;left:50%;transform:translateX(-50%);height:90vh;width:auto;object-fit:contain',
+      (100 - charDim) / 100, charUrl, 1 - charDark / 100
+    );
+  }
+
+  if (cornerUrl) {
+    _mkOverlay(
+      'custom-corner',
+      'position:fixed;bottom:0;left:0;width:240px;height:210px;border-radius:0 12px 0 0;pointer-events:none;overflow:hidden;z-index:10;background:rgba(0,0,0,0.18);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 42%);mask-image:linear-gradient(to bottom,transparent 0%,black 42%)',
+      'position:absolute;bottom:0;left:0;width:100%;height:100%;object-fit:cover',
+      (100 - cornerDim) / 100, cornerUrl, 1 - cornerDark / 100
+    );
+  }
+
+}
+
+
+
+function renderCustomizeView() {
+
+  var presets = getCustomPresets();
+
+  var active  = getActiveCustom() || {};
+
+
+
+  var presetsHtml = presets.length
+
+    ? presets.map(function(p) {
+
+        return '<div class="custom-preset-card" id="preset-card-' + p.id + '">' +
+
+          '<div class="custom-preset-info"><span class="custom-preset-name">' + escapeHtml(p.name) + '</span></div>' +
+
+          '<div class="custom-preset-actions">' +
+
+            '<button class="btn secondary" onclick="applyCustomPreset(\'' + p.id + '\')">Apply</button>' +
+
+            '<button class="btn danger" onclick="deleteCustomPreset(\'' + p.id + '\')">Remove</button>' +
+
+          '</div></div>';
+
+      }).join('')
+
+    : '<p class="muted" style="text-align:center;padding:1rem">No saved presets yet</p>';
+
+
+
+  var bgu = escapeHtml(active.bgUrl     || '');
+
+  var bd  = active.bgDim     || 0;
+
+  var cu  = escapeHtml(active.charUrl   || '');
+
+  var cd  = active.charDim   || 0;
+
+  var hu  = escapeHtml(active.headerUrl || '');
+
+  var hd  = active.headerDim || 0;
+
+  var cou = escapeHtml(active.cornerUrl || '');
+
+  var cod = active.cornerDim || 0;
+
+  var bgo  = active.bgOpac     || 0;
+
+  var chd  = active.charDark   || 0;
+
+  var ho   = active.headerOpac || 0;
+
+  var cod2 = active.cornerDark || 0;
+
+
+
+  var prevBg  = bgu ? "background:linear-gradient(rgba(0,0,0," + (bd/100) + "),rgba(0,0,0," + (bd/100) + ")),url('" + bgu + "') center/cover"  : '';
+
+  var prevCh  = cu  ? "background:url('" + cu + "') center top/contain no-repeat" : '';
+
+  var prevHdr = hu  ? "background:linear-gradient(rgba(0,0,0," + (hd/100) + "),rgba(0,0,0," + (hd/100) + ")),url('" + hu + "') center/cover" : '';
+
+  var prevCor = cou ? "background:url('" + cou + "') center/cover no-repeat" : '';
+
+
+
+  document.getElementById('view-customize').innerHTML = '' +
+
+    '<div class="customize-page">' +
+
+      '<div class="ach-page-header">' +
+
+        '<div>' +
+
+          '<h2 class="ach-page-title">&#127912; Customization</h2>' +
+
+          '<p class="ach-page-subtitle">Personalise your interface with custom images</p>' +
+
+        '</div>' +
+
+        '<button class="btn secondary" id="customResetBtn">&#10006; Reset All</button>' +
+
+      '</div>' +
+
+      '<div class="customize-grid">' +
+
+        '<div class="customize-card">' +
+          '<div class="customize-card-icon">&#128444;</div>' +
+          '<h3 class="customize-card-title">Background</h3>' +
+          '<p class="customize-card-desc">Full-page wallpaper</p>' +
+          '<label class="customize-label">Image URL</label>' +
+          '<input id="customBgUrl" class="input customize-input" type="url" placeholder="https://..." value="' + bgu + '">' +
+          '<div class="customize-preview-wrap"><div class="customize-preview" id="previewBg" style="' + prevBg + '"></div></div>' +
+          '<label class="customize-label">Darkness: <span id="customBgDimVal">' + bd + '</span>%</label>' +
+          '<input id="customBgDim" class="customize-slider" type="range" min="0" max="95" value="' + bd + '">' +
+          '<label class="customize-label">Transparency: <span id="customBgOpacVal">' + bgo + '</span>%</label>' +
+          '<input id="customBgOpac" class="customize-slider" type="range" min="0" max="95" value="' + bgo + '">' +
+        '</div>' +
+
+        '<div class="customize-card">' +
+          '<div class="customize-card-icon">&#9612;</div>' +
+          '<h3 class="customize-card-title">Left Column</h3>' +
+          '<p class="customize-card-desc">Character art along the left sidebar</p>' +
+          '<label class="customize-label">Image URL</label>' +
+          '<input id="customCharUrl" class="input customize-input" type="url" placeholder="https://..." value="' + cu + '">' +
+          '<div class="customize-preview-wrap"><div class="customize-preview" id="previewChar" style="' + prevCh + '"></div></div>' +
+          '<label class="customize-label">Darkness: <span id="customCharDarkVal">' + chd + '</span>%</label>' +
+          '<input id="customCharDark" class="customize-slider" type="range" min="0" max="95" value="' + chd + '">' +
+          '<label class="customize-label">Transparency: <span id="customCharDimVal">' + cd + '</span>%</label>' +
+          '<input id="customCharDim" class="customize-slider" type="range" min="0" max="95" value="' + cd + '">' +
+        '</div>' +
+
+        '<div class="customize-card">' +
+          '<div class="customize-card-icon">&#9644;</div>' +
+          '<h3 class="customize-card-title">Header</h3>' +
+          '<p class="customize-card-desc">Image in the top bar</p>' +
+          '<label class="customize-label">Image URL</label>' +
+          '<input id="customHeaderUrl" class="input customize-input" type="url" placeholder="https://..." value="' + hu + '">' +
+          '<div class="customize-preview-wrap"><div class="customize-preview" id="previewHeader" style="' + prevHdr + '"></div></div>' +
+          '<label class="customize-label">Darkness: <span id="customHeaderDimVal">' + hd + '</span>%</label>' +
+          '<input id="customHeaderDim" class="customize-slider" type="range" min="0" max="95" value="' + hd + '">' +
+          '<label class="customize-label">Transparency: <span id="customHeaderOpacVal">' + ho + '</span>%</label>' +
+          '<input id="customHeaderOpac" class="customize-slider" type="range" min="0" max="95" value="' + ho + '">' +
+        '</div>' +
+
+        '<div class="customize-card">' +
+          '<div class="customize-card-icon">&#9724;</div>' +
+          '<h3 class="customize-card-title">Corner Card</h3>' +
+          '<p class="customize-card-desc">Small card at bottom-left corner</p>' +
+          '<label class="customize-label">Image URL</label>' +
+          '<input id="customCornerUrl" class="input customize-input" type="url" placeholder="https://..." value="' + cou + '">' +
+          '<div class="customize-preview-wrap"><div class="customize-preview" id="previewCorner" style="' + prevCor + ';border-radius:8px"></div></div>' +
+          '<label class="customize-label">Darkness: <span id="customCornerDarkVal">' + cod2 + '</span>%</label>' +
+          '<input id="customCornerDark" class="customize-slider" type="range" min="0" max="95" value="' + cod2 + '">' +
+          '<label class="customize-label">Transparency: <span id="customCornerDimVal">' + cod + '</span>%</label>' +
+          '<input id="customCornerDim" class="customize-slider" type="range" min="0" max="95" value="' + cod + '">' +
+        '</div>' +
+
+      '</div>' +
+      '<div class="customize-save-bar">' +
+
+        '<input id="customPresetName" class="input" style="flex:1;min-width:160px" placeholder="Preset name..." maxlength="40">' +
+
+        '<button class="btn primary" id="customSaveBtn">&#128190; Save Preset</button>' +
+
+        '<button class="btn secondary" id="customApplyBtn">&#9654; Apply Now</button>' +
+
+      '</div>' +
+
+      '<div class="customize-presets-section">' +
+
+        '<h3 class="section-title">Saved Presets</h3>' +
+
+        '<div id="customPresetsList">' + presetsHtml + '</div>' +
+
+      '</div>' +
+
+    '</div>';
+
+
+
+  function livePreview() {
+    var bgUrl      = document.getElementById('customBgUrl').value.trim();
+    var bgDim      = +document.getElementById('customBgDim').value;
+    var bgOpac     = +document.getElementById('customBgOpac').value;
+    var charUrl    = document.getElementById('customCharUrl').value.trim();
+    var charDark   = +document.getElementById('customCharDark').value;
+    var charDim    = +document.getElementById('customCharDim').value;
+    var headerUrl  = document.getElementById('customHeaderUrl').value.trim();
+    var headerDim  = +document.getElementById('customHeaderDim').value;
+    var headerOpac = +document.getElementById('customHeaderOpac').value;
+    var cornerUrl  = document.getElementById('customCornerUrl').value.trim();
+    var cornerDark = +document.getElementById('customCornerDark').value;
+    var cornerDim  = +document.getElementById('customCornerDim').value;
+
+    document.getElementById('customBgDimVal').textContent      = bgDim;
+    document.getElementById('customBgOpacVal').textContent     = bgOpac;
+    document.getElementById('customCharDarkVal').textContent   = charDark;
+    document.getElementById('customCharDimVal').textContent    = charDim;
+    document.getElementById('customHeaderDimVal').textContent  = headerDim;
+    document.getElementById('customHeaderOpacVal').textContent = headerOpac;
+    document.getElementById('customCornerDarkVal').textContent = cornerDark;
+    document.getElementById('customCornerDimVal').textContent  = cornerDim;
+
+    var p = function(n) { return document.getElementById(n); };
+    p('previewBg').style.background     = bgUrl     ? "linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') center/cover" : '';
+    p('previewChar').style.background   = charUrl   ? "url('" + charUrl + "') center top/contain no-repeat" : '';
+    p('previewHeader').style.background = headerUrl ? "linear-gradient(rgba(0,0,0," + (headerDim/100) + "),rgba(0,0,0," + (headerDim/100) + ")),url('" + headerUrl + "') center/cover" : '';
+    p('previewCorner').style.background = cornerUrl ? "url('" + cornerUrl + "') center/cover no-repeat" : '';
+
+    return { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim };
+  }
+
+
+
+  ['customBgUrl','customBgDim','customBgOpac','customCharUrl','customCharDark','customCharDim','customHeaderUrl','customHeaderDim','customHeaderOpac','customCornerUrl','customCornerDark','customCornerDim'].forEach(function(id) {
+
+    var el = document.getElementById(id);
+
+    if (el) el.addEventListener('input', livePreview);
+
+  });
+
+
+
+  document.getElementById('customApplyBtn').onclick = function() {
+
+    var cfg = livePreview();
+
+    setActiveCustom(cfg);
+
+    applyCustomization(cfg);
+
+    showToast('Customization applied', '', 'success');
+
+  };
+
+
+
+  document.getElementById('customSaveBtn').onclick = function() {
+
+    var cfg = livePreview();
+
+    var name = document.getElementById('customPresetName').value.trim() || 'My Preset';
+
+    var list = getCustomPresets();
+
+    list.push(Object.assign({ id: 'custom-' + Date.now(), name: name }, cfg));
+
+    saveCustomPresets(list);
+
+    setActiveCustom(cfg);
+
+    applyCustomization(cfg);
+
+    showToast('Preset saved!', name, 'success');
+
+    renderCustomizeView();
+
+  };
+
+
+
+  document.getElementById('customResetBtn').onclick = function() {
+
+    setActiveCustom(null);
+
+    applyCustomization(null);
+
+    showToast('Customization reset', '', 'info');
+
+    renderCustomizeView();
+
+  };
+
+}
+
+
+
+function applyCustomPreset(id) {
+
+  var p = getCustomPresets().find(function(x) { return x.id === id; });
+
+  if (!p) return;
+
+  setActiveCustom(p);
+
+  applyCustomization(p);
+
+  showToast('Preset applied', p.name, 'success');
+
+}
+
+window.applyCustomPreset = applyCustomPreset;
+
+
+
+function deleteCustomPreset(id) {
+
+  saveCustomPresets(getCustomPresets().filter(function(x) { return x.id !== id; }));
+
+  renderCustomizeView();
+
+}
+
+window.deleteCustomPreset = deleteCustomPreset;
+
 
 // ============================================================================
 // INITIALIZATION
@@ -4852,6 +5365,7 @@ function bindUI() {
   applyTranslations();
   loadSettings();
   applyTheme(getActiveTheme());
+  applyCustomization(getActiveCustom());
 
   // Configure PDF.js worker
   if (window.pdfjsLib) {
