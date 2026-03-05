@@ -39,7 +39,7 @@ const fsp  = fs.promises;
 const path = require('path');
 const express  = require('express');
 const AdmZip   = require('adm-zip');
-const { safeId, sha1Short, isSafeUrl } = require('../helpers');
+const { safeId, sha1Short, isSafeUrl, fetchImageBuffer, resolvePageUrl, safeName } = require('../helpers');
 const { loadSourceFromFile } = require('../sourceLoader');
 
 // Injected via configure()
@@ -59,47 +59,6 @@ const IMG_EXT_RE = /\.(jpe?g|png|gif|webp)$/i;
 
 /** Map "jpeg" → "jpg" for consistency. */
 const normaliseExt = (e) => e.replace(/^jpeg$/i, 'jpg');
-
-// ── Offline-save helpers ─────────────────────────────────────────────────────
-
-const IMG_FETCH_TIMEOUT = 30_000;
-
-async function fetchImageBuffer(url, referer = 'https://mangadex.org/') {
-  const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), IMG_FETCH_TIMEOUT);
-  try {
-    const resp = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Referer:      referer || 'https://allmanga.to',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return Buffer.from(await resp.arrayBuffer());
-  } finally {
-    clearTimeout(tid);
-  }
-}
-
-function resolvePageUrl(page) {
-  const raw = typeof page === 'string' ? page : page?.img;
-  if (!raw) return null;
-  try {
-    const u = new URL(raw, 'http://localhost');
-    if (u.pathname === '/api/proxy-image') {
-      const inner = u.searchParams.get('url');
-      const ref   = u.searchParams.get('ref');
-      if (inner && isSafeUrl(inner))
-        return { url: inner, referer: ref ? decodeURIComponent(ref) : undefined };
-      return null;
-    }
-  } catch { /* fall through */ }
-  if (isSafeUrl(raw)) return { url: raw, referer: undefined };
-  return null;
-}
-
-const safeName = (s) => String(s || '').replace(/[^a-z0-9\-_. ]/gi, '_').trim() || 'chapter';
 
 /**
  * Saves a single chapter from any source into the local library.
@@ -197,13 +156,15 @@ async function processSaveJob(jobId, chapters, sourceId, mangaTitle, mangaId, co
   job.status = 'running';
   let localId = null;
 
+  // Defined once here; reused for progress ticks and for the final done event.
+  const notify = (ev, data) => {
+    const line = `event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const w of job.listeners) { try { w(line); } catch (_) {} }
+  };
+
   for (let ci = 0; ci < chapters.length; ci++) {
     const ch = chapters[ci];
     job.done = ci;
-    const notify = (ev, data) => {
-      const line = `event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`;
-      for (const w of job.listeners) { try { w(line); } catch (_) {} }
-    };
     notify('progress', { done: ci, total: chapters.length, chapter: ch.name });
 
     try {
@@ -216,12 +177,8 @@ async function processSaveJob(jobId, chapters, sourceId, mangaTitle, mangaId, co
   job.done      = chapters.length;
   job.localId   = localId;
   job.status    = 'done';
-  const doneNotify = (ev, data) => {
-    const line = `event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`;
-    for (const w of job.listeners) { try { w(line); } catch (_) {} }
-  };
-  doneNotify('progress', { done: chapters.length, total: chapters.length, chapter: '' });
-  doneNotify('done', { localId });
+  notify('progress', { done: chapters.length, total: chapters.length, chapter: '' });
+  notify('done', { localId });
   setTimeout(() => saveJobs.delete(jobId), SAVE_JOB_TTL);
 }
 

@@ -12,54 +12,14 @@
 
 const crypto = require('crypto');
 const AdmZip = require('adm-zip');
-const { safeId, isSafeUrl } = require('../helpers');
+const { safeId, isSafeUrl, fetchImageBuffer, resolvePageUrl, safeName } = require('../helpers');
 const { loadSourceFromFile } = require('../sourceLoader');
-
-/** Max time to wait for a single image fetch (ms). */
-const IMG_FETCH_TIMEOUT = 30_000;
 
 /** How long to keep a finished job in memory before auto-cleanup (ms). */
 const JOB_TTL = 15 * 60 * 1000;
 
 /** In-memory job store: jobId → job object */
 const bulkJobs = new Map();
-
-async function fetchImageBuffer(url, referer = 'https://mangadex.org/') {
-  const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), IMG_FETCH_TIMEOUT);
-  try {
-    const resp = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Referer:      referer,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
-    return Buffer.from(await resp.arrayBuffer());
-  } finally {
-    clearTimeout(tid);
-  }
-}
-
-function resolvePageUrl(page) {
-  const raw = typeof page === 'string' ? page : page?.img;
-  if (!raw) return null;
-  try {
-    const u = new URL(raw, 'http://localhost');
-    if (u.pathname === '/api/proxy-image') {
-      const inner = u.searchParams.get('url');
-      const ref   = u.searchParams.get('ref');
-      if (inner && isSafeUrl(inner))
-        return { url: inner, referer: ref ? decodeURIComponent(ref) : undefined };
-      return null;
-    }
-  } catch { /* fall through */ }
-  if (isSafeUrl(raw)) return { url: raw, referer: undefined };
-  return null;
-}
-
-const safeName = (s) => String(s || '').replace(/[^a-z0-9\-_. ]/gi, '_').trim();
 
 /** Notify all SSE listeners of a job event. */
 function jobNotify(job, event, data) {

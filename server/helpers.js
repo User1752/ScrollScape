@@ -122,4 +122,74 @@ async function fetchText(url) {
   return res.text();
 }
 
-module.exports = { safeId, safeManga, sha1Short, isSafeUrl, fetchJson, fetchText };
+// ── Download / offline-save utilities ────────────────────────────────────────
+// Shared between routes/downloads.js and routes/local.js to avoid duplication.
+
+/** Max time (ms) to wait for a single image fetch before aborting. */
+const IMG_FETCH_TIMEOUT = 30_000;
+
+/**
+ * Fetches an image URL and returns the raw Buffer.
+ * Used by the chapter-download and offline-save pipelines.
+ *
+ * @param {string} url
+ * @param {string} [referer='https://mangadex.org/']
+ * @returns {Promise<Buffer>}
+ */
+async function fetchImageBuffer(url, referer = 'https://mangadex.org/') {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), IMG_FETCH_TIMEOUT);
+  try {
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        Referer:      referer,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return Buffer.from(await resp.arrayBuffer());
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+/**
+ * Resolves a page value (bare URL string or `{img}` object) into a
+ * `{ url, referer }` pair after applying the SSRF guard.
+ * Unwraps `/api/proxy-image?url=...` envelopes to the real upstream URL.
+ *
+ * @param {string|{img:string}} page
+ * @returns {{url:string, referer:string|undefined}|null}
+ */
+function resolvePageUrl(page) {
+  const raw = typeof page === 'string' ? page : page?.img;
+  if (!raw) return null;
+  try {
+    const u = new URL(raw, 'http://localhost');
+    if (u.pathname === '/api/proxy-image') {
+      const inner = u.searchParams.get('url');
+      const ref   = u.searchParams.get('ref');
+      if (inner && isSafeUrl(inner))
+        return { url: inner, referer: ref ? decodeURIComponent(ref) : undefined };
+      return null;
+    }
+  } catch { /* fall through */ }
+  if (isSafeUrl(raw)) return { url: raw, referer: undefined };
+  return null;
+}
+
+/**
+ * Sanitises a string for use as a filesystem filename or directory name.
+ * Replaces characters outside `[a-z0-9 _.-]` with underscores, trims
+ * surrounding whitespace, and falls back to `'chapter'` when the result
+ * would otherwise be empty.
+ *
+ * @param {string} s
+ * @returns {string}
+ */
+function safeName(s) {
+  return String(s || '').replace(/[^a-z0-9\-_. ]/gi, '_').trim() || 'chapter';
+}
+
+module.exports = { safeId, safeManga, sha1Short, isSafeUrl, fetchJson, fetchText, fetchImageBuffer, resolvePageUrl, safeName };

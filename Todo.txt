@@ -1,3 +1,5 @@
 -Theme Berserk
 - as moedas mudam c o tema
 -o user pode escolher imagens dentro de cada tema
+-as tags da source allmanga.to n funciona
+-mangadex error 503
