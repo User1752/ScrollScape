@@ -1,5 +1,12 @@
-﻿@echo off
+@echo off
+:: Re-launch with delayed expansion enabled if not already active
+if not "!!"=="" (
+    cmd /v:on /c "%~f0" %*
+    exit /b
+)
 setlocal EnableDelayedExpansion
+:: Enable ANSI/VT in this console window
+reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
 title ScrollScape
 chcp 65001 >nul 2>&1
 cls
@@ -111,12 +118,13 @@ exit /b 0
 cls
 echo.
 echo   !GRY!  +=======================================================+!R!
-echo   !GRY!  ^|!R!                                                                         !GRY!^|!R!
-echo   !GRY!  ^|!R!    !BOLD!!BPUR! ^|V^|   /\   ^|\^|   (^~   ^|-^|   ^| ^|!R!             !GRY!^|!R!
-echo   !GRY!  ^|!R!    !BOLD!!PUR! ^|  ^|  /--\  ^| \^|  (_    ^|_^|   ^| ^|!R!             !GRY!^|!R!
-echo   !GRY!  ^|!R!    !DIM!!PUR! ^|  ^| /    \ ^|  \^|   _^)  ^| ^|  \__/!R!               !GRY!^|!R!
-echo   !GRY!  ^|!R!                                                                         !GRY!^|!R!
-echo   !GRY!  ^|!R!    !DIM!Manga Reader  .  Docker  .  localhost:3000!R!                   !GRY!^|!R!
+echo   !GRY!  ^|!R!                                             !GRY!^|!R!
+echo   !GRY!  ^|!R!    !BOLD!!BPUR!           ___ !R!           !GRY!^|!R!
+echo   !GRY!  ^|!R!    !BOLD!!BPUR!          / __^|   / __^| !R!!GRY!^|!R!
+echo   !GRY!  ^|!R!    !BOLD!!PUR!          \__ \  ^| (__!R!    !GRY!^|!R!
+echo   !GRY!  ^|!R!    !DIM!!PUR!          ^|___/   \___^| !R!  !GRY!^|!R!
+echo   !GRY!  ^|!R!                                             !GRY!^|!R!
+echo   !GRY!  ^|!R!!DIM!Manga Reader  Docker  localhost:3000 !R!!GRY!^|!R!
 echo   !GRY!  +=======================================================+!R!
 echo.
 goto :eof

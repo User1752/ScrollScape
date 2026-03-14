@@ -24,10 +24,17 @@ function mapManga(manga) {
   };
 }
 
-async function mdFetch(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`MangaDex API error: ${res.status}`);
-  return res.json();
+async function mdFetch(url, retries = 3) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res.json();
+    if (res.status === 503 && attempt < retries) {
+      // MangaDex is temporarily unavailable — wait before retrying
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      continue;
+    }
+    throw new Error(`MangaDex API error: ${res.status}`);
+  }
 }
 
 module.exports = {

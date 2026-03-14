@@ -124,6 +124,11 @@ module.exports = {
   },
 
   async search(query, page = 1, orderBy = '') {
+    // MangaPill returns nothing for blank queries — fall back to trending
+    if (!query || query === '*') {
+      const results = sortResults(await getFromChaptersPage(30), orderBy);
+      return { results: await enrichGenres(results), hasNextPage: false };
+    }
     const html = await getHtml(`${BASE}/search?q=${encodeURIComponent(query)}&page=${page}`);
     const $ = cheerio.load(html);
     const results = await enrichGenres(sortResults(parseSearchCards($), orderBy));

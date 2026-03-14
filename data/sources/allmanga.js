@@ -79,6 +79,16 @@ module.exports = {
     return this.recentlyAdded();
   },
 
+  async byGenres(genres, orderBy = '') {
+    if (!genres || genres.length === 0) return this.trending();
+    const genreList = genres.map(g => JSON.stringify(g)).join(',');
+    const sortBy = orderBy && orderBy !== 'relevance' ? `sortBy: Popular,` : `sortBy: Popular,`;
+    const q = `{ mangas(search:{genres:[${genreList}], ${sortBy} allowAdult: false}, limit:30, page:1) { edges { _id name thumbnail genres status authors } } }`;
+    const data = await gql(q);
+    const edges = data.mangas?.edges || [];
+    return { results: edges.map(mapEdge) };
+  },
+
   async mangaDetails(mangaId) {
     const q = `{ manga(_id:${JSON.stringify(mangaId)}) { _id name thumbnail description status genres authors } }`;
     const data = await gql(q);
