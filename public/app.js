@@ -103,14 +103,17 @@ function loadSettings() {
       const p = JSON.parse(progress);
       state.lastReadPages = p.pages || {};
       state.lastReadChapter = p.chapters || {};
+      state.highestReadChapter = p.highestChapter || {};
     } else {
       state.lastReadPages = {};
       state.lastReadChapter = {};
+      state.highestReadChapter = {};
     }
   } catch (e) {
-    console.warn("Failed to load settings:", e);
+    dbg.warn(dbg.ERR_SETTINGS, 'Failed to load settings', e);
     state.lastReadPages = {};
     state.lastReadChapter = {};
+    state.highestReadChapter = {};
   }
 }
 
@@ -120,7 +123,8 @@ function saveSettings() {
   localStorage.setItem("scrollscapeFlaggedChapters", JSON.stringify([...state.flaggedChapters]));
   localStorage.setItem("scrollscapeReadingProgress", JSON.stringify({
     pages: state.lastReadPages,
-    chapters: state.lastReadChapter
+    chapters: state.lastReadChapter,
+    highestChapter: state.highestReadChapter
   }));
 }
 
@@ -239,7 +243,7 @@ async function refreshState() {
     // Trigger recommendations if there's any reading history or library content
     if (state.favorites.length > 0 || state.history.length > 0) loadRecommendations();
   } catch (e) {
-    console.error("Failed to load state:", e);
+    dbg.error(dbg.ERR_STATE, 'Failed to load state', e);
   }
 }
 
@@ -313,7 +317,7 @@ async function loadAllTimePopular() {
     bindMangaCards(row);
     initRowAutoScroll(row);
   } catch (e) {
-    console.error("Error loading all-time popular:", e);
+    dbg.error(dbg.ERR_SOURCE, 'Error loading all-time popular', e);
     row.innerHTML = `<div class="muted">Error loading manga.</div>`;
   }
 }
@@ -333,7 +337,7 @@ async function loadPopularToday() {
     bindMangaCards(row);
     initRowAutoScroll(row);
   } catch (e) {
-    console.error("Error loading popular manga:", e);
+    dbg.error(dbg.ERR_SOURCE, 'Error loading popular manga', e);
     row.innerHTML = `<div class="muted">Error loading manga.</div>`;
   }
 }
@@ -352,7 +356,7 @@ async function loadRecentlyAdded() {
     renderMangaGrid(row, list.slice(0, 12));
     initRowAutoScroll(row);
   } catch (e) {
-    console.error("Error loading recently added:", e);
+    dbg.error(dbg.ERR_SOURCE, 'Error loading recently added', e);
     row.innerHTML = `<div class="muted">Error loading manga.</div>`;
   }
 }
@@ -371,7 +375,7 @@ async function loadLatestUpdates() {
     renderMangaGrid(row, list.slice(0, 12));
     initRowAutoScroll(row);
   } catch (e) {
-    console.error("Error loading latest updates:", e);
+    dbg.error(dbg.ERR_SOURCE, 'Error loading latest updates', e);
     row.innerHTML = `<div class="muted">Error loading manga.</div>`;
   }
 }
@@ -1253,7 +1257,7 @@ async function submitImport() {
           }
         }
       } catch (coverErr) {
-        console.warn('Cover generation failed:', coverErr);
+        dbg.warn(dbg.ERR_COVER, 'Cover generation failed', coverErr);
       }
     }
 
@@ -1303,7 +1307,7 @@ async function generateMissingPDFCovers() {
         manga.cover = data.cover;
       }
     } catch (e) {
-      console.warn(`Cover generation failed for ${manga.id}:`, e);
+      dbg.warn(dbg.ERR_COVER, `Cover generation failed for ${manga.id}`, e);
     }
   }
   if (pending.length > 0) renderLibrary();
@@ -1566,6 +1570,7 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
               ${isFavorited ? "Remove from Library" : "Add to Library"}
             </button>
             <button class="btn btn-start-reading-detail" id="startReadingBtn">&#9654; Start Reading</button>
+            <button class="btn btn-tracker" id="trackerBtn">Tracker</button>
             ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">Continue</button>` : ""}
             ${fromView === 'random' ? `<button class="btn btn-reroll" id="rerollBtn" title="Pick another random manga">Reroll</button>` : ""}
           </div>
@@ -1631,6 +1636,13 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
       tag.onclick = (e) => { e.stopPropagation(); searchByGenre(tag.dataset.genre); };
     });
 
+    // Tracker button
+    $("trackerBtn").onclick = () => showTrackerModal(result);
+    if (_alGetLink(result.id) && _alToken()) {
+      $("trackerBtn").innerHTML = 'Tracker \u2713';
+      $("trackerBtn").classList.add('btn-tracker--tracked');
+    }
+
     // Rating widget
     renderDetailRating(result.id);
 
@@ -1674,8 +1686,16 @@ function renderDetailRating(mangaId) {
         if (newScore) {
           await api("/api/reviews", { method: "POST", body: JSON.stringify({ mangaId, rating: newScore, text: "" }) });
           state.ratings[mangaId] = newScore;
+          // Sync score to AniList if this manga is linked
+          const _alId = _alGetLink(mangaId);
+          if (_alId && _alToken()) {
+            anilistGQL(
+              'mutation ($m: Int, $sc: Float) { SaveMediaListEntry(mediaId: $m, score: $sc) { id } }',
+              { m: _alId, sc: newScore }
+            ).catch(e => dbg.warn(dbg.ERR_ANILIST, 'Score sync failed', e));
+          }
         } else {
-          await api(`/api/ratings/${mangaId}`, { method: "DELETE" });
+          await api('/api/ratings/clear', { method: 'POST', body: JSON.stringify({ mangaId }) });
           delete state.ratings[mangaId];
         }
         renderDetailRating(mangaId);
@@ -1687,7 +1707,7 @@ function renderDetailRating(mangaId) {
   if (clearBtn) {
     clearBtn.onclick = async () => {
       try {
-        await api(`/api/ratings/${mangaId}`, { method: "DELETE" });
+        await api('/api/ratings/clear', { method: 'POST', body: JSON.stringify({ mangaId }) });
         delete state.ratings[mangaId];
         renderDetailRating(mangaId);
         renderLibrary();
@@ -1845,8 +1865,31 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
     state.currentPageIndex = Math.min(Math.max(startPageIndex, 0), maxIndex);
     // Keep zoom level between chapters — only reset if it was never set
 
+    // Track highest chapter number read (for AniList progress auto-fill)
+    const chNum = state.allChapters?.[chapterIndex]?.chapter;
+    if (chNum !== undefined && !isNaN(Number(chNum)) && Number(chNum) > 0) {
+      const _mId = state.currentManga.id;
+      state.highestReadChapter[_mId] = Math.max(state.highestReadChapter[_mId] || 0, Number(chNum));
+    }
     markChapterAsRead(state.currentManga.id, chapterId);
     state.readerSessionStart = Date.now();
+
+    // AniList: sync progress when a chapter is loaded (treated as "read")
+    if (chNum !== undefined && state.currentManga?.title) {
+      const _linkedId = _alGetLink(state.currentManga.id);
+      if (_linkedId && _alToken()) {
+        // Direct update using saved link — no title search needed
+        const _prog = parseInt(chNum, 10);
+        if (!isNaN(_prog) && _prog > 0) {
+          anilistGQL(
+            'mutation ($m: Int, $p: Int) { SaveMediaListEntry(mediaId: $m, status: CURRENT, progress: $p) { id progress } }',
+            { m: _linkedId, p: _prog }
+          ).catch(e => dbg.warn(dbg.ERR_ANILIST, 'Auto-sync failed', e));
+        }
+      } else {
+        anilistSyncProgress(state.currentManga.title, chNum).catch(() => {});
+      }
+    }
 
     api("/api/history/add", {
       method: "POST",
@@ -2287,7 +2330,7 @@ async function analyzeChapterIntegrityWithMangaUpdates(chapters, mangaDetails = 
         return;
       }
     } catch (e) {
-      console.warn("MangaUpdates lookup failed:", e.message);
+      dbg.warn(dbg.ERR_MANGAUPD, 'MangaUpdates lookup failed', e);
     }
   }
   
@@ -3603,7 +3646,7 @@ async function initPDFChapter(pdfUrl) {
     const n = state.pdfDocument.numPages;
     state.currentChapter.pages = Array.from({ length: n }, (_, i) => ({ pdfPage: i + 1 }));
   } catch (e) {
-    console.error('PDF load error:', e);
+    dbg.error(dbg.ERR_PDF, 'PDF load error', e);
     state.currentChapter.pages = [];
     state.pdfDocument = null;
   }
@@ -3642,7 +3685,7 @@ async function renderPDFWebtoon() {
       if (pageWrap !== $('pageWrap') || !pageWrap.querySelector('#pdfWebtoonWrap')) return;
       wrap.appendChild(canvas);
     } catch (e) {
-      console.warn(`PDF webtoon page ${i} error:`, e);
+      dbg.warn(dbg.ERR_PDF, `PDF webtoon page ${i} error`, e);
     }
   }
 
@@ -3704,7 +3747,7 @@ async function renderPDFPageToCanvas(pageNum) {
     pageWrap.scrollTop = 0;
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, pageNum - 1);
   } catch (e) {
-    console.error('PDF render error:', e);
+    dbg.error(dbg.ERR_PDF, 'PDF render error', e);
   }
 }
 
@@ -3777,7 +3820,7 @@ async function renderPDFSpread(isRTL, noFade = false) {
       cvs.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
       await p.render({ canvasContext: cvs.getContext('2d'), viewport: vp }).promise;
       return cvs;
-    } catch (e) { console.warn('PDF spread render error:', e); return null; }
+    } catch (e) { dbg.warn(dbg.ERR_PDF, 'PDF spread render error', e); return null; }
   }
 
   const [cvs1, cvs2] = await Promise.all([ renderToCanvas(pNum1), renderToCanvas(pNum2) ]);
@@ -3868,6 +3911,44 @@ function showSettings() {
           <button class="btn secondary" id="clearReadBtn">Clear Reading History</button>
         </div>
         <div class="settings-divider"></div>
+        <h3 class="settings-subsection">Tracking</h3>
+        <div id="anilist-loggedout" ${_alToken() ? 'style="display:none"' : ''}>
+          <div class="setting-group">
+            <label>AniList Client ID</label>
+            <input type="text" id="anilistClientIdInput" class="input" value="${escapeHtml(_alClientId())}" placeholder="e.g. 23361" autocomplete="off" spellcheck="false">
+            <p class="setting-description">
+              Register a free app at <strong>anilist.co/settings/developer</strong> and set the
+              redirect URI to <code>${escapeHtml(window.location.origin)}</code>.
+            </p>
+          </div>
+          <div class="setting-group">
+            <button class="btn primary" id="btnAniListConnect">Connect AniList</button>
+          </div>
+        </div>
+        <div id="anilist-loggedin" ${_alToken() ? '' : 'style="display:none"'}>
+          <div class="setting-group">
+            <div class="anilist-user-card" id="anilistUserCard">
+              ${(() => {
+                const u = _alUser();
+                if (!u) return '<span class="muted" style="padding:0">Loading…</span>';
+                return `${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="" class="anilist-avatar">` : ''}
+                        <span class="anilist-username">${escapeHtml(u.name)}</span>`;
+              })()}
+            </div>
+          </div>
+          <div class="setting-group">
+            <label class="toggle-label">
+              <span class="toggle-text">Auto-sync progress</span>
+              <input type="checkbox" id="anilistAutoSyncToggle" ${state.settings.anilistAutoSync ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+            <p class="setting-description">Automatically updates your AniList chapter progress when you read</p>
+          </div>
+          <div class="setting-group">
+            <button class="btn secondary" id="btnAniListDisconnect">Disconnect AniList</button>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
         <h3 class="settings-subsection">Commands</h3>
         <div class="setting-group">
           <div style="display:flex;gap:8px;align-items:center">
@@ -3954,6 +4035,35 @@ function showSettings() {
       showToast("Reading history cleared", "", "info");
     }
   };
+
+  // ── AniList settings handlers ──────────────────────────────────────────────
+  const alClientInput = $('anilistClientIdInput');
+  if (alClientInput) {
+    alClientInput.oninput = () => _alSetClientId(alClientInput.value.trim());
+  }
+  const btnConnect = $('btnAniListConnect');
+  if (btnConnect) {
+    btnConnect.onclick = () => {
+      if (alClientInput) _alSetClientId(alClientInput.value.trim());
+      anilistOAuthConnect();
+    };
+  }
+  const btnDisconnect = $('btnAniListDisconnect');
+  if (btnDisconnect) {
+    btnDisconnect.onclick = () => {
+      _alDisconnect();
+      $('anilist-loggedin').style.display = 'none';
+      $('anilist-loggedout').style.display = '';
+      showToast('AniList', 'Disconnected.', 'info');
+    };
+  }
+  const alAutoToggle = $('anilistAutoSyncToggle');
+  if (alAutoToggle) {
+    alAutoToggle.onchange = (e) => {
+      state.settings.anilistAutoSync = e.target.checked;
+      saveSettings();
+    };
+  }
 }
 
 // ============================================================================
@@ -4019,7 +4129,7 @@ async function renderAnalyticsView() {
       }
     }
   } catch (e) {
-    console.error("Analytics error:", e);
+    dbg.error(dbg.ERR_ANALYTICS, 'Analytics error', e);
   }
 }
 
@@ -4066,7 +4176,7 @@ async function checkAndUnlockAchievements() {
           );
         }
       } catch (err) {
-        console.error(`Failed to sync achievement ${achievementId}:`, err);
+        dbg.error(dbg.ERR_ACHIEVE, `Failed to sync achievement ${achievementId}`, err);
       }
     }
     
@@ -4074,7 +4184,7 @@ async function checkAndUnlockAchievements() {
     state.earnedAchievements = achievementManager.unlockedAchievements;
     updateApBadge();
   } catch (e) {
-    console.error('Error checking achievements:', e);
+    dbg.error(dbg.ERR_ACHIEVE, 'Error checking achievements', e);
   }
 }
 
@@ -4127,7 +4237,7 @@ async function renderAchievementsGrid() {
     }
     
   } catch (e) {
-    console.error('Error rendering achievements:', e);
+    dbg.error(dbg.ERR_ACHIEVE, 'Error rendering achievements', e);
     grid.innerHTML = `<div class="muted">Could not load achievements.</div>`;
   }
 }
@@ -5409,6 +5519,9 @@ window.deleteCustomPreset = deleteCustomPreset;
   applyTheme(getActiveTheme());
   applyCustomization(getActiveCustom());
 
+  // Handle AniList OAuth redirect (token arrives in the URL hash after login)
+  await anilistHandleCallback();
+
   // Configure PDF.js worker
   if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -5419,7 +5532,7 @@ window.deleteCustomPreset = deleteCustomPreset;
   try {
     await achievementManager.loadAchievements();
   } catch (err) {
-    console.error('Failed to load achievements:', err);
+    dbg.error(dbg.ERR_ACHIEVE, 'Failed to load achievements', err);
   }
   
   await refreshState();

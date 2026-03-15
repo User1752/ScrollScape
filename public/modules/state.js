@@ -48,7 +48,8 @@ const state = {
     skipReadChapters: false,
     skipDuplicates: true,
     panWideImages: false,
-    lineSharpness: 0
+    lineSharpness: 0,
+    anilistAutoSync: true
   },
 
   // ── Reading status & analytics ────────────────────────────────────────────
@@ -85,5 +86,9 @@ const state = {
 
   // ── User ratings cache ────────────────────────────────────────────────────
   /** @type {Record<string, number>} mangaId → 1-10 score */
-  ratings: {}
+  ratings: {},
+
+  // ── AniList progress tracking ─────────────────────────────────────────────
+  /** @type {Record<string, number>} mangaId → highest chapter number read */
+  highestReadChapter: {}
 };

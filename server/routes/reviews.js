@@ -75,10 +75,25 @@ function registerReviewRoutes(router) {
     }
   });
 
+  // ── POST /api/ratings/clear ────────────────────────────────────────────────
+  router.post('/api/ratings/clear', async (req, res) => {
+    try {
+      const { mangaId } = req.body || {};
+      const safeKey = String(mangaId || '').replace(/[^a-z0-9:_-]/gi, '_').slice(0, 200);
+      if (!safeKey) return res.status(400).json({ error: 'Invalid mangaId' });
+      const store = await readStore();
+      delete store.reviews[safeKey];
+      await writeStore(store);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // ── DELETE /api/ratings/:mangaId ───────────────────────────────────────────
   router.delete('/api/ratings/:mangaId', async (req, res) => {
     try {
-      const mangaId = safeId(req.params.mangaId);
+      const mangaId = String(req.params.mangaId || '').replace(/[^a-z0-9:_-]/gi, '_').slice(0, 200);
       if (!mangaId) return res.status(400).json({ error: 'Invalid mangaId' });
       const store = await readStore();
       delete store.reviews[mangaId];

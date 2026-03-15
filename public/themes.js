@@ -191,6 +191,16 @@
           border-color: #E8001F;
           color: #fff;
         }
+        [data-color-theme="initiald"] .btn-tracker {
+          background: linear-gradient(135deg, #E8001F 0%, #A8001A 100%);
+          color: #fff;
+          border: none;
+          box-shadow: 0 2px 12px rgba(232,0,31,.35);
+        }
+        [data-color-theme="initiald"] .btn-tracker:hover {
+          background: linear-gradient(135deg, #FF3355 0%, #E8001F 100%);
+          box-shadow: 0 4px 20px rgba(232,0,31,.55);
+        }
       `,
     },
 

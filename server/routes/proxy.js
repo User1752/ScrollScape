@@ -36,9 +36,17 @@ function registerProxyRoutes(router) {
       const { query, variables } = req.body || {};
       if (!query || typeof query !== 'string') return res.status(400).json({ error: 'Missing query' });
 
+      // Forward the Authorization header so authenticated mutations (e.g. SaveMediaListEntry) work.
+      // Only allow a well-formed Bearer token to prevent header injection.
+      const proxyHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      const authHeader = req.headers['authorization'];
+      if (authHeader && /^Bearer [A-Za-z0-9\-._~+/]+=*$/.test(authHeader)) {
+        proxyHeaders['Authorization'] = authHeader;
+      }
+
       const aniRes = await fetch('https://graphql.anilist.co', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: proxyHeaders,
         body: JSON.stringify({ query, variables }),
         signal: AbortSignal.timeout(15_000),
       });
