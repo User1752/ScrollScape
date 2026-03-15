@@ -18,5 +18,8 @@ data/tmp/
 .DS_Store
 Thumbs.db
 
+# Build output
+dist/
+
 # Planning artefacts
 mvp.sql
