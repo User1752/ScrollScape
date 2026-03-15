@@ -1,4 +1,4 @@
-﻿/* eslint-disable no-console */
+/* eslint-disable no-console */
 /**
  * server.js — ScrollScape application entry point (thin orchestrator)
  *
@@ -168,11 +168,30 @@ ensureDirs()
     // Standalone exe: bind only to loopback — never reachable from outside.
     // Docker / Termux / server: bind to all interfaces for port-mapping.
     const host = IS_PKG ? '127.0.0.1' : '0.0.0.0';
-    app.listen(PORT, host, () => {
-      console.log(`🎌 ScrollScape running on http://localhost:${PORT}`);
-      console.log(`📚 Sources auto-installed!`);
-      if (IS_PKG) openBrowser(`http://localhost:${PORT}`);
-    });
+
+    function tryListen(port) {
+      const server = app.listen(port, host, () => {
+        console.log(`🎌 ScrollScape running on http://localhost:${port}`);
+        console.log(`📚 Sources auto-installed!`);
+        if (IS_PKG) openBrowser(`http://localhost:${port}`);
+      });
+      server.on('error', e => {
+        if (e.code === 'EADDRINUSE') {
+          const next = port + 1;
+          if (next > PORT + 20) {
+            console.error(`Could not find a free port in range ${PORT}–${PORT + 20}.`);
+            process.exit(1);
+          }
+          console.log(`Port ${port} in use, trying ${next}...`);
+          tryListen(next);
+        } else {
+          console.error('Server error:', e);
+          process.exit(1);
+        }
+      });
+    }
+
+    tryListen(Number(PORT));
   })
   .catch(e => {
     console.error('Fatal startup error:', e);

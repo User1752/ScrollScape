@@ -56,10 +56,12 @@ async function fetchSourceLatestChapNum(manga) {
   if (cached && (Date.now() - cached.ts) < SOURCE_CHAP_TTL) return cached.num;
   try {
     const src = loadSourceFromFile(manga.sourceId);
+    let _tid;
     const result = await Promise.race([
       src.chapters(manga.id),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 20_000)),
+      new Promise((_, reject) => { _tid = setTimeout(() => reject(new Error('timeout')), MD_TIMEOUT_MS); }),
     ]);
+    clearTimeout(_tid);
     const chaps = result?.chapters || [];
     if (!chaps.length) { _sourceChapCache.set(cacheKey, { num: null, ts: Date.now() }); return null; }
     const raw   = String(chaps[0]?.chapter || chaps[0]?.name || '');

@@ -21,5 +21,8 @@ Thumbs.db
 # Build output
 dist/
 
+# Portable Node.js (auto-downloaded by build-exe.bat)
+tools/
+
 # Planning artefacts
 mvp.sql

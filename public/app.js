@@ -270,6 +270,7 @@ function renderSourceSelect() {
     sel.value = state.currentSourceId;
     sel.onchange = () => { 
       state.currentSourceId = sel.value;
+      state._advAcc = null; // invalidate filter accumulator on source change
       // Keep both selectors in sync
       for (const other of selectors) { if (other && other !== sel) other.value = sel.value; }
       if (state.currentView !== 'advanced-search') {
@@ -4474,6 +4475,28 @@ function searchByGenre(genre) {
 // ADVANCED SEARCH
 // ============================================================================
 
+const ADV_PAGE_SIZE = 50;
+const ADV_MAX_API_PAGES = 20; // safety limit per user-page
+
+/**
+ * Apply client-side filters to a batch of results.
+ * Returns only items that pass all active filter criteria.
+ */
+function _applyAdvFilters(results, query, selectedGenres, publicationStatus, contentRating) {
+  let out = results;
+  if (query && selectedGenres.length > 0) {
+    const q = query.toLowerCase();
+    out = out.filter(m => (m.title || "").toLowerCase().includes(q));
+  }
+  if (publicationStatus) {
+    out = out.filter(m => m.status?.toLowerCase() === publicationStatus.toLowerCase());
+  }
+  if (contentRating) {
+    out = out.filter(m => m.contentRating?.toLowerCase() === contentRating.toLowerCase());
+  }
+  return out;
+}
+
 async function advancedSearch(page = 1) {
   const query   = $("advancedSearchInput").value.trim();
   const orderBy = $("advancedOrderBy").value;
@@ -4482,60 +4505,122 @@ async function advancedSearch(page = 1) {
   const format = $("advancedFormat")?.value || "";
   const selectedGenres = Array.from(document.querySelectorAll('#genreGrid input[type="checkbox"]:checked')).map(cb => cb.value);
 
-  if (!state.currentSourceId) {
-    $("advancedSearchStatus").textContent = "Select a source first.";
-    return;
+  // "local" is not a plugin source — fall back to the dropdown value or first installed source
+  if (!state.currentSourceId || !state.installedSources[state.currentSourceId]) {
+    const sel = $("advancedSourceSelect");
+    const installed = Object.keys(state.installedSources);
+    const fallback = (sel && state.installedSources[sel.value]) ? sel.value : installed[0];
+    if (!fallback) {
+      $("advancedSearchStatus").textContent = "Select a source first.";
+      return;
+    }
+    state.currentSourceId = fallback;
+    if (sel) sel.value = fallback;
+    const mainSel = $("sourceSelect");
+    if (mainSel) mainSel.value = fallback;
   }
 
   state.advSearchPage = page;
   $("advancedSearchStatus").textContent = "Searching...";
-  try {
-    let result;
-    if (selectedGenres.length > 0) {
-      // Use byGenres endpoint so genres are resolved to real tag UUIDs on the backend
-      result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
-        method: "POST",
-        body: JSON.stringify({ genres: selectedGenres, orderBy })
-      });
-    } else {
-      result = await api(`/api/source/${state.currentSourceId}/search`, {
-        method: "POST",
-        body: JSON.stringify({ query: query || "", page, orderBy })
-      });
-    }
 
-    let results = result.results || [];
-    const hasNextPage = result.hasNextPage || false;
-    state.advSearchHasNextPage = hasNextPage;
+  // Determine if any client-side filter is active
+  const needsClientFilter = !!(publicationStatus || contentRating || (query && selectedGenres.length > 0));
 
-    // Client-side filtering for additional criteria
-    if (query && selectedGenres.length > 0) {
-      const q = query.toLowerCase();
-      results = results.filter(m => (m.title || "").toLowerCase().includes(q));
-    }
-
-    if (publicationStatus) {
-      results = results.filter(m => m.status?.toLowerCase() === publicationStatus.toLowerCase());
-    }
-
-    if (contentRating) {
-      results = results.filter(m => m.contentRating?.toLowerCase() === contentRating.toLowerCase());
-    }
-
-    const resultsDiv = $("advancedResults");
-    if (!results.length) {
-      resultsDiv.innerHTML = `<div class="muted">No results found</div>`;
-      $("advancedSearchStatus").textContent = "0 result(s) found";
+  // ── Fast path: no client filtering, use native API pagination ────────────
+  if (!needsClientFilter) {
+    state._advAcc = null; // invalidate accumulator cache
+    try {
+      let result;
+      if (selectedGenres.length > 0) {
+        result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
+          method: "POST",
+          body: JSON.stringify({ genres: selectedGenres, orderBy })
+        });
+      } else {
+        result = await api(`/api/source/${state.currentSourceId}/search`, {
+          method: "POST",
+          body: JSON.stringify({ query: query || "", page, orderBy })
+        });
+      }
+      const results = result.results || [];
+      const hasNextPage = result.hasNextPage || false;
+      state.advSearchHasNextPage = hasNextPage;
+      const resultsDiv = $("advancedResults");
+      if (!results.length) {
+        resultsDiv.innerHTML = `<div class="muted">No results found</div>`;
+        $("advancedSearchStatus").textContent = "0 result(s) found";
+        renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
+        return;
+      }
+      renderMangaGrid(resultsDiv, results);
+      $("advancedSearchStatus").textContent = `${results.length} result(s) found — Page ${page}`;
       renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
-      return;
+    } catch (e) {
+      $("advancedSearchStatus").textContent = `Error: ${e.message}`;
+      renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
     }
-    renderMangaGrid(resultsDiv, results);
-    $("advancedSearchStatus").textContent = `${results.length} result(s) found — Page ${page}`;
-    renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
-  } catch (e) {
-    $("advancedSearchStatus").textContent = `Error: ${e.message}`;
-    renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
+    return;
   }
+
+  // ── Fill-up path: accumulate filtered results across API pages ────────────
+  // Cache key: invalidate accumulator when source or any filter changes.
+  const filterKey = [state.currentSourceId, query, selectedGenres.join(','), publicationStatus, contentRating, orderBy].join('|');
+
+  // Reset accumulator when filters change or navigating back to page 1
+  if (!state._advAcc || state._advAcc.filterKey !== filterKey || page === 1) {
+    state._advAcc = { results: [], apiPage: 0, hasMore: true, filterKey };
+  }
+
+  const acc = state._advAcc;
+  const target = page * ADV_PAGE_SIZE;
+  let fetchError = null;
+
+  // Keep fetching API pages until we have enough filtered results (or run out)
+  while (acc.results.length < target && acc.hasMore && acc.apiPage < ADV_MAX_API_PAGES) {
+    acc.apiPage++;
+    try {
+      let result;
+      if (selectedGenres.length > 0) {
+        result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
+          method: "POST",
+          body: JSON.stringify({ genres: selectedGenres, orderBy })
+        });
+        acc.hasMore = false; // byGenres returns all results in one shot
+      } else {
+        result = await api(`/api/source/${state.currentSourceId}/search`, {
+          method: "POST",
+          body: JSON.stringify({ query: query || "", page: acc.apiPage, orderBy })
+        });
+        acc.hasMore = result.hasNextPage || false;
+      }
+      const batch = _applyAdvFilters(result.results || [], query, selectedGenres, publicationStatus, contentRating);
+      acc.results.push(...batch);
+    } catch (e) {
+      fetchError = e;
+      break;
+    }
+  }
+
+  if (fetchError && acc.results.length === 0) {
+    $("advancedSearchStatus").textContent = `Error: ${fetchError.message}`;
+    renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
+    return;
+  }
+
+  const pageResults = acc.results.slice((page - 1) * ADV_PAGE_SIZE, page * ADV_PAGE_SIZE);
+  const hasNextPage = acc.hasMore || acc.results.length > page * ADV_PAGE_SIZE;
+  state.advSearchHasNextPage = hasNextPage;
+
+  const resultsDiv = $("advancedResults");
+  if (!pageResults.length) {
+    resultsDiv.innerHTML = `<div class="muted">No results found</div>`;
+    $("advancedSearchStatus").textContent = "0 result(s) found";
+    renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
+    return;
+  }
+  renderMangaGrid(resultsDiv, pageResults);
+  $("advancedSearchStatus").textContent = `${pageResults.length} result(s) found — Page ${page}`;
+  renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
 }
 
 async function randomManga() {
@@ -5149,18 +5234,47 @@ function renderCustomizeView() {
         '</div>' +
 
         '<div class="customize-card palette-card">' +
-          '<div class="customize-card-icon">&#127912;</div>' +
-          '<h3 class="customize-card-title">Colour Palette</h3>' +
-          '<p class="customize-card-desc">Accent colours used across the interface</p>' +
-          '<canvas id="cpSB" class="cp-sb" width="260" height="130"></canvas>' +
-          '<canvas id="cpHue" class="cp-hue" width="260" height="14"></canvas>' +
-          '<div class="cp-swatches">' +
-            '<div class="cp-swatch-group"><div id="cpSwPrimary" class="cp-swatch"></div><span class="customize-label">Primary</span></div>' +
-            '<div class="cp-swatch-group"><div id="cpSwDark" class="cp-swatch"></div><span class="customize-label">Dark</span></div>' +
-            '<div class="cp-swatch-group"><div id="cpSwLight" class="cp-swatch"></div><span class="customize-label">Light</span></div>' +
+          '<div class="cp-card-header">' +
+            '<div class="customize-card-icon">&#127912;</div>' +
+            '<h3 class="customize-card-title">Colour Palette</h3>' +
+            '<button class="btn cp-toggle-btn" id="cpToggleBtn" title="Toggle colour picker">&#9650;</button>' +
           '</div>' +
-          '<label class="customize-label">Hex</label>' +
-          '<input id="cpHexInput" class="input customize-input" type="text" placeholder="#913FE2" maxlength="7" value="' + escapeHtml(active.paletteColor||'') + '">' +
+          '<div class="cp-collapsible" id="cpCollapsible">' +
+            '<p class="customize-card-desc">Accent colours used across the interface</p>' +
+            '<canvas id="cpSB" class="cp-sb" width="260" height="130"></canvas>' +
+            '<canvas id="cpHue" class="cp-hue" width="260" height="14"></canvas>' +
+            '<div class="cp-swatches">' +
+              '<div class="cp-swatch-group"><div id="cpSwPrimary" class="cp-swatch"></div><span class="customize-label">Primary</span></div>' +
+              '<div class="cp-swatch-group"><div id="cpSwDark" class="cp-swatch"></div><span class="customize-label">Dark</span></div>' +
+              '<div class="cp-swatch-group"><div id="cpSwLight" class="cp-swatch"></div><span class="customize-label">Light</span></div>' +
+            '</div>' +
+            '<label class="customize-label">Hex</label>' +
+            '<input id="cpHexInput" class="input customize-input" type="text" placeholder="#913FE2" maxlength="7" value="' + escapeHtml(active.paletteColor||'') + '">' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="customize-card icp-card">' +
+          '<div class="customize-card-icon">&#128065;</div>' +
+          '<h3 class="customize-card-title">Image Colour Sampler</h3>' +
+          '<p class="customize-card-desc">Load an image, hover to preview, click to pick a colour into the palette</p>' +
+          '<div class="icp-load-row">' +
+            '<input id="icpUrlInput" class="input customize-input" type="url" placeholder="Paste image URL and press Enter...">' +
+            '<button class="btn secondary icp-load-btn" id="icpLoadBtn">Load</button>' +
+          '</div>' +
+          '<label class="customize-label">or upload a file</label>' +
+          '<input id="icpFileInput" type="file" accept="image/*" class="icp-file-input">' +
+          '<div class="icp-canvas-wrap" id="icpCanvasWrap">' +
+            '<canvas id="icpCanvas"></canvas>' +
+            '<div class="icp-placeholder" id="icpPlaceholder">&#128444; No image loaded</div>' +
+            '<div class="icp-mag-wrap" id="icpMagWrap">' +
+              '<canvas id="icpMagnifier"></canvas>' +
+              '<span class="icp-mag-hex" id="icpMagHex"></span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="icp-recent-row">' +
+            '<span class="customize-label">Recent picks</span>' +
+            '<div class="icp-recent" id="icpRecent"></div>' +
+          '</div>' +
         '</div>' +
 
       '</div>' +
@@ -5247,8 +5361,7 @@ function renderCustomizeView() {
   });
 
   initColorPicker();
-
-
+  initImageColorSampler();
 
   document.getElementById('customApplyBtn').onclick = function() {
 
@@ -5431,6 +5544,183 @@ function initColorPicker() {
   });
 
   drawHue(); drawSB(); commit();
+
+  // Toggle button
+  var toggleBtn  = document.getElementById('cpToggleBtn');
+  var collapsible = document.getElementById('cpCollapsible');
+  if (toggleBtn && collapsible) {
+    toggleBtn.addEventListener('click', function() {
+      var collapsed = collapsible.classList.toggle('cp-collapsed');
+      toggleBtn.innerHTML = collapsed ? '&#9660;' : '&#9650;';
+    });
+  }
+}
+
+// ── Image Colour Sampler ─────────────────────────────────────────────────────
+function initImageColorSampler() {
+  var canvas     = document.getElementById('icpCanvas');
+  var magCanvas  = document.getElementById('icpMagnifier');
+  var magWrap    = document.getElementById('icpMagWrap');
+  var magHex     = document.getElementById('icpMagHex');
+  var placeholder = document.getElementById('icpPlaceholder');
+  var urlInput   = document.getElementById('icpUrlInput');
+  var loadBtn    = document.getElementById('icpLoadBtn');
+  var fileInput  = document.getElementById('icpFileInput');
+  var recentRow  = document.getElementById('icpRecent');
+  if (!canvas || !magCanvas) return;
+
+  var ctx    = canvas.getContext('2d');
+  var magCtx = magCanvas.getContext('2d');
+  var imgLoaded = false;
+  var recentColors = [];
+  var MAG_SIZE  = 88;   // magnifier canvas px
+  var MAG_ZOOM  = 9;    // pixels zoomed per canvas pixel
+  var MAG_HALF  = Math.floor(MAG_SIZE / MAG_ZOOM / 2);
+  magCanvas.width  = MAG_SIZE;
+  magCanvas.height = MAG_SIZE;
+
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(function(v) {
+      return ('0' + v.toString(16)).slice(-2);
+    }).join('');
+  }
+
+  function loadSrc(src) {
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      imgLoaded = true;
+      var wrap   = document.getElementById('icpCanvasWrap');
+      var maxW   = (wrap ? wrap.clientWidth : 400) - 4;
+      var maxH   = 340;
+      var ratio  = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+      canvas.width  = Math.round(img.naturalWidth  * ratio);
+      canvas.height = Math.round(img.naturalHeight * ratio);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.style.display  = 'block';
+      canvas.style.cursor   = 'crosshair';
+      if (placeholder) placeholder.style.display = 'none';
+    };
+    img.onerror = function() {
+      showToast('Sampler', 'Could not load image (check URL / CORS)', 'warning');
+    };
+    img.src = src;
+  }
+
+  function drawMagnifier(x, y) {
+    if (!imgLoaded || !magWrap) return;
+    var sx = Math.max(0, Math.min(canvas.width  - 1, x - MAG_HALF));
+    var sy = Math.max(0, Math.min(canvas.height - 1, y - MAG_HALF));
+    var sw = Math.min(MAG_HALF * 2 + 1, canvas.width  - sx);
+    var sh = Math.min(MAG_HALF * 2 + 1, canvas.height - sy);
+    magCtx.clearRect(0, 0, MAG_SIZE, MAG_SIZE);
+    magCtx.imageSmoothingEnabled = false;
+    magCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, MAG_SIZE, MAG_SIZE);
+    // Crosshair
+    var cx = MAG_SIZE / 2;
+    magCtx.strokeStyle = 'rgba(255,255,255,0.9)';
+    magCtx.lineWidth = 1.5;
+    magCtx.beginPath(); magCtx.moveTo(cx - 8, cx); magCtx.lineTo(cx + 8, cx); magCtx.stroke();
+    magCtx.beginPath(); magCtx.moveTo(cx, cx - 8); magCtx.lineTo(cx, cx + 8); magCtx.stroke();
+    // Border ring with current color
+    var px = ctx.getImageData(Math.min(x, canvas.width - 1), Math.min(y, canvas.height - 1), 1, 1).data;
+    var hex = rgbToHex(px[0], px[1], px[2]);
+    magCtx.strokeStyle = hex;
+    magCtx.lineWidth = 4;
+    magCtx.beginPath();
+    magCtx.arc(MAG_SIZE/2, MAG_SIZE/2, MAG_SIZE/2 - 2, 0, Math.PI * 2);
+    magCtx.stroke();
+    if (magHex) magHex.textContent = hex;
+    magWrap.style.display = 'flex';
+    return hex;
+  }
+
+  function pushRecent(hex) {
+    recentColors = recentColors.filter(function(c) { return c !== hex; });
+    recentColors.unshift(hex);
+    if (recentColors.length > 12) recentColors.length = 12;
+    if (!recentRow) return;
+    recentRow.innerHTML = recentColors.map(function(c) {
+      return '<div class="icp-recent-swatch" title="' + c + '" style="background:' + c + '"' +
+        ' onclick="(function(){var h=document.getElementById(\'cpHexInput\');if(h){h.value=\'' + c + '\';h.dispatchEvent(new Event(\'input\'));}})()">' +
+        '</div>';
+    }).join('');
+  }
+
+  function sendToColorPicker(hex) {
+    var hexIn = document.getElementById('cpHexInput');
+    if (hexIn) {
+      hexIn.value = hex;
+      hexIn.dispatchEvent(new Event('input'));
+    }
+    pushRecent(hex);
+    showToast('Colour picked', hex, 'info');
+  }
+
+  canvas.addEventListener('mousemove', function(e) {
+    if (!imgLoaded) return;
+    var rect = canvas.getBoundingClientRect();
+    drawMagnifier(Math.round(e.clientX - rect.left), Math.round(e.clientY - rect.top));
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    if (magWrap) magWrap.style.display = 'none';
+  });
+
+  canvas.addEventListener('click', function(e) {
+    if (!imgLoaded) return;
+    var rect = canvas.getBoundingClientRect();
+    var x = Math.min(Math.round(e.clientX - rect.left), canvas.width  - 1);
+    var y = Math.min(Math.round(e.clientY - rect.top),  canvas.height - 1);
+    var px = ctx.getImageData(x, y, 1, 1).data;
+    sendToColorPicker(rgbToHex(px[0], px[1], px[2]));
+  });
+
+  // Touch support
+  canvas.addEventListener('touchmove', function(e) {
+    if (!imgLoaded) return;
+    e.preventDefault();
+    var rect = canvas.getBoundingClientRect();
+    var t = e.touches[0];
+    drawMagnifier(Math.round(t.clientX - rect.left), Math.round(t.clientY - rect.top));
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', function(e) {
+    if (!imgLoaded) return;
+    var rect = canvas.getBoundingClientRect();
+    var t = e.changedTouches[0];
+    var x = Math.min(Math.round(t.clientX - rect.left), canvas.width  - 1);
+    var y = Math.min(Math.round(t.clientY - rect.top),  canvas.height - 1);
+    var px = ctx.getImageData(x, y, 1, 1).data;
+    sendToColorPicker(rgbToHex(px[0], px[1], px[2]));
+    if (magWrap) magWrap.style.display = 'none';
+  });
+
+  if (loadBtn) {
+    loadBtn.onclick = function() {
+      var url = urlInput ? urlInput.value.trim() : '';
+      if (url) loadSrc(url);
+    };
+  }
+
+  if (urlInput) {
+    urlInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var url = urlInput.value.trim();
+        if (url) loadSrc(url);
+      }
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', function() {
+      var file = fileInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) { loadSrc(ev.target.result); };
+      reader.readAsDataURL(file);
+    });
+  }
 }
 
 function applyCustomPreset(id) {

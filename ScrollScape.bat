@@ -32,21 +32,97 @@ set "GRY=!ESC![90m"
 ::  Carriage-return trick for in-place animation 
 for /f %%a in ('copy /z "%~f0" nul') do set "CR=%%a"
 
+set "_root=%~dp0"
 cd /d "%~dp0"
 
-::  1. Splash 
+::  1. Splash
 call :banner
 
-::  2. Check Docker is installed 
-where docker >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
-    call :err "Docker not found" "Install Docker Desktop  https://docs.docker.com/get-docker/"
-    pause & exit /b 1
+:: ============================================================================
+:: Determine runtime – prefer Docker, fall back to Node.js
+:: ============================================================================
+set "NODE_EXE="
+set "SS_PORT=3000"
+
+:: --- Try Docker first -------------------------------------------------------
+where docker >nul 2>&1
+if %ERRORLEVEL% EQU 0 goto :check_docker
+
+echo   !YLW!  [INFO]!R!  Docker not found -- trying Node.js.
+echo.
+
+:: --- Fall back to Node.js ---------------------------------------------------
+node --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "NODE_EXE=node"
+    for /f "tokens=*" %%V in ('node --version 2^>^&1') do set "NODEVER=%%V"
+    echo   !BGRN!  [ OK ]!R!  Node.js !NODEVER! found.
+    echo.
+    goto :run_node
 )
 
-::  3. Ensure Docker daemon is running 
+if exist "%~dp0tools\node\node.exe" (
+    set "NODE_EXE=%~dp0tools\node\node.exe"
+    for /f "tokens=*" %%V in ('"%~dp0tools\node\node.exe" --version 2^>^&1') do set "NODEVER=%%V"
+    echo   !BGRN!  [ OK ]!R!  Local Node.js !NODEVER! found.
+    echo.
+    goto :run_node
+)
+
+call :err "Neither Docker nor Node.js found" "Install Docker: https://docs.docker.com/get-docker/  or Node.js: https://nodejs.org"
+pause & exit /b 1
+
+:: ============================================================================
+:run_node
+:: ============================================================================
+call :find_port
+call :start_node
+if not defined NODE_PID (
+    call :err "Failed to start server" "See above for errors."
+    pause & exit /b 1
+)
+call :wait_port !SS_PORT!
+echo.
+call :status_box
+start "" "http://localhost:!SS_PORT!"
+
+:node_menu
+echo.
+echo   !GRY!  +-----------------------------------------------+!R!
+echo   !GRY!  ^|!R!   !BOLD!!BPUR!R!R!  !WHT!Restart ^& refresh                        !GRY!^|!R!
+echo   !GRY!  ^|!R!   !BOLD!!BPUR!Q!R!  !WHT!Quit                                     !GRY!^|!R!
+echo   !GRY!  +-----------------------------------------------+!R!
+choice /c RQ /n >nul
+if errorlevel 2 goto :node_quit
+if errorlevel 1 goto :node_restart
+
+:node_restart
+cls
+echo.
+echo   !BCYN!  Restarting...!R!
+echo.
+taskkill /pid !NODE_PID! /f >nul 2>&1
+timeout /t 1 /nobreak >nul
+call :find_port
+call :start_node
+if not defined NODE_PID (
+    call :err "Failed to restart" ""
+    goto :node_menu
+)
+call :wait_port !SS_PORT!
+echo.
+echo   !BGRN!  Done!!R!
+goto :node_menu
+
+:node_quit
+taskkill /pid !NODE_PID! /f >nul 2>&1
+exit /b 0
+
+:: ============================================================================
+:check_docker
+:: ============================================================================
 docker info >nul 2>nul
-if %ERRORLEVEL% EQU 0 goto :boot
+if %ERRORLEVEL% EQU 0 goto :run_docker
 
 echo   !BYLW!  [!R! ! !BYLW!]!R!  Docker Desktop is not running -- launching it...
 echo.
@@ -55,65 +131,134 @@ call :spin_docker
 echo.
 echo.
 
-::  4. Build and launch 
-:boot
+:run_docker
 cd /d "%~dp0docker"
-echo   !BCYN!  [ .. ]!R!  Starting ScrollScape...
-echo.
-docker compose up -d --build
-if ERRORLEVEL 1 (
-    echo.
-    call :err "Failed to start" "Is Docker Desktop running?"
+call :docker_spin "up -d --build"
+if %ERRORLEVEL% NEQ 0 (
+    call :err "Failed to start" "Run:  docker compose up -d --build  to see full output."
     pause & exit /b 1
 )
 cd /d "%~dp0"
 echo.
 call :status_box
-start "" "http://localhost:3000"
+start "" "http://localhost:!SS_PORT!"
 
-::  5. Interactive menu 
-:menu
+:docker_menu
 echo.
 echo   !GRY!  +-----------------------------------------------+!R!
 echo   !GRY!  ^|!R!   !BOLD!!BPUR!R!R!  !WHT!Rebuild ^& refresh                        !GRY!^|!R!
 echo   !GRY!  ^|!R!   !BOLD!!BPUR!Q!R!  !WHT!Quit                                     !GRY!^|!R!
 echo   !GRY!  +-----------------------------------------------+!R!
-echo.
-for /f "delims=" %%k in ('powershell -noprofile -nologo -command "$k=$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown'); Write-Output $k.Character"') do set "_key=%%k"
-if /i "!_key!"=="R" goto :do_rebuild
-if /i "!_key!"=="Q" goto :do_quit
-goto :menu
+choice /c RQ /n >nul
+if errorlevel 2 goto :docker_quit
+if errorlevel 1 goto :docker_rebuild
 
-::  Rebuild 
-:do_rebuild
+:docker_rebuild
 cls
 echo.
-echo   !BCYN!  Rebuilding...!R!
-echo.
-cd /d "%~dp0docker"
-docker compose up -d --build
-cd /d "%~dp0"
+call :docker_spin "up -d --build"
+if %ERRORLEVEL% NEQ 0 (
+    call :err "Rebuild failed" "Run:  docker compose up -d --build  to see full output."
+)
 echo.
 echo   !BGRN!  Done!!R!
-goto :menu
+goto :docker_menu
 
-::  Quit 
-:do_quit
-echo.
-echo   !BCYN!  Stopping...!R!
+:docker_quit
 cd /d "%~dp0docker"
 docker compose down >nul 2>&1
 cd /d "%~dp0"
-echo   !BGRN!  Goodbye!!R!
-echo.
-timeout /t 2 /nobreak >nul
 exit /b 0
 
 :: =============================================================================
 :: SUBROUTINES
 :: =============================================================================
 
-::  Banner (big logo in box) 
+:: Find first free port starting from 3000
+:find_port
+set "SS_PORT=3000"
+:_fp_loop
+powershell -NoProfile -Command "try{$t=New-Object Net.Sockets.TcpClient('127.0.0.1',!SS_PORT!);$t.Close();exit 1}catch{exit 0}" >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    set /a SS_PORT+=1
+    if !SS_PORT! GTR 3020 (
+        call :err "No free port found in range 3000-3020" ""
+        exit /b 1
+    )
+    goto :_fp_loop
+)
+goto :eof
+
+:: Start node server in background, capture PID into NODE_PID
+:start_node
+set "NODE_PID="
+powershell -NoProfile -Command ^"$env:PORT='!SS_PORT!'; $p=Start-Process -FilePath '!NODE_EXE!' -ArgumentList 'server.js' -WorkingDirectory '!_root!' -WindowStyle Hidden -PassThru; $p.Id ^| Out-File ($env:TEMP + '\ss_pid.txt') -Encoding ASCII^" >nul 2>&1
+set /p NODE_PID=<"%TEMP%\ss_pid.txt"
+del "%TEMP%\ss_pid.txt" >nul 2>&1
+goto :eof
+
+:: Run docker compose <args> with a spinner, suppress all output.
+:: Returns errorlevel from docker compose.
+:docker_spin
+set "_ds_args=%~1"
+set "_ds_done=%TEMP%\ss_docker.done"
+2>nul del "!_ds_done!"
+set "_ds_label=Building"
+if "!_ds_args!"=="down" set "_ds_label=Stopping"
+
+:: Launch docker compose in background helper
+set "_ds_hlp=%TEMP%\ss_docker_hlp.bat"
+>>"!_ds_hlp!" (
+    echo @echo off
+    echo docker compose !_ds_args! ^>nul 2^>^&1
+    echo echo !ERRORLEVEL!^>"!_ds_done!"
+)
+start "" /b cmd /c "!_ds_hlp!"
+
+set "_ds_i=0"
+set "_ds_chars=/ - \ |"
+:_ds_loop
+if exist "!_ds_done!" goto :_ds_done
+set /a "_ds_f=_ds_i %% 4"
+set "_ds_c=/"
+if !_ds_f!==1 set "_ds_c=-"
+if !_ds_f!==2 set "_ds_c=^\"
+if !_ds_f!==3 set "_ds_c=|"
+<nul set /p ="   !BCYN![ !_ds_c! ]!R!  !_ds_label!...  !CR!"
+timeout /t 1 /nobreak >nul
+set /a _ds_i+=1
+goto :_ds_loop
+
+:_ds_done
+set /p _ds_rc=<"!_ds_done!"
+2>nul del "!_ds_done!" "!_ds_hlp!"
+<nul set /p ="                               !CR!"
+if "!_ds_rc!"=="0" (
+    echo   !BGRN!  [ OK ]!R!  Done.
+    exit /b 0
+) else (
+    exit /b 1
+)
+
+
+:wait_port
+set "_wp_try=0"
+echo   !BCYN!  [ .. ]!R!  Waiting for server on port %~1...
+:_wploop
+if !_wp_try! GEQ 20 (
+    echo   !BRED!  [WARN]!R!  Server did not respond in time.
+    goto :eof
+)
+powershell -NoProfile -Command "try{$t=New-Object Net.Sockets.TcpClient('127.0.0.1',%~1);$t.Close();exit 0}catch{exit 1}" >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    echo   !BGRN!  [ OK ]!R!  Server ready!
+    goto :eof
+)
+timeout /t 1 /nobreak >nul
+set /a _wp_try+=1
+goto :_wploop
+
+::  Banner (big logo in box)
 :banner
 cls
 echo.
@@ -124,22 +269,22 @@ echo   !GRY!  ^|!R!    !BOLD!!BPUR!          / __^|   / __^| !R!!GRY!^|!R!
 echo   !GRY!  ^|!R!    !BOLD!!PUR!          \__ \  ^| (__!R!    !GRY!^|!R!
 echo   !GRY!  ^|!R!    !DIM!!PUR!          ^|___/   \___^| !R!  !GRY!^|!R!
 echo   !GRY!  ^|!R!                                             !GRY!^|!R!
-echo   !GRY!  ^|!R!!DIM!Manga Reader  Docker  localhost:3000 !R!!GRY!^|!R!
+echo   !GRY!  ^|!R!!DIM! Manga Reader . Node.js / Docker . localhost:3000 !R!!GRY!^|!R!
 echo   !GRY!  +=======================================================+!R!
 echo.
 goto :eof
 
-::  Status box 
+::  Status box
 :status_box
 echo   !GRY!  +-----------------------------------------------+!R!
-echo   !GRY!  ^|!R!    !BGRN![ OK ]!R!  !BOLD!ScrollScape is running!R!                     !GRY!^|!R!
+echo   !GRY!  ^|!R!    !BGRN![ OK ]!R!  !BOLD!ScrollScape is running!R!              !GRY!^|!R!
 echo   !GRY!  ^|!R!                                                 !GRY!^|!R!
-echo   !GRY!  ^|!R!       !BOLD!!WHT!http://localhost:3000!R!                   !GRY!^|!R!
+echo   !GRY!  ^|!R!       !BOLD!!WHT!http://localhost:!SS_PORT!!R!                   !GRY!^|!R!
 echo   !GRY!  +-----------------------------------------------+!R!
 echo.
 goto :eof
 
-::  Error box 
+::  Error box
 :err
 echo   !GRY!  +-----------------------------------------------+!R!
 echo   !GRY!  ^|!R!    !BRED![ ERR ]!R!  !BOLD!%~1!R!
@@ -148,56 +293,7 @@ echo   !GRY!  +-----------------------------------------------+!R!
 echo.
 goto :eof
 
-::  Background build with animated progress bar 
-:do_build
-set "LOGF=%TEMP%\scrollscape_build.log"
-set "DONEF=%TEMP%\scrollscape_build.done"
-set "HLPF=%TEMP%\scrollscape_build_helper.bat"
-2>nul del "!DONEF!" "!LOGF!" "!HLPF!"
-
-:: Write helper script (runs in bg, writes result flag when done)
->>"%HLPF%" (
-    echo @echo off
-    echo docker compose up -d --build ^>"!LOGF!" 2^>^&1
-    echo if errorlevel 1 ^(echo FAIL^>"!DONEF!"^) else ^(echo OK^>"!DONEF!"^)
-)
-start "" /b "!HLPF!"
-
-:: Animated progress bar while docker runs in background
-set "tick=0"
-set "BAR=30"
-:_bploop
-if exist "!DONEF!" goto :_bpdone
-set /a "tick+=1"
-set /a "f=tick %% 8"
-if !f!==0 set "SP=>"
-if !f!==1 set "SP=>"
-if !f!==2 set "SP=-"
-if !f!==3 set "SP=-"
-if !f!==4 set "SP=<"
-if !f!==5 set "SP=<"
-if !f!==6 set "SP=-"
-if !f!==7 set "SP=-"
-set /a "fill=tick %% (BAR+1)"
-set "bar="
-for /l %%i in (1,1,!fill!) do set "bar=!bar!#"
-set /a "emp_cnt=BAR-fill"
-set "emp="
-for /l %%i in (1,1,!emp_cnt!) do set "emp=!emp!."
-<nul set /p ="   !BCYN![!SP!]!R!  Building   !GRY![!BCYN!!bar!!GRY!!emp!]!R!  !DIM!!tick!s!R!!CR!"
-timeout /t 1 /nobreak >nul
-goto :_bploop
-
-:_bpdone
-set /p BUILD_RESULT=<"!DONEF!"
-2>nul del "!DONEF!" "!HLPF!"
-<nul set /p ="                                                                    !CR!"
-set "BUILD_OK=0"
-if "!BUILD_RESULT!"=="FAIL" set "BUILD_OK=1"
-if !BUILD_OK! EQU 0 echo   !BGRN!  [ OK ]!R!  Build complete!
-goto :eof
-
-::  Docker daemon spinner 
+::  Docker daemon spinner
 :spin_docker
 set "sdi=0"
 :_sdloop
@@ -212,22 +308,4 @@ docker info >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto :_sdloop
 <nul set /p ="   !BGRN![ OK ]!R!  Docker is ready.                  "
 echo.
-goto :eof
-
-::  Quit animation 
-:anim_quit
-set "qi=0"
-:_qloop
-if !qi! GEQ 3 goto :_qdone
-set /a "f=qi %% 4"
-if !f!==0 (<nul set /p ="   !BCYN![ / ]!R!  Stopping ScrollScape...  !CR!")
-if !f!==1 (<nul set /p ="   !BCYN![ - ]!R!  Stopping ScrollScape...  !CR!")
-if !f!==2 (<nul set /p ="   !BCYN![ \ ]!R!  Stopping ScrollScape...  !CR!")
-if !f!==3 (<nul set /p ="   !BCYN![ | ]!R!  Stopping ScrollScape...  !CR!")
-timeout /t 1 /nobreak >nul
-set /a qi+=1
-goto :_qloop
-:_qdone
-docker compose down >nul 2>&1
-<nul set /p ="                                        !CR!"
 goto :eof
