@@ -69,8 +69,10 @@ function sha1Short(input) {
 // ── SSRF guard ───────────────────────────────────────────────────────────────
 // Reject URLs resolving to private / loopback address spaces so that the
 // image proxy and external API callers cannot be weaponised as an SSRF vector.
+// Includes RFC-1918 private ranges, loopback, link-local (169.254/16 — AWS IMDS
+// and other cloud metadata endpoints), and IPv6 equivalents.
 const PRIVATE_IP_RE =
-  /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|::1$|fc00:|fe80:)/i;
+  /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.0\.0\.0|::1$|fc00:|fe80:)/i;
 
 /**
  * Returns true only for public-internet HTTP/HTTPS URLs.

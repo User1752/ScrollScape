@@ -171,6 +171,26 @@
         [data-color-theme="initiald"] hr { border-color: rgba(232,0,31,.3); }
         [data-color-theme="initiald"] .tab.active { border-bottom: 2px solid #E8001F; color: #E8001F; }
         [data-color-theme="initiald"] .progress-bar { background: linear-gradient(90deg, #E8001F, #FF3355); }
+        [data-color-theme="initiald"] .genre-tag {
+          background-color: rgba(232,0,31,0.12);
+          border-color: rgba(232,0,31,0.45);
+          color: #E8ECF4;
+        }
+        [data-color-theme="initiald"] .genre-tag:hover {
+          background-color: rgba(232,0,31,0.30);
+          border-color: #E8001F;
+          color: #fff;
+        }
+        [data-color-theme="initiald"] .btn-start-reading {
+          border-color: rgba(232,0,31,0.55);
+          color: #E8ECF4;
+          background: rgba(232,0,31,0.10);
+        }
+        [data-color-theme="initiald"] .btn-start-reading:hover {
+          background: #E8001F;
+          border-color: #E8001F;
+          color: #fff;
+        }
       `,
     },
 

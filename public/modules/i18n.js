@@ -149,7 +149,24 @@ const translations = {
     // Context menu
     "context.markRead": "Mark as Read",
     "context.markUnread": "Mark as Unread",
-    "context.remove": "Remove from Library"
+    "context.remove": "Remove from Library",
+
+    // Calendar
+    "nav.calendar": "Calendar",
+    "calendar.title": "Release Calendar",
+    "calendar.noReleases": "No releases this month",
+    "calendar.loading": "Loading releases...",
+    "calendar.chapter": "Ch.",
+    "calendar.today": "Today",
+    "calendar.estimated": "Estimated",
+    "calendar.releasing": "Also releasing this month (no schedule data)",
+    "calendar.days.sun": "Sun",
+    "calendar.days.mon": "Mon",
+    "calendar.days.tue": "Tue",
+    "calendar.days.wed": "Wed",
+    "calendar.days.thu": "Thu",
+    "calendar.days.fri": "Fri",
+    "calendar.days.sat": "Sat"
   },
   pt: {
     // Navigation
@@ -290,7 +307,24 @@ const translations = {
     // Context menu
     "context.markRead": "Marcar como Lido",
     "context.markUnread": "Marcar como Não Lido",
-    "context.remove": "Remover da Biblioteca"
+    "context.remove": "Remover da Biblioteca",
+
+    // Calendário
+    "nav.calendar": "Calendário",
+    "calendar.title": "Calendário de Lançamentos",
+    "calendar.noReleases": "Sem lançamentos este mês",
+    "calendar.loading": "A carregar lançamentos...",
+    "calendar.chapter": "Cap.",
+    "calendar.today": "Hoje",
+    "calendar.estimated": "Estimado",
+    "calendar.releasing": "Também a lançar este mês (sem dados de calendário)",
+    "calendar.days.sun": "Dom",
+    "calendar.days.mon": "Seg",
+    "calendar.days.tue": "Ter",
+    "calendar.days.wed": "Qua",
+    "calendar.days.thu": "Qui",
+    "calendar.days.fri": "Sex",
+    "calendar.days.sat": "Sáb"
   }
 };
 

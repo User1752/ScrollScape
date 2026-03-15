@@ -98,6 +98,7 @@ const { registerListRoutes }         = require('./server/routes/lists');
 const { registerAnalyticsRoutes }    = require('./server/routes/analytics');
 const { registerAchievementRoutes }  = require('./server/routes/achievements');
 const { registerMangaUpdatesRoutes } = require('./server/routes/mangaupdates');
+const { registerCalendarRoutes }     = require('./server/routes/calendar');
 
 registerProxyRoutes(app);
 registerRepoRoutes(app);
@@ -110,6 +111,7 @@ registerListRoutes(app);
 registerAnalyticsRoutes(app);
 registerAchievementRoutes(app);
 registerMangaUpdatesRoutes(app);
+registerCalendarRoutes(app);
 
 // ── Static file serving ───────────────────────────────────────────────────────
 app.use('/', express.static(path.join(__dirname, 'public'), {

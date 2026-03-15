@@ -5,7 +5,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20-brightgreen?logo=node.js)
 ![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Version](https://img.shields.io/badge/version-1.1.0-purple)
+![Version](https://img.shields.io/badge/version-1.2.0-purple)
 
 ---
 
@@ -13,16 +13,17 @@
 
 | | |
 |---|---|
-|  **Multiple sources** | MangaDex, AllManga, MangaPill  add your own in `data/sources/` |
+|  **Multiple sources** | MangaDex, AllManga, MangaPill — add your own in `data/sources/` |
 |  **Local files** | Import CBZ, CBR and PDF files through the same reader |
 |  **Reading progress** | Per-chapter markers, continue-reading, full history |
 |  **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold) |
+|  **Release calendar** | Monthly calendar with confirmed releases and predicted chapter dates; confidence indicators (high/medium/low); chapter-offset correction for licensed manga |
 |  **Achievements** | Unlock achievements and spend AP on community themes |
 |  **Analytics** | Daily streaks, time spent, chapter counts |
 |  **Recommendations** | Genre-based suggestions from your library |
 |  **Bulk download** | Download entire series as CBZ archives |
 |  **i18n** | English & Portuguese; add more in `public/modules/i18n.js` |
-|  **Theming** | Dark / light mode + community themes |
+|  **Theming** | Dark / light mode + community themes (Initial D, Dragon Ball Z, One Piece…) |
 
 ---
 
@@ -119,7 +120,8 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 | Lists | `GET/POST /api/lists`  `POST/DELETE /api/lists/:id/items` |
 | Analytics | `GET /api/analytics`  `POST /api/analytics/session` |
 | Achievements | `GET /api/achievements`  `POST /api/achievements/unlock` |
-| Utilities | `GET /api/proxy-image`  `POST /api/mangaupdates/search` |
+| Calendar | `GET /api/calendar?year=&month=` |
+| Utilities | `GET /api/proxy-image`   `POST /api/mangaupdates/search`   `POST /api/anilist` |
 
 ---
 
@@ -127,12 +129,13 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 
 | Concern | Mitigation |
 |---------|-----------|
-| SSRF | `isSafeUrl()` blocks loopback, RFC-1918 and link-local ranges on all URL inputs |
+| SSRF | `isSafeUrl()` blocks loopback, RFC-1918, link-local (169.254/16 — AWS IMDS), and IPv6 equivalents on all URL inputs |
 | Path traversal | `sourcePath()` rejects `..` and absolute prefixes |
 | Prototype pollution | `safeManga()` whitelists known keys; status/review keys sanitised |
-| Rate limiting | Sliding-window limiter  600 req / 10 min / IP, returns 429 + Retry-After |
+| Rate limiting | Sliding-window limiter — 600 req / 10 min / IP, returns 429 + Retry-After |
 | Hung scrapers | 30 s timeout on all source calls; 10 s on fetch helpers |
-| Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, CSP |
+| Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, CSP, `Referrer-Policy` |
+| Content-type confusion | Proxy allowlists response `Content-Type` to known image MIME types only |
 
 ---
 
