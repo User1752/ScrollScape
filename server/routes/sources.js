@@ -156,7 +156,7 @@ function registerSourceRoutes(router) {
         case 'latestUpdates':  call = mod.latestUpdates(); break;
         case 'byGenres':       call = mod.byGenres(genres || [], orderBy || ''); break;
         case 'authorSearch':   call = mod.authorSearch(authorName || ''); break;
-        default:               return res.status(400).json({ error: 'Method not supported' });
+        // No default needed — ALLOWED_METHODS guard above ensures exhaustion.
       }
 
       const result = await withTimeout(call, SOURCE_CALL_TIMEOUT, `${sid}.${method}`);

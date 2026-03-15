@@ -8,7 +8,7 @@
  *       • X-Content-Type-Options   — prevents MIME-sniffing attacks
  *       • X-Frame-Options          — stops clickjacking via <iframe>
  *       • X-XSS-Protection         — legacy XSS filter hint (belt-and-suspenders)
- *       • Referrer-Policy          — limits referrer leakage to same origin
+ *       • Referrer-Policy          — no-referrer: prevents any referrer header being sent
  *       • Content-Security-Policy  — explicit allowlist for scripts, styles, images…
  *
  *  2. rateLimiter(windowMs, maxPerWindow)
@@ -36,9 +36,11 @@
 function applySecurityHeaders(app) {
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options',  'nosniff');
-    res.setHeader('X-Frame-Options',         'SAMEORIGIN');
+    // DENY: this app has no legitimate use for iframe embedding from any origin.
+    res.setHeader('X-Frame-Options',         'DENY');
     res.setHeader('X-XSS-Protection',        '1; mode=block');
-    res.setHeader('Referrer-Policy',         'strict-origin-when-cross-origin');
+    // no-referrer: privacy-first app — never send Referer to external manga sources.
+    res.setHeader('Referrer-Policy',         'no-referrer');
 
     // CSP — allows same-origin content plus trusted CDNs used by the UI.
     // worker-src blob: is required for the PDF.js web worker spawned via a blob URL.
@@ -51,7 +53,7 @@ function applySecurityHeaders(app) {
       "connect-src 'self' https://api.anilist.co https://api.mangaupdates.com; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
       "worker-src blob: 'self'; " +
-      "frame-ancestors 'self'"
+      "frame-ancestors 'none'"
     );
     next();
   });

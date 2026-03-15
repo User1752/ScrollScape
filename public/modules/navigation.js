@@ -105,7 +105,8 @@ class NavigationManager {
         currentContext: this.currentContext
       }));
     } catch (err) {
-      console.warn('NavigationManager: failed to persist stack:', err);
+      // dbg is always available — debug.js is loaded before this module.
+      dbg.warn(dbg.ERR_STATE, 'NavigationManager: failed to persist stack', err); // eslint-disable-line no-undef
     }
   }
 
@@ -119,7 +120,7 @@ class NavigationManager {
         this.currentContext = data.currentContext || {};
       }
     } catch (err) {
-      console.warn('NavigationManager: failed to restore stack:', err);
+      dbg.warn(dbg.ERR_STATE, 'NavigationManager: failed to restore stack', err); // eslint-disable-line no-undef
       this.stack = [];
       this.currentView = null;
       this.currentContext = {};

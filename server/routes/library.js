@@ -17,6 +17,8 @@
  *    set of scalar/array fields are written to the store.
  *  • Reading-status composite keys (mangaId:sourceId) are sanitised to
  *    prevent prototype-pollution attacks (__proto__, constructor…).
+ *  • The `status` value is validated against a strict whitelist of known
+ *    reading states to prevent arbitrary data injection.
  *  • String fields are length-capped throughout.
  */
 
@@ -149,6 +151,9 @@ function registerLibraryRoutes(router) {
 
   // ── POST /api/user/status ───────────────────────────────────────────────────
   // Pass status: null / "none" to remove the entry.
+  // Valid status values mirror the client-side reading-status selector.
+  const VALID_STATUSES = new Set(['reading', 'completed', 'on_hold', 'plan_to_read', 'dropped']);
+
   router.post('/api/user/status', async (req, res) => {
     try {
       const { mangaId, sourceId, status, mangaData } = req.body || {};
@@ -161,10 +166,12 @@ function registerLibraryRoutes(router) {
       if (!status || status === 'none') {
         delete store.readingStatus[key];
       } else {
+        // Reject unknown status values to prevent arbitrary data injection.
+        if (!VALID_STATUSES.has(status)) return res.status(400).json({ error: 'Invalid status value' });
         store.readingStatus[key] = {
           status,
           updatedAt: new Date().toISOString(),
-          manga:     mangaData || {},
+          manga:     safeManga(mangaData),
         };
       }
 

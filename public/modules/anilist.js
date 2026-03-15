@@ -21,14 +21,19 @@ function _alDisconnect() {
   localStorage.removeItem('scrollscape_anilist_user');
 }
 function _alGetLink(mangaId) {
-  try { return JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}')[mangaId] || null; } catch { return null; }
+  try { return JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}')[mangaId] || null; } catch (e) {
+    dbg.warn(dbg.ERR_ANILIST, '_alGetLink: failed to read localStorage', e);
+    return null;
+  }
 }
 function _alSetLink(mangaId, anilistId) {
   try {
     const l = JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}');
     l[mangaId] = anilistId;
     localStorage.setItem('scrollscape_al_links', JSON.stringify(l));
-  } catch {}
+  } catch (e) {
+    dbg.warn(dbg.ERR_ANILIST, '_alSetLink: failed to write localStorage', e);
+  }
 }
 
 // ── GraphQL helper ────────────────────────────────────────────────────────────

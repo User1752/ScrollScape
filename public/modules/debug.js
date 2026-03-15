@@ -173,8 +173,12 @@ const dbg = (() => {
     const body    = _panel.querySelector('#dbg-body');
     const countEl = _panel.querySelector('#dbg-head-count');
 
-    const totalErrors = _log.filter(e => e.level === 'error').length;
-    const totalWarns  = _log.filter(e => e.level === 'warn').length;
+    // Single pass: count errors and warnings simultaneously.
+    let totalErrors = 0, totalWarns = 0;
+    for (const e of _log) {
+      if      (e.level === 'error') totalErrors++;
+      else if (e.level === 'warn')  totalWarns++;
+    }
     countEl.textContent =
       `${_log.length} entries · ${totalErrors} errors · ${totalWarns} warnings`;
 

@@ -37,19 +37,22 @@ function registerAnalyticsRoutes(router) {
         if (dist[s.status] !== undefined) dist[s.status]++;
       }
 
-      // Mean score: average of the most-recent review rating across all reviewed manga.
-      const allRatings = Object.values(store.reviews)
-        .map(arr => arr[0]?.rating)
-        .filter(r => typeof r === 'number' && r > 0);
-      const meanScore = allRatings.length
-        ? Math.round((allRatings.reduce((s, r) => s + r, 0) / allRatings.length) * 100) / 100
+      // Single pass over store.reviews: collect latest ratings + count total review entries.
+      let ratingSum = 0, ratingCount = 0, totalReviews = 0;
+      for (const arr of Object.values(store.reviews)) {
+        totalReviews += arr.length;
+        const r = arr[0]?.rating;
+        if (typeof r === 'number' && r > 0) { ratingSum += r; ratingCount++; }
+      }
+      const meanScore = ratingCount
+        ? Math.round((ratingSum / ratingCount) * 100) / 100
         : null;
 
       res.json({
         analytics:          store.analytics,
         statusDistribution: dist,
         totalFavorites:     store.favorites.length,
-        totalReviews:       Object.values(store.reviews).reduce((n, arr) => n + arr.length, 0),
+        totalReviews,
         totalLists:         store.customLists.length,
         meanScore,
       });

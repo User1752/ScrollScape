@@ -5,7 +5,10 @@
  *   GET    /api/reviews/:mangaId   — Retrieve reviews for a manga
  *   POST   /api/reviews            — Add / prepend a review (keeps last 20)
  *   GET    /api/ratings            — Returns a quick { mangaId: score } map
- *   DELETE /api/ratings/:mangaId   — Remove the review (and rating) for a manga
+ *   POST   /api/ratings/clear      — Remove the review (and rating) for a manga
+ *   DELETE /api/ratings/:mangaId   — [POSSIVELMENTE OBSOLETO] Functionally identical to
+ *                                     POST /api/ratings/clear; kept for backwards compatibility.
+ *                                     Client uses POST /api/ratings/clear. REVER para remover.
  *
  * Security:
  *  • Composite keys are sanitised to prevent prototype-pollution attacks
