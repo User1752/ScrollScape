@@ -10,6 +10,30 @@
   const SVG_ARROW = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 5 7 10 12 5"/></svg>';
   const SVG_CHECK = '<svg class="cs-check" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>';
 
+  function closeDropdown(trigger, list, immediate = false) {
+    if (!trigger || !list) return;
+    trigger.classList.remove('cs-open');
+    trigger.setAttribute('aria-expanded', 'false');
+
+    if (list._csCloseTimer) {
+      clearTimeout(list._csCloseTimer);
+      list._csCloseTimer = null;
+    }
+
+    if (immediate || list.classList.contains('cs-hidden')) {
+      list.classList.remove('cs-closing');
+      list.classList.add('cs-hidden');
+      return;
+    }
+
+    list.classList.add('cs-closing');
+    list._csCloseTimer = setTimeout(() => {
+      list.classList.remove('cs-closing');
+      list.classList.add('cs-hidden');
+      list._csCloseTimer = null;
+    }, 165);
+  }
+
   /* ── Helpers ──────────────────────────────────────────────────────────── */
   const getLabel = (opt) => opt ? opt.textContent.trim() : '';
 
@@ -17,10 +41,8 @@
   function closeAll(except) {
     document.querySelectorAll('.cs-trigger.cs-open').forEach(t => {
       if (t === except) return;
-      t.classList.remove('cs-open');
-      t.setAttribute('aria-expanded', 'false');
       const list = t.nextElementSibling;
-      if (list) list.classList.add('cs-hidden');
+      closeDropdown(t, list, false);
     });
   }
 
@@ -95,6 +117,11 @@
       list.style.marginTop = above ? '' : '6px';
       list.classList.toggle('cs-above', above);
       list.classList.toggle('cs-below', !above);
+      if (list._csCloseTimer) {
+        clearTimeout(list._csCloseTimer);
+        list._csCloseTimer = null;
+      }
+      list.classList.remove('cs-closing');
       list.classList.remove('cs-hidden');
       trigger.setAttribute('aria-expanded', 'true');
       trigger.classList.add('cs-open');
@@ -105,9 +132,7 @@
     }
 
     function close() {
-      list.classList.add('cs-hidden');
-      trigger.setAttribute('aria-expanded', 'false');
-      trigger.classList.remove('cs-open');
+      closeDropdown(trigger, list, false);
     }
 
     function toggle() {

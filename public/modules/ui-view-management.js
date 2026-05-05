@@ -19,6 +19,9 @@ function setView(view, context = {}, replace = false) {
   });
 
   // On-enter actions per view
+  const libSideActions = $("librarySideActions");
+  if (libSideActions) libSideActions.classList.toggle("active", view === "library");
+
   if (view === "library") {
     renderLibrary();
   } else if (view === "analytics") {

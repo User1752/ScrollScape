@@ -18,6 +18,7 @@ const { readStore, writeStore } = require('../store');
 const {
   listAvailableSourcesFromRepos,
   detectRepoKind,
+  autoInstallLocalSources,
 } = require('../sourceLoader');
 
 /**
@@ -27,6 +28,8 @@ function registerRepoRoutes(router) {
   // ── GET /api/state ─────────────────────────────────────────────────────────
   router.get('/api/state', async (req, res) => {
     try {
+      // Keep installedSources in sync with files dropped into data/sources.
+      await autoInstallLocalSources();
       const store     = await readStore();
       const available = await listAvailableSourcesFromRepos(store.repos);
       res.json({

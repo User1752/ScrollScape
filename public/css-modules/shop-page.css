@@ -302,6 +302,11 @@ img.db-sprite {
   display: none !important;
 }
 
+.cs-list.cs-closing {
+  pointer-events: none;
+  animation: csClose 0.16s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 .cs-list::-webkit-scrollbar {
   width: 4px;
 }
@@ -352,6 +357,11 @@ img.db-sprite {
 @keyframes csOpen {
   from { opacity: 0; transform: translateY(-6px) scaleY(0.96); filter: blur(1px); }
   to   { opacity: 1; transform: translateY(0)    scaleY(1);    filter: blur(0); }
+}
+
+@keyframes csClose {
+  from { opacity: 1; transform: translateY(0) scaleY(1); filter: blur(0); }
+  to   { opacity: 0; transform: translateY(-5px) scaleY(0.97); filter: blur(0.8px); }
 }
 
 /* Option label & checkmark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

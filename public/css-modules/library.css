@@ -50,6 +50,15 @@
   box-shadow: 0 12px 30px rgba(145, 63, 226, 0.2);
 }
 
+.library-card.library-card-selected {
+  border-color: #7cfc88;
+  box-shadow: 0 0 0 2px rgba(124, 252, 136, 0.32), 0 12px 30px rgba(124, 252, 136, 0.16);
+}
+
+.library-card.library-card-selected .library-card-info {
+  background: linear-gradient(180deg, rgba(124, 252, 136, 0.06), rgba(124, 252, 136, 0.02));
+}
+
 .library-card-cover {
   width: 100%;
   aspect-ratio: 3/4;
@@ -85,6 +94,26 @@
 
 .library-card:hover .library-card-overlay {
   opacity: 1;
+}
+
+.library-source-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  max-width: calc(100% - 16px);
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(130, 80, 255, 0.45);
+  background: linear-gradient(180deg, rgba(18, 14, 34, 0.88), rgba(18, 14, 34, 0.74));
+  color: #d9c9ff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 .btn-read {

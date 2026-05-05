@@ -115,6 +115,31 @@ function sortResults(results, orderBy) {
   return r;
 }
 
+// Map our normalized status values to MangaPill URL param values
+const MANGAPILL_STATUS = { ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled', hiatus: 'Hiatus' };
+
+// Map our format values to MangaPill's type URL param (best effort)
+const MANGAPILL_TYPE = { 'manga': 'Manga', 'manhua': 'Manhua', 'manhwa': 'Manhwa', 'one shot': 'One-Shot', 'oneshot': 'One-Shot', 'doujinshi': 'Doujinshi' };
+
+function buildSearchParams(query, page, genres, filters = {}) {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (page && page > 1) params.set('page', String(page));
+  for (const g of (genres || [])) {
+    const caseMap = { 'sci-fi': 'Sci-Fi', 'one shot': 'One-Shot', 'shoujo ai': 'Shoujo Ai', 'shounen ai': 'Shounen Ai' };
+    params.append('genre', caseMap[g.toLowerCase()] || g);
+  }
+  if (filters.publicationStatus) {
+    const mapped = MANGAPILL_STATUS[filters.publicationStatus.toLowerCase()];
+    if (mapped) params.set('status', mapped);
+  }
+  if (filters.format) {
+    const mapped = MANGAPILL_TYPE[filters.format.toLowerCase()];
+    if (mapped) params.set('type', mapped);
+  }
+  return params.toString();
+}
+
 module.exports = {
   meta: {
     id: 'mangapill',
@@ -123,13 +148,14 @@ module.exports = {
     author: 'scraper'
   },
 
-  async search(query, page = 1, orderBy = '') {
+  async search(query, page = 1, orderBy = '', filters = {}) {
     // MangaPill returns nothing for blank queries — fall back to trending
     if (!query || query === '*') {
       const results = sortResults(await getFromChaptersPage(30), orderBy);
       return { results: await enrichGenres(results), hasNextPage: false };
     }
-    const html = await getHtml(`${BASE}/search?q=${encodeURIComponent(query)}&page=${page}`);
+    const qs = buildSearchParams(query, page, [], filters);
+    const html = await getHtml(`${BASE}/search?${qs}`);
     const $ = cheerio.load(html);
     const results = await enrichGenres(sortResults(parseSearchCards($), orderBy));
     return { results, hasNextPage: !!$('a.btn.btn-sm').length };
@@ -139,17 +165,13 @@ module.exports = {
   async recentlyAdded() { return { results: await getFromChaptersPage() }; },
   async latestUpdates() { return { results: await getFromChaptersPage() }; },
 
-  async byGenres(genres, orderBy = '') {
-    if (!genres?.length) return this.trending();
-    // Normalize to MangaPill's exact casing
-    const caseMap = { 'sci-fi': 'Sci-Fi', 'one shot': 'One-Shot', 'shoujo ai': 'Shoujo Ai', 'shounen ai': 'Shounen Ai' };
-    const norm = g => caseMap[g.toLowerCase()] || g;
-    // MangaPill genre filter: /search?genre=Action&genre=Drama (original case, plain param)
-    const params = genres.map(g => `genre=${encodeURIComponent(norm(g))}`).join('&');
-    const html = await getHtml(`${BASE}/search?${params}`);
+  async byGenres(genres, orderBy = '', filters = {}, page = 1) {
+    if (!genres?.length && !filters.publicationStatus && !filters.format) return this.trending();
+    const qs = buildSearchParams('', page, genres, filters);
+    const html = await getHtml(`${BASE}/search?${qs}`);
     const $ = cheerio.load(html);
     const results = await enrichGenres(sortResults(parseSearchCards($), orderBy));
-    return { results };
+    return { results, hasNextPage: !!$('a.btn.btn-sm').length };
   },
 
   async authorSearch(authorName) {

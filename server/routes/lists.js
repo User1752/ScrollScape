@@ -35,6 +35,49 @@ const asyncHandler = (fn) => async (req, res, next) => {
   }
 };
 
+async function setMangaCategories(req, res) {
+  const { mangaId, sourceId, categoryIds, mangaData } = req.body || {};
+  if (!mangaId || !sourceId) {
+    return res.status(400).json({ error: 'mangaId and sourceId required' });
+  }
+
+  // Validate: categoryIds must be an array of strings, max 50 categories
+  const safeIds = Array.isArray(categoryIds)
+    ? [...new Set(categoryIds.map(id => String(id).slice(0, 100)))].slice(0, 50)
+    : [];
+
+  const store = await readStore();
+
+  // Validate all requested ids actually exist to prevent phantom entries
+  const validIds = new Set(store.customLists.map(l => l.id));
+  const resolvedIds = safeIds.filter(id => validIds.has(id));
+
+  const mangaKey = `${mangaId}:${sourceId}`;
+  const safeItem = mangaData
+    ? { ...safeManga(mangaData), sourceId, addedAt: new Date().toISOString() }
+    : null;
+
+  for (const list of store.customLists) {
+    const shouldBeIn = resolvedIds.includes(list.id);
+    const currentIdx = list.mangaItems.findIndex(
+      m => m.id === mangaId && (m.sourceId === sourceId || !m.sourceId)
+    );
+    const isCurrentlyIn = currentIdx >= 0;
+
+    if (shouldBeIn && !isCurrentlyIn) {
+      // Add — use provided mangaData or a minimal stub
+      const item = safeItem || { id: mangaId, sourceId, addedAt: new Date().toISOString() };
+      list.mangaItems.push(item);
+    } else if (!shouldBeIn && isCurrentlyIn) {
+      // Remove
+      list.mangaItems.splice(currentIdx, 1);
+    }
+  }
+
+  await writeStore(store);
+  res.json({ ok: true, mangaKey, categoryIds: resolvedIds });
+}
+
 /**
  * @param {import('express').Router} router
  */
@@ -67,12 +110,18 @@ function registerListRoutes(router) {
   // ── PUT /api/lists/:id ─────────────────────────────────────────────────────
   router.put('/api/lists/:id', asyncHandler(async (req, res) => {
     const listId = String(req.params.id || '').slice(0, 100);
+
+    // Route-conflict guard: /api/lists/manga-categories can be captured here.
+    if (listId === 'manga-categories') {
+      return setMangaCategories(req, res);
+    }
+
     const { name, description } = req.body || {};
     
     const store = await readStore();
     const list = store.customLists.find(l => l.id === listId);
     
-    if (!list) return res.status(404).json({ error: 'List not found' });
+    if (!list) return res.status(404).json({ error: 'Category not found' });
     
     if (name) list.name = name.trim().slice(0, 100);
     if (description !== undefined) list.description = String(description).slice(0, 500);
@@ -102,7 +151,7 @@ function registerListRoutes(router) {
     const store = await readStore();
     const list = store.customLists.find(l => l.id === listId);
     
-    if (!list) return res.status(404).json({ error: 'List not found' });
+    if (!list) return res.status(404).json({ error: 'Category not found' });
     
     if (!list.mangaItems.some(m => m.id === mangaData.id)) {
       list.mangaItems.push({ ...safeManga(mangaData), addedAt: new Date().toISOString() });
@@ -120,12 +169,36 @@ function registerListRoutes(router) {
     const store = await readStore();
     const list = store.customLists.find(l => l.id === listId);
     
-    if (!list) return res.status(404).json({ error: 'List not found' });
+    if (!list) return res.status(404).json({ error: 'Category not found' });
     
     list.mangaItems = list.mangaItems.filter(m => m.id !== mId);
     
     await writeStore(store);
     res.json({ ok: true, list });
+  }));
+
+  // ── PUT /api/lists/manga-categories ───────────────────────────────────────
+  // Atomically sets all category memberships for a manga.
+  // Body: { mangaId, sourceId, categoryIds: string[], mangaData? }
+  // Adds the manga to each listed category and removes it from any others.
+  router.put('/api/lists/manga-categories', asyncHandler(async (req, res) => {
+    return setMangaCategories(req, res);
+  }));
+
+  // ── GET /api/lists/manga/:mangaId/categories ───────────────────────────────
+  // Returns all category IDs that contain a given manga (by mangaId + sourceId query param).
+  router.get('/api/lists/manga/:mangaId/categories', asyncHandler(async (req, res) => {
+    const mangaId  = String(req.params.mangaId || '').slice(0, 200);
+    const sourceId = String(req.query.sourceId || '').slice(0, 100);
+    const store = await readStore();
+
+    const categoryIds = store.customLists
+      .filter(l => l.mangaItems.some(
+        m => m.id === mangaId && (!sourceId || m.sourceId === sourceId || !m.sourceId)
+      ))
+      .map(l => l.id);
+
+    res.json({ categoryIds });
   }));
 }
 

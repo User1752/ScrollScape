@@ -83,7 +83,16 @@ function normaliseStore(s) {
   s.reviews          = s.reviews || {};
   s.customLists      = Array.isArray(s.customLists) ? s.customLists : [];
   s.achievements     = Array.isArray(s.achievements) ? s.achievements : [];
-  
+
+  // AniList import metadata
+  s.anilistSync = s.anilistSync || {
+    lastImportAt:   null,
+    importedCount:  0,
+    overwriteCount: 0,
+    skippedCount:   0,
+    failedCount:    0,
+  };
+
   s.analytics = s.analytics || {
     totalChaptersRead: 0,
     totalTimeSpent:    0,

@@ -13,7 +13,7 @@
 }
 
 .btn-secondary:hover {
-  background: rgba(145,63,226,0.1);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
   transform: translateY(-2px);
 }
 

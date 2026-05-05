@@ -1,24 +1,109 @@
 ﻿// AllManga.to source  uses the GraphQL API at https://api.allanime.day/api
-// v1.0.0
+// v1.1.0
 
-const API = 'https://api.allanime.day/api';
+const crypto = require('crypto');
+
+const APIS = [
+  'https://api.allanime.day/api',
+  'https://api.allanime.day/allanimeapi',
+];
 const COVER_BASE = 'https://wp.youtube-anime.com/aln.youtube-anime.com/';
 const WEB_BASE = 'https://allmanga.to';
 
+// Key derivation used by AllAnime/AllManga encrypted API payloads.
+const DECRYPT_KEY = crypto.createHash('sha256').update('Xot36i3lK3:v1').digest();
+
 const GQL_HEADERS = {
   'Content-Type': 'application/json',
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Referer': 'https://allmanga.to',
+  'Origin': 'https://allmanga.to',
 };
 
+function decodeTobeparsed(blob) {
+  const raw = Buffer.from(blob, 'base64');
+  if (raw.length <= 29) {
+    throw new Error('Invalid encrypted AllManga payload');
+  }
+
+  // Layout: [1-byte header][12-byte nonce][ciphertext][16-byte GCM auth tag]
+  // Data is encrypted with AES-256 in CTR mode using counter = 2 (equivalent
+  // to the data-encryption phase of AES-GCM). The auth tag is not verified
+  // but MUST be excluded from the ciphertext or the decrypted JSON is garbage.
+  const nonce = raw.subarray(1, 13);
+  const iv = Buffer.concat([nonce, Buffer.from([0, 0, 0, 2])]);
+  const ciphertext = raw.subarray(13, raw.length - 16); // exclude 16-byte auth tag
+  const decipher = crypto.createDecipheriv('aes-256-ctr', DECRYPT_KEY, iv);
+  const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+
+  return JSON.parse(plain);
+}
+
+function isLikelyHtml(text) {
+  return /^\s*</.test(text) && /<!doctype|<html|just a moment/i.test(text);
+}
+
+function withTimeout(ms) {
+  return AbortSignal.timeout(ms);
+}
+
 async function gql(query) {
-  const res = await fetch(API, {
-    method: 'POST',
-    headers: GQL_HEADERS,
-    body: JSON.stringify({ query }),
-  });
-  const json = await res.json();
-  if (json.errors) throw new Error(json.errors[0].message);
-  return json.data;
+  let lastErr;
+
+  for (const apiUrl of APIS) {
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: GQL_HEADERS,
+        body: JSON.stringify({ query }),
+        signal: withTimeout(12000),
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        if (isLikelyHtml(text)) {
+          throw new Error(`AllManga upstream blocked (${res.status})`);
+        }
+        throw new Error(`AllManga API HTTP ${res.status}`);
+      }
+
+      if (isLikelyHtml(text)) {
+        throw new Error('AllManga upstream returned HTML challenge page');
+      }
+
+      let json;
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error('AllManga returned invalid JSON');
+      }
+
+      if (json.errors) throw new Error(json.errors[0].message);
+
+      // New API responses may come encrypted in data.tobeparsed.
+      if (json.data?.tobeparsed) {
+        const decoded = decodeTobeparsed(json.data.tobeparsed);
+        if (decoded.errors) throw new Error(decoded.errors[0].message);
+        // tobeparsed may decode to { data: ... } or directly to payload.
+        return decoded.data ?? decoded;
+      }
+
+      return json.data;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  throw lastErr || new Error('AllManga API unavailable');
+}
+
+async function safeListCall(fn) {
+  try {
+    return await fn();
+  } catch {
+    // Keep discover UI usable when AllManga is temporarily blocked by upstream.
+    return { results: [] };
+  }
 }
 
 function thumbUrl(thumbnail) {
@@ -51,42 +136,56 @@ module.exports = {
   meta: {
     id: 'allmanga',
     name: 'AllManga.to',
-    version: '1.0.0',
+    version: '1.1.0',
     author: 'auto',
     icon: '',
   },
 
-  async search(query, page = 1) {
-    const q = `{ mangas(search:{query:${JSON.stringify(query || '')}}, limit:30, page:${page}) { edges { _id name thumbnail } } }`;
-    const data = await gql(q);
-    const edges = data.mangas?.edges || [];
-    return { results: edges.map(mapEdge), hasNextPage: edges.length >= 30 };
+  async search(query, page = 1, orderBy = '', filters = {}) {
+    return safeListCall(async () => {
+      // status filter applied client-side after fetch (AllManga GQL enum not reliable)
+      const q = `{ mangas(search:{query:${JSON.stringify(query || '')}}, limit:30, page:${page}) { edges { _id name thumbnail status } } }`;
+      const data = await gql(q);
+      const edges = data.mangas?.edges || [];
+      return { results: edges.map(mapEdge), hasNextPage: edges.length >= 30 };
+    });
   },
 
   async trending() {
-    const q = `{ mangas(search:{sortBy: Popular}, limit:20, page:1) { edges { _id name thumbnail } } }`;
-    const data = await gql(q);
-    return { results: (data.mangas?.edges || []).map(mapEdge) };
+    return safeListCall(async () => {
+      const q = `{ mangas(search:{sortBy: Popular}, limit:20, page:1) { edges { _id name thumbnail status } } }`;
+      const data = await gql(q);
+      return { results: (data.mangas?.edges || []).map(mapEdge) };
+    });
   },
 
   async recentlyAdded() {
-    const q = `{ mangas(search:{sortBy: Latest_Update}, limit:20, page:1) { edges { _id name thumbnail } } }`;
-    const data = await gql(q);
-    return { results: (data.mangas?.edges || []).map(mapEdge) };
+    return safeListCall(async () => {
+      const q = `{ mangas(search:{sortBy: Latest_Update}, limit:20, page:1) { edges { _id name thumbnail status } } }`;
+      const data = await gql(q);
+      return { results: (data.mangas?.edges || []).map(mapEdge) };
+    });
   },
 
   async latestUpdates() {
     return this.recentlyAdded();
   },
 
-  async byGenres(genres, orderBy = '') {
-    if (!genres || genres.length === 0) return this.trending();
-    const genreList = genres.map(g => JSON.stringify(g)).join(',');
-    const sortBy = orderBy && orderBy !== 'relevance' ? `sortBy: Popular,` : `sortBy: Popular,`;
-    const q = `{ mangas(search:{genres:[${genreList}], ${sortBy} allowAdult: false}, limit:30, page:1) { edges { _id name thumbnail genres status authors } } }`;
-    const data = await gql(q);
-    const edges = data.mangas?.edges || [];
-    return { results: edges.map(mapEdge) };
+  async byGenres(genres, orderBy = '', filters = {}, page = 1) {
+    return safeListCall(async () => {
+      // status filter applied client-side (AllManga GQL status enum not reliable)
+      if (!genres || genres.length === 0) {
+        const q = `{ mangas(search:{sortBy: Popular, allowAdult: false}, limit:30, page:${page}) { edges { _id name thumbnail status genres authors } } }`;
+        const data = await gql(q);
+        const edges = data.mangas?.edges || [];
+        return { results: edges.map(mapEdge), hasNextPage: edges.length === 30 };
+      }
+      const genreList = genres.map(g => JSON.stringify(g)).join(',');
+      const q = `{ mangas(search:{genres:[${genreList}], sortBy: Popular, allowAdult: false}, limit:30, page:${page}) { edges { _id name thumbnail status genres authors } } }`;
+      const data = await gql(q);
+      const edges = data.mangas?.edges || [];
+      return { results: edges.map(mapEdge), hasNextPage: edges.length === 30 };
+    });
   },
 
   async mangaDetails(mangaId) {
@@ -134,11 +233,14 @@ module.exports = {
     if (!edge) return { pages: [] };
     const head = edge.pictureUrlHead || '';
     const REF  = encodeURIComponent('https://allmanga.to');
-    const pages = (edge.pictureUrls || []).map(p => {
-      const raw = head + p.url;
+
+    // pictureUrls currently comes as an array of strings, but keep object fallback.
+    const pages = (edge.pictureUrls || []).map((p, idx) => {
+      const segment = typeof p === 'string' ? p : (p?.url || '');
+      const raw = /^https?:\/\//i.test(segment) ? segment : (head + segment);
       return {
         img: `/api/proxy-image?url=${encodeURIComponent(raw)}&ref=${REF}`,
-        index: p.num,
+        index: typeof p === 'object' && p?.num != null ? p.num : idx,
       };
     });
     return { pages };

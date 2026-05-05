@@ -159,6 +159,35 @@
   color: var(--text-primary);
 }
 
+.anilist-import-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: -0.2rem;
+}
+
+.anilist-import-progress.hidden {
+  display: none;
+}
+
+.anilist-import-progress-bar {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-tertiary) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  overflow: hidden;
+}
+
+.anilist-import-progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 86%, #6f36c7) 0%, color-mix(in srgb, var(--primary-light) 90%, #b56bff) 100%);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--primary) 30%, transparent);
+  transition: width 0.22s ease;
+}
+
 /* ── Tracker button ───────────────────────────────────────────────────────── */
 /* .btn-tracker--tracked inherits .btn — no extra colour override */
 

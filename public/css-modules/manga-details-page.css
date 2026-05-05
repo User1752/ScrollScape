@@ -349,7 +349,7 @@
 
 .btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(145, 63, 226, 0.4);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
 .btn:disabled {

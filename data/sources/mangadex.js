@@ -103,7 +103,7 @@ module.exports = {
     };
   },
 
-  async byGenres(genres, orderBy = '') {
+  async byGenres(genres, orderBy = '', filters = {}, page = 1) {
     // Aliases: our genre name → MangaDex tag name (lowercase)
     const aliases = {
       "shoujo ai":      "girls' love",
@@ -133,14 +133,16 @@ module.exports = {
 
     const orderParam = buildOrderParam(orderBy, 'followedCount');
     let url;
+    const offset = (page - 1) * 50;
     if (tagIds.length === 0) {
-      url = `https://api.mangadex.org/manga?limit=50&includes[]=cover_art&includes[]=author&${orderParam}&hasAvailableChapters=true`;
+      url = `https://api.mangadex.org/manga?limit=50&offset=${offset}&includes[]=cover_art&includes[]=author&${orderParam}&hasAvailableChapters=true`;
     } else {
       const tagParams = tagIds.map(id => `includedTags[]=${id}`).join('&');
-      url = `https://api.mangadex.org/manga?limit=50&includes[]=cover_art&includes[]=author&${orderParam}&includedTagsMode=OR&${tagParams}&hasAvailableChapters=true`;
+      url = `https://api.mangadex.org/manga?limit=50&offset=${offset}&includes[]=cover_art&includes[]=author&${orderParam}&includedTagsMode=OR&${tagParams}&hasAvailableChapters=true`;
     }
     const data = await mdFetch(url);
-    return { results: (data.data || []).map(mapManga) };
+    const results = (data.data || []).map(mapManga);
+    return { results, hasNextPage: results.length === 50 };
   },
 
   async mangaDetails(mangaId) {
@@ -205,8 +207,9 @@ module.exports = {
     const hash = data.chapter.hash;
     const pageFiles = data.chapter.data || [];
 
+    const REF = encodeURIComponent('https://mangadex.org');
     const pages = pageFiles.map(file => ({
-      img: `${baseUrl}/data/${hash}/${file}`
+      img: `/api/proxy-image?url=${encodeURIComponent(`${baseUrl}/data/${hash}/${file}`)}&ref=${REF}`
     }));
 
     return { pages };

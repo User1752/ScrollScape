@@ -19,11 +19,11 @@
   <link rel="stylesheet" href="./css-modules/library.css">
   <link rel="stylesheet" href="./css-modules/reader.css">
   <link rel="stylesheet" href="./css-modules/context-menu.css">
-  <link rel="stylesheet" href="./css-modules/settings-modal.css">
+  <link rel="stylesheet" href="./css-modules/settings-modal.css?v=2">
   <link rel="stylesheet" href="./css-modules/footer.css">
   <link rel="stylesheet" href="./css-modules/utilities.css">
   <link rel="stylesheet" href="./css-modules/responsive.css">
-  <link rel="stylesheet" href="./css-modules/advanced-search-page.css">
+  <link rel="stylesheet" href="./css-modules/advanced-search-page.css?v=5">
   <link rel="stylesheet" href="./css-modules/genre-checkbox-grid.css">
   <link rel="stylesheet" href="./css-modules/statistics-section.css">
   <link rel="stylesheet" href="./css-modules/recent-latest-sections.css">
@@ -41,7 +41,7 @@
   <link rel="stylesheet" href="./css-modules/zoom-controls-in-reader.css">
   <link rel="stylesheet" href="./css-modules/toast-notifications.css">
   <link rel="stylesheet" href="./css-modules/download-modal.css">
-  <link rel="stylesheet" href="./css-modules/library-controls-status-filter.css">
+  <link rel="stylesheet" href="./css-modules/library-controls-status-filter.css?v=3">
   <link rel="stylesheet" href="./css-modules/add-to-list-button-on-manga-details.css">
   <link rel="stylesheet" href="./css-modules/responsive-additions.css">
   <link rel="stylesheet" href="./css-modules/search-inline-dropdown.css">
@@ -56,7 +56,7 @@
   <link rel="stylesheet" href="./css-modules/color-themes-override-primary-family.css">
   <link rel="stylesheet" href="./css-modules/sidebar-ap-badge.css">
   <link rel="stylesheet" href="./css-modules/achievements-page.css">
-  <link rel="stylesheet" href="./css-modules/shop-page.css">
+  <link rel="stylesheet" href="./css-modules/shop-page.css?v=2">
   <link rel="stylesheet" href="./css-modules/calendar-view.css">
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js" defer crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer crossorigin="anonymous"></script>
@@ -252,11 +252,34 @@
                   <option value="plan_to_read">Plan to Read</option>
                   <option value="dropped">Dropped</option>
                 </select>
-                <button class="btn btn-import-local" id="importLocalBtn" onclick="showImportModal()">&#128193; Import Local</button>
+                <select id="libraryCategoryFilter" class="form-control form-control-sm">
+                  <option value="all">All Categories</option>
+                </select>
+                <div class="library-search-wrap" title="Search in current filtered category">
+                  <span class="library-search-icon" aria-hidden="true">&#128269;</span>
+                  <input id="librarySearchInput" class="library-search-input" type="text" placeholder="Search manga..." autocomplete="off" spellcheck="false">
+                </div>
                 <span id="libraryCount" class="library-stats">0 manga</span>
               </div>
             </div>
             <div class="library-grid" id="library"></div>
+          </div>
+          <!-- Floating vertical action panel (right edge, beside scrollbar) -->
+          <div class="library-side-actions" id="librarySideActions">
+            <button class="lib-side-btn" id="btnSortLibrary" title="Sort library">
+              <span class="lib-side-label" id="libSortLabel">Added</span>
+              <span class="lib-side-sublabel">Sort</span>
+            </button>
+            <hr class="lib-side-divider">
+            <button class="lib-side-btn" id="btnManageCategories" title="Manage categories">
+              <span class="lib-side-label">Categories</span>
+            </button>
+            <button class="lib-side-btn" id="btnMigrateLibrary" title="Migrate manga between sources">
+              <span class="lib-side-label">Migrate</span>
+            </button>
+            <button class="lib-side-btn" id="importLocalBtn" title="Import local manga" onclick="showImportModal()">
+              <span class="lib-side-label">Import<br>Local</span>
+            </button>
           </div>
         </section>
 
@@ -389,18 +412,11 @@
                   <label>Format</label>
                   <select id="advancedFormat" class="form-control filter-dropdown">
                     <option value="">Any</option>
-                    <option value="4-Koma">4-Koma</option>
-                    <option value="Adaptation">Adaptation</option>
-                    <option value="Anthology">Anthology</option>
-                    <option value="Award Winning">Award Winning</option>
-                    <option value="Doujinshi">Doujinshi</option>
-                    <option value="Fan Colored">Fan Colored</option>
-                    <option value="Full Color">Full Color</option>
-                    <option value="Long Strip">Long Strip</option>
-                    <option value="Official Colored">Official Colored</option>
-                    <option value="Oneshot">Oneshot</option>
-                    <option value="Self-Published">Self-Published</option>
-                    <option value="Web Comic">Web Comic</option>
+                    <option value="manga">Manga</option>
+                    <option value="manhwa">Manhwa</option>
+                    <option value="manhua">Manhua</option>
+                    <option value="doujinshi">Doujinshi</option>
+                    <option value="oneshot">One-Shot</option>
                   </select>
                 </div>
                 <div class="filter-group">
@@ -425,12 +441,12 @@
               </div>
 
               <!-- Genre checkbox grid -->
-              <div class="genre-filter-group">
-                <div class="genre-filter-header">
-                  <span class="genre-filter-title">Genres</span>
+              <div class="genre-filter-group" id="genreFilterGroup">
+                <div class="genre-filter-header" id="genreFilterToggle" style="cursor:pointer;" title="Toggle genres">
+                  <span class="genre-filter-title">Genres <span id="genreCollapseArrow" style="display:inline-block;transition:transform 0.2s;margin-left:0.3rem;font-size:0.7rem;">▼</span></span>
                   <button type="button" class="genre-clear-btn" id="clearGenresBtn">Clear</button>
                 </div>
-                <div class="genre-grid" id="genreGrid">
+                <div class="genre-grid-wrap"><div class="genre-grid" id="genreGrid">
                   <label class="genre-check"><input type="checkbox" value="Action"><span>Action</span></label>
                   <label class="genre-check"><input type="checkbox" value="Adventure"><span>Adventure</span></label>
                   <label class="genre-check"><input type="checkbox" value="Comedy"><span>Comedy</span></label>
@@ -466,7 +482,7 @@
                   <label class="genre-check"><input type="checkbox" value="Supernatural"><span>Supernatural</span></label>
                   <label class="genre-check"><input type="checkbox" value="Tragedy"><span>Tragedy</span></label>
                   <label class="genre-check"><input type="checkbox" value="Webtoons"><span>Webtoons</span></label>
-                </div>
+                </div></div>
               </div>
             </div>
 
@@ -605,7 +621,7 @@
   <script src="./modules/state.js" defer></script>
   <script src="./modules/navigation.js" defer></script>
   <script src="./modules/utils.js" defer></script>
-  <script src="./modules/anilist.js" defer></script>
+  <script src="./modules/anilist.js?v=5" defer></script>
 
   <script src="./modules/ui-themes.js" defer></script>
   <script src="./modules/ui-settings.js" defer></script>
@@ -615,10 +631,10 @@
   <script src="./modules/ui-calendar.js" defer></script>
   <script src="./modules/ui-autoscroll.js" defer></script>
   <script src="./modules/ui-stats.js" defer></script>
-  <script src="./modules/ui-library.js" defer></script>
+  <script src="./modules/ui-library.js?v=10" defer></script>
   <script src="./modules/ui-local-import.js" defer></script>
   <script src="./modules/ui-reading-status.js" defer></script>
-  <script src="./modules/ui-search.js" defer></script>
+  <script src="./modules/ui-search.js?v=5" defer></script>
   <script src="./modules/ui-add-to-list-modal.js" defer></script>
   <script src="./modules/ui-chapter-navigation.js" defer></script>
   <script src="./modules/ui-download-functions.js" defer></script>
@@ -630,8 +646,9 @@
   <script src="./modules/ui-book-reader-rtl-double-page-spread-with-3d-page-flip.js" defer></script>
   <script src="./modules/ui-ltr-western-double-page-spread-left-first-with-the-same-3-d-flip-engine.js" defer></script>
   <script src="./modules/ui-pdf-reader.js" defer></script>
-  <script src="./modules/ui-settings-modal.js" defer></script>
-  <script src="./modules/ui-custom-lists-view.js" defer></script>
+  <script src="./modules/ui-settings-modal.js?v=2" defer></script>
+  <script src="./modules/ui-custom-lists-view.js?v=8" defer></script>
+  <script src="./modules/ui-migrate.js" defer></script>
   <script src="./modules/ui-custom-lists-view-removed.js" defer></script>
   <script src="./modules/ui-analytics-view.js" defer></script>
   <script src="./modules/ui-achievements.js" defer></script>
@@ -639,10 +656,10 @@
   <script src="./modules/ui-achievements-1.js" defer></script>
   <script src="./modules/ui-shop-view.js" defer></script>
   <script src="./modules/ui-genre-author-navigation.js" defer></script>
-  <script src="./modules/ui-advanced-search.js" defer></script>
+  <script src="./modules/ui-advanced-search.js?v=5" defer></script>
   <script src="./modules/ui-view-management.js" defer></script>
-  <script src="./modules/ui-ui-binding.js" defer></script>
+  <script src="./modules/ui-ui-binding.js?v=6" defer></script>
   <script src="./modules/ui-initialization.js" defer></script>
-  <script src="./app.js?v=4" defer></script>
+  <script src="./app.js?v=5" defer></script>
 </body>
 </html>

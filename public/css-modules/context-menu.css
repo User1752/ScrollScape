@@ -4,12 +4,14 @@
 .context-menu {
   position: fixed;
   background-color: var(--bg-secondary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: 8px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(130, 80, 255, 0.25);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0,0,0,0.15);
   z-index: 2000;
-  min-width: 250px;
+  min-width: 220px;
+  max-width: 290px;
   overflow: hidden;
+  padding: 4px 0;
 }
 
 .context-menu.hidden {
@@ -17,25 +19,81 @@
 }
 
 .context-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.58rem 1rem;
   background: transparent;
   border: none;
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
+  font-size: 0.88rem;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
+.context-item svg { flex-shrink: 0; opacity: 0.65; }
+
 .context-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: rgba(130, 80, 255, 0.12);
   color: var(--primary);
 }
 
+.context-item:hover svg { opacity: 1; }
+
+.context-item.ctx-item-active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.context-item.ctx-item-active svg { opacity: 1; }
+
 .context-divider {
   height: 1px;
-  background-color: var(--bg-tertiary);
+  background: rgba(130, 80, 255, 0.15);
+  margin: 3px 0;
+}
+
+/* Categories inline section */
+.ctx-categories-header {
+  padding: 0.5rem 1rem 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  opacity: 0.75;
+}
+
+.ctx-categories-list {
+  padding: 0.1rem 0.55rem;
+  max-height: 175px;
+  overflow-y: auto;
+}
+
+.ctx-cat-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.38rem 0.4rem;
+  cursor: pointer;
+  font-size: 0.87rem;
+  border-radius: 5px;
+  transition: background 0.1s;
+  color: var(--text-primary);
+}
+
+.ctx-cat-label:hover {
+  background: rgba(130, 80, 255, 0.1);
+  color: var(--primary);
+}
+
+.ctx-cat-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+  cursor: pointer;
 }
 

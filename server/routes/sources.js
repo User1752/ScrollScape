@@ -145,18 +145,19 @@ function registerSourceRoutes(router) {
     const mod = loadSourceFromFile(sid);
     if (typeof mod[method] !== 'function') return res.status(400).json({ error: 'Method not implemented by this source' });
 
-    const { query, page, mangaId, chapterId, genres, orderBy, authorName } = req.body || {};
+    const { query, page, mangaId, chapterId, genres, orderBy, authorName, publicationStatus, format } = req.body || {};
+    const filters = { publicationStatus: publicationStatus || '', format: format || '' };
 
     let call;
     switch (method) {
-      case 'search':         call = mod.search(query || '', Number(page) || 1, orderBy || ''); break;
+      case 'search':         call = mod.search(query || '', Number(page) || 1, orderBy || '', filters); break;
       case 'mangaDetails':   call = mod.mangaDetails(mangaId   || ''); break;
       case 'chapters':       call = mod.chapters(mangaId       || ''); break;
       case 'pages':          call = mod.pages(chapterId        || ''); break;
       case 'trending':       call = mod.trending(); break;
       case 'recentlyAdded':  call = mod.recentlyAdded(); break;
       case 'latestUpdates':  call = mod.latestUpdates(); break;
-      case 'byGenres':       call = mod.byGenres(genres || [], orderBy || ''); break;
+      case 'byGenres':       call = mod.byGenres(genres || [], orderBy || '', filters, Number(page) || 1); break;
       case 'authorSearch':   call = mod.authorSearch(authorName || ''); break;
       // No default needed — ALLOWED_METHODS guard above ensures exhaustion.
     }

@@ -77,9 +77,9 @@ app.use(express.json({ limit: '5mb' })); // parse JSON bodies
 // ── Security middleware ───────────────────────────────────────────────────────
 const { applySecurityHeaders, rateLimiter } = require('./server/middleware/security');
 applySecurityHeaders(app);
-// Rate-limit API endpoints: 600 requests / 10 minutes per IP.
+// Rate-limit API endpoints: 6000 requests / 10 minutes per IP.
 // Static assets are excluded so the UI loads without restriction.
-app.use('/api', rateLimiter(600_000, 600));
+app.use('/api', rateLimiter(600_000, 6000));
 
 // ── Route registration ────────────────────────────────────────────────────────
 // ORDER MATTERS:
@@ -114,6 +114,9 @@ registerMangaUpdatesRoutes(app);
 registerCalendarRoutes(app);
 
 // ── Static file serving ───────────────────────────────────────────────────────
+// Suppress 404 for favicon.ico — the app has no favicon file.
+app.get('/favicon.ico', (_req, res) => res.status(204).end());
+
 app.use('/', express.static(path.join(__dirname, 'public'), {
   maxAge:       process.env.NODE_ENV === 'production' ? '7d' : 0,
   etag:         true,

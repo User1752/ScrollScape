@@ -1,6 +1,52 @@
 /* ============================================================================
    CUSTOM LISTS
    ============================================================================ */
+
+/* ── Category chips on library cards ─────────────────────────────────────── */
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.category-chip {
+  display: inline-block;
+  background: rgba(145,63,226,.18);
+  color: var(--primary);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+/* ── Categories button on library card info ──────────────────────────────── */
+.btn-categories {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-categories:hover {
+  background: rgba(145,63,226,.25);
+  color: var(--primary);
+}
+
 .lists-container {
   padding: 2rem 0;
 }

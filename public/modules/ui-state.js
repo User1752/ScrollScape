@@ -16,6 +16,17 @@ async function refreshState() {
     state.history       = libData.history   || [];
     state.readingStatus = statusData.readingStatus || {};
 
+    // Load custom lists (categories) and AniList sync metadata
+    try {
+      const listsData = await api('/api/lists');
+      state.customLists = listsData.lists || [];
+    } catch (_) { state.customLists = []; }
+
+    try {
+      const syncMeta = await api('/api/anilist/sync-meta');
+      state.anilistSync = syncMeta;
+    } catch (_) { state.anilistSync = null; }
+
     try {
       const localData = await api("/api/local/list");
       state.localManga = localData.localManga || [];

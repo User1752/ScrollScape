@@ -45,11 +45,15 @@ const state = {
   settings: {
     language: "en",
     readingMode: "ltr",   // "ltr" | "rtl" | "webtoon"
+    libraryDefaultStatusFilter: "all",
     skipReadChapters: false,
     skipDuplicates: true,
     panWideImages: false,
     lineSharpness: 0,
-    anilistAutoSync: true
+    showLibrarySourceBadge: true,
+    anilistAutoSync: true,
+    anilistAutoImportOnConnect: false,
+    anilistAutoCategorize: true,
   },
 
   // ── Reading status & analytics ────────────────────────────────────────────
@@ -58,6 +62,14 @@ const state = {
   analytics: {},
   /** @type {Set<string>} IDs of achievements the user has unlocked */
   earnedAchievements: new Set(),
+
+  // ── AniList sync metadata (populated from server on load) ────────────────
+  /** @type {{lastImportAt:string|null, importedCount:number, overwriteCount:number}} */
+  anilistSync: null,
+
+  // ── Categories (custom lists) ─────────────────────────────────────────────
+  /** @type {Array<{id:string, name:string, description:string, mangaItems:object[]}>} */
+  customLists: [],
 
   // ── Reader ────────────────────────────────────────────────────────────────
   /** Current zoom multiplier (1.0 = 100 %) */

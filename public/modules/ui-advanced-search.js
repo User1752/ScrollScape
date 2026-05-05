@@ -9,7 +9,7 @@ const ADV_MAX_API_PAGES = 20; // safety limit per user-page
  * Apply client-side filters to a batch of results.
  * Returns only items that pass all active filter criteria.
  */
-function _applyAdvFilters(results, query, selectedGenres, publicationStatus, contentRating) {
+function _applyAdvFilters(results, query, selectedGenres, publicationStatus, contentRating, format) {
   let out = results;
   if (query && selectedGenres.length > 0) {
     const q = query.toLowerCase();
@@ -20,6 +20,10 @@ function _applyAdvFilters(results, query, selectedGenres, publicationStatus, con
   }
   if (contentRating) {
     out = out.filter(m => m.contentRating?.toLowerCase() === contentRating.toLowerCase());
+  }
+  if (format) {
+    const fmt = format.toLowerCase();
+    out = out.filter(m => (m.genres || []).some(g => g.toLowerCase() === fmt) || (m.format || '').toLowerCase() === fmt);
   }
   return out;
 }
@@ -51,7 +55,7 @@ async function advancedSearch(page = 1) {
   $("advancedSearchStatus").textContent = "Searching...";
 
   // Determine if any client-side filter is active
-  const needsClientFilter = !!(publicationStatus || contentRating || (query && selectedGenres.length > 0));
+  const needsClientFilter = !!(publicationStatus || contentRating || format || (query && selectedGenres.length > 0));
 
   // ── Fast path: no client filtering, use native API pagination ────────────
   if (!needsClientFilter) {
@@ -61,12 +65,12 @@ async function advancedSearch(page = 1) {
       if (selectedGenres.length > 0) {
         result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
           method: "POST",
-          body: JSON.stringify({ genres: selectedGenres, orderBy })
+          body: JSON.stringify({ genres: selectedGenres, page, orderBy, publicationStatus, format })
         });
       } else {
         result = await api(`/api/source/${state.currentSourceId}/search`, {
           method: "POST",
-          body: JSON.stringify({ query: query || "", page, orderBy })
+          body: JSON.stringify({ query: query || "", page, orderBy, publicationStatus, format })
         });
       }
       const results = result.results || [];
@@ -91,7 +95,7 @@ async function advancedSearch(page = 1) {
 
   // ── Fill-up path: accumulate filtered results across API pages ────────────
   // Cache key: invalidate accumulator when source or any filter changes.
-  const filterKey = [state.currentSourceId, query, selectedGenres.join(','), publicationStatus, contentRating, orderBy].join('|');
+  const filterKey = [state.currentSourceId, query, selectedGenres.join(','), publicationStatus, contentRating, format, orderBy].join('|');
 
   // Reset accumulator when filters change or navigating back to page 1
   if (!state._advAcc || state._advAcc.filterKey !== filterKey || page === 1) {
@@ -110,17 +114,17 @@ async function advancedSearch(page = 1) {
       if (selectedGenres.length > 0) {
         result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
           method: "POST",
-          body: JSON.stringify({ genres: selectedGenres, orderBy })
+          body: JSON.stringify({ genres: selectedGenres, page: acc.apiPage, orderBy, publicationStatus, format })
         });
-        acc.hasMore = false; // byGenres returns all results in one shot
+        acc.hasMore = result.hasNextPage || false;
       } else {
         result = await api(`/api/source/${state.currentSourceId}/search`, {
           method: "POST",
-          body: JSON.stringify({ query: query || "", page: acc.apiPage, orderBy })
+          body: JSON.stringify({ query: query || "", page: acc.apiPage, orderBy, publicationStatus, format })
         });
         acc.hasMore = result.hasNextPage || false;
       }
-      const batch = _applyAdvFilters(result.results || [], query, selectedGenres, publicationStatus, contentRating);
+      const batch = _applyAdvFilters(result.results || [], query, selectedGenres, publicationStatus, contentRating, format);
       acc.results.push(...batch);
     } catch (e) {
       fetchError = e;
@@ -150,21 +154,29 @@ async function advancedSearch(page = 1) {
   renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
 }
 
-async function randomManga() {
+async function randomManga(options = {}) {
   const sourceIds = Object.keys(state.installedSources).filter(id => id !== 'local');
   const statusEl = $('advancedSearchStatus');
+  const mode = options.mode || 'mixed'; // mixed | library | sources
+  const selectedSourceIds = (options.sourceIds || []).filter(id => sourceIds.includes(id));
+  const poolSourceIds = selectedSourceIds.length ? selectedSourceIds : sourceIds;
 
-  // Build a combined pool: library items (any source) + online search from a random source/page
+  // Build a combined pool: library + online results from selected sources
   let pool = [];
 
-  // Add library
-  for (const m of (state.favorites || [])) {
-    if (m.sourceId && m.sourceId !== 'local') pool.push({ id: m.id, sourceId: m.sourceId });
+  // Add library when enabled in mode
+  if (mode !== 'sources') {
+    for (const m of (state.favorites || [])) {
+      if (!m.sourceId || m.sourceId === 'local') continue;
+      if (mode === 'library' || poolSourceIds.includes(m.sourceId)) {
+        pool.push({ id: m.id, sourceId: m.sourceId });
+      }
+    }
   }
 
-  // Add online results from a random installed source on a random page
-  if (sourceIds.length > 0) {
-    const src = sourceIds[Math.floor(Math.random() * sourceIds.length)];
+  // Add online results from a random selected source on a random page
+  if (mode !== 'library' && poolSourceIds.length > 0) {
+    const src = poolSourceIds[Math.floor(Math.random() * poolSourceIds.length)];
     const pg  = Math.floor(Math.random() * 15) + 1;
     if (statusEl) statusEl.textContent = 'Finding random manga...';
     try {
@@ -193,6 +205,63 @@ async function randomManga() {
     state._fromRandom = false;
     if (statusEl) statusEl.textContent = `Error: ${e.message}`;
   }
+}
+
+function closeRandomPickerDrawer() {
+  document.getElementById('randomPickerBackdrop')?.remove();
+  document.getElementById('randomPickerDrawer')?.remove();
+}
+
+function openRandomPickerDrawer() {
+  closeRandomPickerDrawer();
+
+  const sourceIds = Object.keys(state.installedSources).filter(id => id !== 'local');
+  const sourceItems = sourceIds.map(id => {
+    const label = state.installedSources[id]?.name || id;
+    return `
+      <label class="random-picker-source-item">
+        <input type="checkbox" class="random-picker-source" value="${escapeHtml(id)}" checked>
+        <span>${escapeHtml(label)}</span>
+      </label>`;
+  }).join('');
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'randomPickerBackdrop';
+  backdrop.className = 'random-picker-backdrop';
+
+  const drawer = document.createElement('div');
+  drawer.id = 'randomPickerDrawer';
+  drawer.className = 'random-picker-drawer';
+  drawer.innerHTML = `
+    <div class="random-picker-head">
+      <h3>Random Manga</h3>
+      <button class="btn secondary" id="randomPickerClose">\u2715</button>
+    </div>
+    <div class="random-picker-body">
+      <div class="random-picker-mode-group">
+        <label><input type="radio" name="randomMode" value="mixed" checked> Library + Sources</label>
+        <label><input type="radio" name="randomMode" value="sources"> Sources only</label>
+        <label><input type="radio" name="randomMode" value="library"> Library only</label>
+      </div>
+      <div class="random-picker-subtitle">Sources</div>
+      <div class="random-picker-source-list">${sourceItems || '<div class="muted">No online sources installed.</div>'}</div>
+      <div class="random-picker-actions">
+        <button class="btn primary" id="randomPickerGo">Pick Random</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(drawer);
+
+  backdrop.onclick = closeRandomPickerDrawer;
+  drawer.querySelector('#randomPickerClose').onclick = closeRandomPickerDrawer;
+
+  drawer.querySelector('#randomPickerGo').onclick = async () => {
+    const mode = drawer.querySelector('input[name="randomMode"]:checked')?.value || 'mixed';
+    const selected = [...drawer.querySelectorAll('.random-picker-source:checked')].map(el => el.value);
+    closeRandomPickerDrawer();
+    await randomManga({ mode, sourceIds: selected });
+  };
 }
 
 function initAdvancedFilters() {
@@ -230,6 +299,21 @@ function initAdvancedFilters() {
       document.querySelectorAll('#genreGrid input[type="checkbox"]').forEach(cb => cb.checked = false);
       const view = document.querySelector("#view-advanced-search");
       if (view && !view.classList.contains("hidden")) advancedSearch();
+    };
+  }
+
+  // Genre section collapse toggle — persisted in localStorage
+  const genreToggle = $("genreFilterToggle");
+  const genreGroup  = $("genreFilterGroup");
+  if (genreToggle && genreGroup) {
+    // Restore saved state
+    if (localStorage.getItem("genreFilterCollapsed") === "1") {
+      genreGroup.classList.add("collapsed");
+    }
+    genreToggle.onclick = (e) => {
+      if (e.target.closest('#clearGenresBtn')) return; // don't collapse when clearing
+      genreGroup.classList.toggle("collapsed");
+      localStorage.setItem("genreFilterCollapsed", genreGroup.classList.contains("collapsed") ? "1" : "0");
     };
   }
 }

@@ -50,7 +50,7 @@ function applySecurityHeaders(app) {
       "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: blob: https:; " +
-      "connect-src 'self' https://api.anilist.co https://api.mangaupdates.com; " +
+      "connect-src 'self' https://api.anilist.co https://api.mangaupdates.com https://cdn.jsdelivr.net; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
       "worker-src blob: 'self'; " +
       "frame-ancestors 'none'"
@@ -94,6 +94,22 @@ function rateLimiter(windowMs = 600_000, maxPerWindow = 600) {
   }, windowMs).unref(); // .unref() so this timer doesn't prevent process exit
 
   return function rateLimit(req, res, next) {
+    // Never throttle critical bootstrap reads, otherwise the app appears "stuck"
+    // with empty sections after a heavy import burst.
+    const p = req.path || '';
+    if (req.method === 'GET' && (
+      p === '/api/state' ||
+      p === '/api/library' ||
+      p === '/api/user/status' ||
+      p === '/api/ratings' ||
+      p === '/api/lists' ||
+      p === '/api/popular-all' ||
+      p === '/api/anilist/sync-meta' ||
+      p === '/api/local/list'
+    )) {
+      return next();
+    }
+
     // Honour X-Forwarded-For set by a trusted reverse proxy, fall back to
     // the direct socket IP.  In standalone-exe mode the server binds to
     // 127.0.0.1 so there is no proxy and req.ip is always the real client.

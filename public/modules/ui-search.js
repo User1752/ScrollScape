@@ -199,6 +199,7 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
             </button>
             <button class="btn btn-start-reading-detail" id="startReadingBtn">&#9654; Start Reading</button>
             <button class="btn btn-tracker" id="trackerBtn">Tracker</button>
+            <button class="btn btn-secondary" id="manageCategoriesBtn">&#128194; Categories</button>
             ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">Continue</button>` : ""}
             ${fromView === 'random' ? `<button class="btn btn-reroll" id="rerollBtn" title="Pick another random manga">Reroll</button>` : ""}
           </div>
@@ -208,7 +209,7 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
     `;
 
     // Reroll random
-    if ($('rerollBtn')) $('rerollBtn').onclick = () => randomManga();
+    if ($('rerollBtn')) $('rerollBtn').onclick = () => openRandomPickerDrawer();
 
     // Favorites toggle
     $("addFavBtn").onclick = async () => {
@@ -266,6 +267,13 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
 
     // Tracker button
     $("trackerBtn").onclick = () => showTrackerModal(result);
+
+    // Categories button
+    $("manageCategoriesBtn").onclick = () => {
+      const manga = { ...result, sourceId: state.currentSourceId };
+      showCategoryModal(manga);
+    };
+
     if (_alGetLink(result.id) && _alToken()) {
       $("trackerBtn").innerHTML = 'Tracker \u2713';
       $("trackerBtn").classList.add('btn-tracker--tracked');

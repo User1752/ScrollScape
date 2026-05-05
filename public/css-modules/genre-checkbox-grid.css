@@ -12,6 +12,40 @@
   margin-bottom: 0.75rem;
 }
 
+.genre-filter-header:hover .genre-filter-title {
+  color: var(--primary);
+}
+
+/* Collapsed state — animated with max-height */
+.genre-grid-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.28s ease, opacity 0.28s ease;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.genre-filter-group.collapsed .genre-grid-wrap {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.genre-grid-wrap > .genre-grid {
+  min-height: 0;
+}
+
+.genre-filter-group.collapsed .genre-filter-header {
+  margin-bottom: 0;
+}
+
+#genreCollapseArrow {
+  transition: transform 0.28s ease;
+}
+
+.genre-filter-group.collapsed #genreCollapseArrow {
+  transform: rotate(-90deg);
+}
+
 .genre-filter-title {
   font-size: 0.8rem;
   font-weight: 600;

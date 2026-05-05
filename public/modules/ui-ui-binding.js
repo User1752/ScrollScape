@@ -146,7 +146,7 @@ function bindUI() {
   const randBtn  = $("randomMangaBtn");
   if (advBtn)   advBtn.onclick   = () => advancedSearch();
   if (advInput) advInput.onkeypress = (e) => { if (e.key === "Enter") advancedSearch(); };
-  if (randBtn)  randBtn.onclick  = randomManga;
+  if (randBtn)  randBtn.onclick  = openRandomPickerDrawer;
 
   // Initialize advanced filters
   initAdvancedFilters();
@@ -154,6 +154,26 @@ function bindUI() {
   // Library status filter
   const libFilter = $("libraryStatusFilter");
   if (libFilter) libFilter.onchange = renderLibrary;
+
+  // Library category filter
+  const libCatFilter = $("libraryCategoryFilter");
+  if (libCatFilter) libCatFilter.onchange = renderLibrary;
+
+  // Library text search
+  const libSearchInput = $("librarySearchInput");
+  if (libSearchInput) libSearchInput.oninput = renderLibrary;
+
+  // Manage categories button
+  const btnMgmtCat = $("btnManageCategories");
+  if (btnMgmtCat) btnMgmtCat.onclick = () => showManageCategoriesModal();
+
+  // Sort library button
+  const btnSort = $("btnSortLibrary");
+  if (btnSort) btnSort.onclick = () => openLibrarySortDrawer();
+
+  // Migrate library button
+  const btnMigrate = $("btnMigrateLibrary");
+  if (btnMigrate) btnMigrate.onclick = () => showMigrateModal();
 
   // Language toggle button
   const langBtn = $("langToggleBtn");

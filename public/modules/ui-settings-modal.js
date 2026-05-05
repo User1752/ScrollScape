@@ -56,6 +56,26 @@ function showSettings() {
           </label>
           <p class="setting-description">Allows horizontal scrolling on double-page spreads</p>
         </div>
+        <div class="setting-group">
+          <label class="toggle-label">
+            <span class="toggle-text">Show source on library cards</span>
+            <input type="checkbox" id="showLibrarySourceToggle" ${state.settings.showLibrarySourceBadge !== false ? "checked" : ""}>
+            <span class="toggle-slider"></span>
+          </label>
+          <p class="setting-description">Displays the source name in the bottom-right corner of each library cover</p>
+        </div>
+        <div class="setting-group">
+          <label>Library default status view</label>
+          <select id="libraryDefaultStatusFilterSelect" class="input">
+            <option value="all" ${state.settings.libraryDefaultStatusFilter === 'all' ? 'selected' : ''}>All Manga</option>
+            <option value="reading" ${state.settings.libraryDefaultStatusFilter === 'reading' ? 'selected' : ''}>Reading</option>
+            <option value="completed" ${state.settings.libraryDefaultStatusFilter === 'completed' ? 'selected' : ''}>Completed</option>
+            <option value="on_hold" ${state.settings.libraryDefaultStatusFilter === 'on_hold' ? 'selected' : ''}>On Hold</option>
+            <option value="plan_to_read" ${state.settings.libraryDefaultStatusFilter === 'plan_to_read' ? 'selected' : ''}>Plan to Read</option>
+            <option value="dropped" ${state.settings.libraryDefaultStatusFilter === 'dropped' ? 'selected' : ''}>Dropped</option>
+          </select>
+          <p class="setting-description">When you open Library, this filter is selected automatically</p>
+        </div>
         <div class="settings-divider"></div>
         <div class="setting-group">
           <button class="btn secondary" id="clearReadBtn">Clear Reading History</button>
@@ -95,8 +115,37 @@ function showSettings() {
             <p class="setting-description">Automatically updates your AniList chapter progress when you read</p>
           </div>
           <div class="setting-group">
+            <label class="toggle-label">
+              <span class="toggle-text">Auto-import on connect</span>
+              <input type="checkbox" id="anilistAutoImportToggle" ${state.settings.anilistAutoImportOnConnect ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+            <p class="setting-description">Imports your AniList manga library automatically when you connect your account</p>
+          </div>
+          <div class="setting-group">
+            <label class="toggle-label">
+              <span class="toggle-text">Auto-categorize on import</span>
+              <input type="checkbox" id="anilistAutoCategorizeToggle" ${state.settings.anilistAutoCategorize ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+            <p class="setting-description">Automatically adds completed manga to a &ldquo;Read&rdquo; category when importing</p>
+          </div>
+          <div class="setting-group" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" id="btnAniListImportNow">&#8595; Import Library Now</button>
             <button class="btn secondary" id="btnAniListDisconnect">Disconnect AniList</button>
           </div>
+          <div id="anilistImportProgressWrap" class="anilist-import-progress hidden">
+            <div class="anilist-import-progress-bar">
+              <div id="anilistImportProgressFill" class="anilist-import-progress-fill"></div>
+            </div>
+            <p id="anilistImportProgressText" class="setting-description">Waiting to start import…</p>
+          </div>
+          ${(() => {
+            const sync = state.anilistSync;
+            if (!sync?.lastImportAt) return '';
+            const d = new Date(sync.lastImportAt).toLocaleString();
+            return `<p class="setting-description" style="margin-top:4px">Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated</p>`;
+          })()}
         </div>
         <div class="settings-divider"></div>
         <h3 class="settings-subsection">Commands</h3>
@@ -105,7 +154,7 @@ function showSettings() {
             <input type="text" id="cheatInput" class="input" placeholder="Enter command…" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1;font-family:monospace">
             <button class="btn primary" id="cheatRunBtn">Run</button>
           </div>
-          <p class="setting-description" style="margin-top:6px">Available: <code>cls</code> — reset all AP &amp; achievements &nbsp;·&nbsp; <code>godmode</code> — add 500 AP</p>
+          <p class="setting-description" style="margin-top:6px">Available: <code>cls</code> — reset all AP &amp; achievements &nbsp;·&nbsp; <code>godmode</code> — add 500 AP &nbsp;·&nbsp; <code>lcls</code> — clear library</p>
         </div>
       </div>
     </div>
@@ -143,7 +192,23 @@ function showSettings() {
     saveSettings();
     if (state.currentChapter) renderPage();
   };
-  function runCheatCommand(cmd) {
+  const sourceBadgeToggle = $("showLibrarySourceToggle");
+  if (sourceBadgeToggle) {
+    sourceBadgeToggle.onchange = (e) => {
+      state.settings.showLibrarySourceBadge = e.target.checked;
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
+  const libraryDefaultStatusSel = $("libraryDefaultStatusFilterSelect");
+  if (libraryDefaultStatusSel) {
+    libraryDefaultStatusSel.onchange = (e) => {
+      state.settings.libraryDefaultStatusFilter = e.target.value || 'all';
+      saveSettings();
+    };
+  }
+  async function runCheatCommand(cmd) {
     switch ((cmd || '').trim().toLowerCase()) {
       case 'cls':
         achievementManager.reset();
@@ -157,17 +222,30 @@ function showSettings() {
         updateApBadge();
         showToast('Godmode activated', '+500 AP added to your wallet.', 'success');
         break;
+      case 'lcls':
+        try {
+          const res = await fetch('/api/library/clear', { method: 'DELETE' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          state.favorites = [];
+          state.readingStatus = {};
+          state.customLists = [];
+          renderLibrary();
+          showToast('Library cleared', 'Favorites, reading status and lists were removed.', 'success');
+        } catch (e) {
+          showToast('Clear failed', e?.message || 'Could not clear library.', 'warning');
+        }
+        break;
       default:
         showToast('Unknown command', `"${cmd}" is not a valid command.`, 'warning');
     }
   }
-  $('cheatRunBtn').onclick = () => {
+  $('cheatRunBtn').onclick = async () => {
     const inp = $('cheatInput');
-    runCheatCommand(inp.value);
+    await runCheatCommand(inp.value);
     inp.value = '';
   };
-  $('cheatInput').onkeydown = (e) => {
-    if (e.key === 'Enter') { runCheatCommand($('cheatInput').value); $('cheatInput').value = ''; }
+  $('cheatInput').onkeydown = async (e) => {
+    if (e.key === 'Enter') { await runCheatCommand($('cheatInput').value); $('cheatInput').value = ''; }
   };
 
   $("clearReadBtn").onclick = async () => {
@@ -212,6 +290,71 @@ function showSettings() {
     alAutoToggle.onchange = (e) => {
       state.settings.anilistAutoSync = e.target.checked;
       saveSettings();
+    };
+  }
+  const alAutoImportToggle = $('anilistAutoImportToggle');
+  if (alAutoImportToggle) {
+    alAutoImportToggle.onchange = (e) => {
+      state.settings.anilistAutoImportOnConnect = e.target.checked;
+      saveSettings();
+    };
+  }
+  const alAutoCatToggle = $('anilistAutoCategorizeToggle');
+  if (alAutoCatToggle) {
+    alAutoCatToggle.onchange = (e) => {
+      state.settings.anilistAutoCategorize = e.target.checked;
+      saveSettings();
+    };
+  }
+  const btnImportNow = $('btnAniListImportNow');
+  if (btnImportNow) {
+    btnImportNow.onclick = async () => {
+      const progressWrap = $('anilistImportProgressWrap');
+      const progressFill = $('anilistImportProgressFill');
+      const progressText = $('anilistImportProgressText');
+      const setProgress = (pct, txt) => {
+        if (progressFill) progressFill.style.width = `${Math.max(0, Math.min(100, Number(pct) || 0))}%`;
+        if (progressText && txt) progressText.textContent = txt;
+      };
+
+      btnImportNow.disabled = true;
+      btnImportNow.textContent = '⏳ Importing…';
+      if (progressWrap) progressWrap.classList.remove('hidden');
+      setProgress(0, 'Starting AniList import…');
+
+      try {
+        const r = await anilistImportLibrary({
+          onProgress: ({ percent, label }) => {
+            setProgress(percent, label || 'Importing…');
+          }
+        });
+
+        if (r?.ok) {
+          setProgress(100, 'Import complete.');
+        } else {
+          setProgress(100, `Import stopped: ${r?.error || 'unable to complete'}`);
+        }
+
+        // Refresh sync metadata paragraph in-place
+        const sync = state.anilistSync;
+        if (sync?.lastImportAt) {
+          const d = new Date(sync.lastImportAt).toLocaleString();
+          const existing = btnImportNow.closest('.setting-group')?.nextElementSibling;
+          const syncLine = `Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated`;
+          if (existing && existing.classList.contains('setting-description')) {
+            existing.innerHTML = syncLine;
+          } else {
+            const p = document.createElement('p');
+            p.className = 'setting-description';
+            p.style.marginTop = '4px';
+            p.innerHTML = syncLine;
+            btnImportNow.closest('.setting-group').after(p);
+          }
+        }
+      } finally {
+        btnImportNow.disabled = false;
+        btnImportNow.textContent = '↓ Import Library Now';
+      }
     };
   }
 }
