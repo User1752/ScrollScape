@@ -1,4 +1,4 @@
-# ScrollScape
+﻿# ScrollScape
 
 > Self-hosted manga reader — multiple online sources, local file support, AniList tracking, reading progress, library management, and more. Runs via Docker or as a standalone executable. No account required.
 

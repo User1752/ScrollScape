@@ -9,8 +9,16 @@ async function loadReadingStatus() {
   } catch (e) { /* non-fatal */ }
 }
 
+function _statusStoreKeyPart(v) {
+  return String(v || '').replace(/[^a-z0-9:_-]/gi, '_');
+}
+
+function _statusStoreKey(mangaId, sourceId) {
+  return `${_statusStoreKeyPart(mangaId)}:${_statusStoreKeyPart(sourceId || 'unknown')}`;
+}
+
 function getMangaStatus(mangaId, sourceId) {
-  return state.readingStatus[`${mangaId}:${sourceId}`]?.status || null;
+  return state.readingStatus[_statusStoreKey(mangaId, sourceId)]?.status || null;
 }
 
 function renderReadingStatusSection(mangaId, sourceId) {
@@ -41,10 +49,11 @@ function renderReadingStatusSection(mangaId, sourceId) {
           mangaData: state.currentManga || {}
         })
       });
-      state.readingStatus[`${mangaId}:${sourceId}`] = newStatus !== "none"
+      const key = _statusStoreKey(mangaId, sourceId);
+      state.readingStatus[key] = newStatus !== "none"
         ? { status: newStatus, updatedAt: new Date().toISOString() }
         : undefined;
-      if (newStatus === "none") delete state.readingStatus[`${mangaId}:${sourceId}`];
+      if (newStatus === "none") delete state.readingStatus[key];
       showToast("Status Updated", statusLabel(newStatus), "success");
       renderReadingStatusSection(mangaId, sourceId);
       renderLibrary();

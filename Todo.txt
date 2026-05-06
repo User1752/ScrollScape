@@ -2,3 +2,4 @@
 - as moedas mudam c o tema
 os downloads ainda naop esta a funcionar
 fazer com que ao migrar o manga ele migre o seu progresso(capitulos lidos, tracking, nota, flags,categoria e status)
+criar uma opçao em que a biblioteca fica com os mangas guardados numa prateleira e eles ficam em 3d.

@@ -24,7 +24,7 @@ const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 const { isSafeUrl } = require('../helpers');
 
-const ALLOWED_IMAGE_CT = /^image\/(jpeg|png|gif|webp|avif|bmp|svg\+xml)/i;
+const ALLOWED_IMAGE_CT = /^(image\/(jpeg|png|gif|webp|avif|bmp|svg\+xml)|application\/octet-stream)/i;
 
 /**
  * Higher-order function to encapsulate try-catch blocks for async route handlers.
@@ -93,7 +93,10 @@ function registerProxyRoutes(router) {
       const upstreamCt = imgRes.headers.get('content-type') || '';
       if (!ALLOWED_IMAGE_CT.test(upstreamCt)) return res.status(415).end();
 
-      res.set('Content-Type', upstreamCt.split(';')[0].trim());
+      let finalCt = upstreamCt.split(';')[0].trim();
+      if (finalCt.includes('octet-stream')) finalCt = 'image/jpeg';
+      
+      res.set('Content-Type', finalCt);
       res.set('Cache-Control', 'public, max-age=86400');
       
       // Node >16 Readable.fromWeb + pipeline prevents fatal crashes when sockets disconnect prematurely

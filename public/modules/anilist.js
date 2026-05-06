@@ -253,6 +253,76 @@ async function _applyImportedProgress(entries, resolutionMap, opts = {}) {
   return { updated, total: queue.length, rateLimited };
 }
 
+function _persistLocalReadingState() {
+  try {
+    localStorage.setItem('scrollscapeReadChapters', JSON.stringify([...(state.readChapters || new Set())]));
+  } catch (_) {}
+
+  try {
+    let prog = {};
+    try { prog = JSON.parse(localStorage.getItem('scrollscapeReadingProgress') || '{}') || {}; } catch { prog = {}; }
+    prog.pages = state.lastReadPages || {};
+    prog.chapters = state.lastReadChapter || {};
+    prog.highestChapter = state.highestReadChapter || {};
+    localStorage.setItem('scrollscapeReadingProgress', JSON.stringify(prog));
+  } catch (_) {}
+}
+
+async function _syncTrackerProgressToLocal(mangaId, sourceId, progressValue) {
+  const target = Number(progressValue);
+  if (!mangaId || !sourceId || !Number.isFinite(target) || target <= 0) return { updated: 0 };
+
+  if (!state.readChapters) state.readChapters = new Set();
+  if (!state.lastReadPages) state.lastReadPages = {};
+  if (!state.lastReadChapter) state.lastReadChapter = {};
+  if (!state.highestReadChapter) state.highestReadChapter = {};
+
+  const cr = await api(`/api/source/${sourceId}/chapters`, {
+    method: 'POST',
+    body: JSON.stringify({ mangaId }),
+  });
+
+  const chapters = _oldestFirstChapters(cr?.chapters || []).filter(ch => ch?.id);
+  if (!chapters.length) return { updated: 0 };
+
+  const EPS = 1e-9;
+  const numericRows = chapters.map(ch => ({ ch, n: _parseChapterNumber(ch) }));
+  const hasNumeric = numericRows.some(r => r.n !== null);
+
+  let picked = [];
+  if (hasNumeric) {
+    picked = numericRows
+      .filter(r => r.n !== null && r.n <= target + EPS)
+      .map(r => r.ch);
+  }
+
+  if (!picked.length) {
+    picked = chapters.slice(0, Math.min(Math.max(0, Math.floor(target)), chapters.length));
+  }
+
+  if (!picked.length) return { updated: 0 };
+
+  for (const ch of picked) {
+    state.readChapters.add(`${mangaId}:${ch.id}`);
+  }
+
+  let last = picked[picked.length - 1];
+  if (hasNumeric) {
+    const ranked = picked
+      .map(ch => ({ ch, n: _parseChapterNumber(ch) }))
+      .filter(r => r.n !== null)
+      .sort((a, b) => a.n - b.n);
+    if (ranked.length) last = ranked[ranked.length - 1].ch;
+  }
+
+  state.lastReadChapter[mangaId] = last.id;
+  state.lastReadPages[`${mangaId}:${last.id}`] = state.lastReadPages[`${mangaId}:${last.id}`] || 0;
+  state.highestReadChapter[mangaId] = Math.max(state.highestReadChapter[mangaId] || 0, target);
+
+  _persistLocalReadingState();
+  return { updated: picked.length };
+}
+
 /**
  * For each AniList entry, search all installed sources and return the best
  * match (most chapters) as a resolution record. Processes in batches of 5
@@ -270,58 +340,177 @@ async function _resolveAnilistSources(entries, opts = {}) {
   const BATCH = _AL_IMPORT_LIMITS.resolveBatch;
   const cappedEntries = entries.slice(0, _AL_IMPORT_LIMITS.resolveEntriesMax);
   const resolutions = [];
+  const choices = [];
   let rateLimited = false;
   let processed = 0;
 
   const isRateLimitResponse = (res) => res && !res.ok && res.status === 429;
+  const cleanTitle = (t) => String(t || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const titleSimilarity = (a, b) => {
+    const aa = cleanTitle(a);
+    const bb = cleanTitle(b);
+    if (!aa || !bb) return 0;
+    if (aa === bb) return 1;
+    if (aa.includes(bb) || bb.includes(aa)) return 0.92;
+    const sa = new Set(aa.split(' '));
+    const sb = new Set(bb.split(' '));
+    let inter = 0;
+    for (const w of sa) if (sb.has(w)) inter++;
+    return inter / Math.max(sa.size || 1, sb.size || 1);
+  };
+
+  const startTime = Date.now();
 
   for (let i = 0; i < cappedEntries.length && !rateLimited; i += BATCH) {
     const chunk = cappedEntries.slice(i, i + BATCH);
     const chunkResults = await Promise.all(chunk.map(async (entry) => {
+      const searchQueries = [...new Set([
+        String(entry.title || '').trim(),
+        String(entry.titleAlt || '').trim(),
+      ].filter(Boolean))].slice(0, 2);
+
       const searches = await Promise.allSettled(
         sourceIds.map(async (sid) => {
           try {
-            const res = await fetch(`/api/source/${encodeURIComponent(sid)}/search`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query: entry.title, page: 1 }),
-            });
-            if (isRateLimitResponse(res)) {
-              rateLimited = true;
-              return null;
+            const merged = [];
+            for (const q of searchQueries) {
+              const res = await fetch(`/api/source/${encodeURIComponent(sid)}/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: q, page: 1 }),
+              });
+              if (isRateLimitResponse(res)) {
+                rateLimited = true;
+                return null;
+              }
+              if (!res.ok) continue;
+              const r = await res.json();
+              merged.push(...(r?.results || []).slice(0, 8));
             }
-            if (!res.ok) return null;
-            const r = await res.json();
-            const first = (r?.results || [])[0];
-            if (!first) return null;
-            return { sid, manga: first };
+
+            const dedup = new Map();
+            for (const m of merged) {
+              if (!m?.id) continue;
+              if (!dedup.has(m.id)) dedup.set(m.id, m);
+            }
+            return { sid, mangas: [...dedup.values()] };
           } catch (_) { return null; }
         })
       );
 
-      // Pick the source whose first result has the most chapters
-      let best = null;
+      // Collect title-similar candidates across sources
+      const candidates = [];
       for (const s of searches) {
         if (s.status !== 'fulfilled' || !s.value) continue;
-        const { sid, manga } = s.value;
-        const chaps = manga.lastChapter || 0;
-        if (!best || chaps > (best.lastChapter || 0)) {
-          best = {
-            anilistId:   entry.anilistId,
-            mangaId:     manga.id,
-            sourceId:    sid,
-            title:       manga.title,
-            cover:       manga.cover || entry.cover,
-            lastChapter: chaps,
-          };
+        const { sid, mangas } = s.value;
+        for (const manga of (mangas || [])) {
+          const sim = Math.max(
+            titleSimilarity(entry.title, manga.title),
+            titleSimilarity(entry.titleAlt || '', manga.title)
+          );
+          if (sim < 0.5) continue;
+          candidates.push({ sid, manga, sim });
         }
       }
-      return best; // null if no source returned any result
+
+      if (candidates.length === 0) {
+        return {
+          anilistId: entry.anilistId,
+          title: entry.title,
+          cover: entry.cover,
+          options: [],
+          winner: null,
+        };
+      }
+
+      // Fetch real chapter count from each candidate and pick the source with most chapters
+      const withCounts = await Promise.all(candidates.map(async ({ sid, manga, sim }) => {
+        try {
+          const res = await fetch(`/api/source/${encodeURIComponent(sid)}/chapters`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mangaId: manga.id }),
+          });
+          if (!res.ok) return { sid, manga, count: 0, sim };
+          const r = await res.json();
+          const count = (r?.chapters || []).length;
+          return { sid, manga, count, sim };
+        } catch (_) { return { sid, manga, count: 0, sim }; }
+      }));
+
+      withCounts.sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return b.sim - a.sim;
+      });
+      const cleaned = withCounts
+        .filter(x => x && x.manga?.id && x.count > 0)
+        .map(x => ({
+          mangaId: x.manga.id,
+          sourceId: x.sid,
+          title: x.manga.title || entry.title,
+          cover: x.manga.cover || entry.cover,
+          lastChapter: x.count,
+          sim: x.sim,
+        }));
+
+      const uniq = new Map();
+      for (const c of cleaned) {
+        const k = `${c.sourceId}:${c.mangaId}`;
+        if (!uniq.has(k)) uniq.set(k, c);
+      }
+      const options = [...uniq.values()]
+        .sort((a, b) => (b.lastChapter - a.lastChapter) || (b.sim - a.sim))
+        .slice(0, 8);
+
+      const winner = options[0] || null;
+      return {
+        anilistId: entry.anilistId,
+        title: entry.title,
+        cover: entry.cover,
+        options,
+        winner,
+      };
     }));
 
-    resolutions.push(...chunkResults.filter(Boolean));
+    for (const r of chunkResults) {
+      if (!r) continue;
+      choices.push(r);
+      if (r.winner) {
+        resolutions.push({
+          anilistId: r.anilistId,
+          mangaId: r.winner.mangaId,
+          sourceId: r.winner.sourceId,
+          title: r.winner.title,
+          cover: r.winner.cover,
+          lastChapter: r.winner.lastChapter,
+        });
+      }
+    }
     processed += chunk.length;
-    if (onProgress) onProgress({ phase: 'resolve-sources', processed, total: cappedEntries.length, rateLimited: false });
+
+    // Calculate ETA based on elapsed time
+    const elapsed = (Date.now() - startTime) / 1000; // seconds
+    const rate = processed / elapsed; // mangas per second
+    const remaining = cappedEntries.length - processed;
+    const etaSec = rate > 0 ? Math.ceil(remaining / rate) : null;
+    const etaStr = etaSec === null ? '' : etaSec > 60
+      ? ` (~${Math.ceil(etaSec / 60)}min restantes)`
+      : ` (~${etaSec}s restantes)`;
+
+    if (onProgress) onProgress({
+      phase: 'resolve-sources',
+      processed,
+      total: cappedEntries.length,
+      rateLimited: false,
+      // Map to percent/label format used by the UI
+      percent: Math.floor(10 + (processed / cappedEntries.length) * 75),
+      label: `A resolver sources… ${processed}/${cappedEntries.length}${etaStr}`,
+    });
     if (!rateLimited) await _sleep(120);
   }
 
@@ -329,9 +518,123 @@ async function _resolveAnilistSources(entries, opts = {}) {
 
   return {
     resolutions,
+    choices,
     rateLimited,
     capped: entries.length > cappedEntries.length,
   };
+}
+
+function _anilistSourceDisplayName(sourceId) {
+  if (sourceId === 'anilist') return 'AniList';
+  if (sourceId === 'unknown') return 'No source';
+  return state.installedSources?.[sourceId]?.name || sourceId;
+}
+
+function _showAnilistSourcePicker(choices) {
+  return new Promise((resolve) => {
+    const rowsData = (choices || []).filter(c => Array.isArray(c.options) && c.options.length > 0);
+    if (!rowsData.length) {
+      resolve([]);
+      return;
+    }
+
+    document.getElementById('anilistSourcePickerModal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'anilistSourcePickerModal';
+    modal.className = 'settings-modal';
+
+    const rows = rowsData.map((item) => {
+      const optionsHtml = item.options.map((opt, idx) => `
+        <option value="${escapeHtml(`${opt.sourceId}::${opt.mangaId}`)}" ${idx === 0 ? 'selected' : ''}>
+          ${escapeHtml(_anilistSourceDisplayName(opt.sourceId))} — ${opt.lastChapter} ch
+        </option>
+      `).join('');
+
+      const fallbackCover = item.cover
+        ? `<img src="${escapeHtml(item.cover)}" style="width:36px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">`
+        : `<div style="width:36px;height:50px;border-radius:6px;background:rgba(130,80,255,0.14);flex-shrink:0"></div>`;
+
+      return `
+        <div class="anilist-source-row" data-anilist-id="${escapeHtml(String(item.anilistId))}" style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(240px,340px);gap:0.6rem;align-items:center;padding:0.5rem 0.2rem;border-bottom:1px solid rgba(130,80,255,0.12)">
+          <div style="display:flex;align-items:center;gap:0.55rem;min-width:0">
+            ${fallbackCover}
+            <div style="min-width:0">
+              <div style="font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(item.title || `#${item.anilistId}`)}</div>
+              <div style="font-size:0.74rem;color:var(--text-muted)">AniList ID: ${escapeHtml(String(item.anilistId))}</div>
+            </div>
+          </div>
+          <select class="input anilist-source-select" style="width:100%">${optionsHtml}</select>
+        </div>`;
+    }).join('');
+
+    modal.innerHTML = `
+      <div class="settings-content" style="width:min(96vw,980px);max-width:980px;max-height:94vh;overflow:auto;border:1px solid rgba(130,80,255,0.25)">
+        <div class="settings-header">
+          <h2>Escolher Source Após Import</h2>
+          <button class="btn secondary" id="anilistPickerClose">&#x2715;</button>
+        </div>
+        <div class="settings-body" style="padding-bottom:0.4rem">
+          <p style="margin:0 0 0.8rem;color:var(--text-muted);font-size:0.84rem">
+            Seleciona manualmente o source para cada manga importado. Pré-selecionado: source com mais capítulos.
+          </p>
+          <div style="max-height:66vh;overflow:auto;padding-right:4px">${rows}</div>
+        </div>
+        <div style="padding:0.8rem 1.2rem;border-top:1px solid rgba(130,80,255,0.15);display:flex;justify-content:space-between;align-items:center;gap:0.6rem">
+          <span style="font-size:0.8rem;color:var(--text-muted)">${rowsData.length} manga com opções encontradas</span>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn secondary" id="anilistPickerSkip">Manter AniList</button>
+            <button class="btn primary" id="anilistPickerApply">Aplicar Seleção</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modal);
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+        resolve(null);
+      }
+    };
+
+    const closeBtn = modal.querySelector('#anilistPickerClose');
+    const skipBtn = modal.querySelector('#anilistPickerSkip');
+    const applyBtn = modal.querySelector('#anilistPickerApply');
+
+    closeBtn.onclick = () => {
+      modal.remove();
+      resolve(null);
+    };
+    skipBtn.onclick = () => {
+      modal.remove();
+      resolve([]);
+    };
+    applyBtn.onclick = () => {
+      const out = [];
+      modal.querySelectorAll('.anilist-source-row').forEach((row) => {
+        const anilistId = Number(row.dataset.anilistId || 0);
+        const select = row.querySelector('.anilist-source-select');
+        const val = String(select?.value || '');
+        const sep = val.indexOf('::');
+        if (!anilistId || sep < 0) return;
+        const sourceId = val.slice(0, sep);
+        const mangaId = val.slice(sep + 2);
+        const item = rowsData.find(x => Number(x.anilistId) === anilistId);
+        const picked = item?.options?.find(o => o.sourceId === sourceId && o.mangaId === mangaId);
+        if (!picked) return;
+        out.push({
+          anilistId,
+          mangaId: picked.mangaId,
+          sourceId: picked.sourceId,
+          title: picked.title,
+          cover: picked.cover,
+          lastChapter: picked.lastChapter,
+        });
+      });
+      modal.remove();
+      resolve(out);
+    };
+  });
 }
 
 /**
@@ -393,11 +696,14 @@ async function anilistImportLibrary(opts = {}) {
       for (const entry of (list.entries || [])) {
         const media = entry.media;
         if (!media?.id) continue;
+        const status = entry.status || '';
+        if (opts.statuses && opts.statuses.length > 0 && !opts.statuses.includes(status.toUpperCase())) continue;
         entries.push({
           anilistId: media.id,
           title:     media.title?.english || media.title?.romaji || `Manga #${media.id}`,
+          titleAlt:  media.title?.romaji  || media.title?.english || '',
           cover:     media.coverImage?.large || media.coverImage?.medium || '',
-          status:    entry.status || '',
+          status:    status,
           progress:  entry.progress || 0,
           score:     entry.score || 0,
         });
@@ -441,7 +747,7 @@ async function anilistImportLibrary(opts = {}) {
       renderLibrary();
     } catch (_) { /* non-fatal — UI will refresh on next navigation */ }
 
-    // Source resolution — find the source with the most chapters for each manga
+    // Source resolution — gather candidate sources and let user choose manually.
     const resolutionMap = new Map(); // String(anilistId) → { mangaId, sourceId, cover }
     try {
       showToast('AniList Import', `Resolving sources for ${entries.length} manga…`, 'info');
@@ -452,7 +758,11 @@ async function anilistImportLibrary(opts = {}) {
           report(45 + Math.round(ratio * 25), `Resolving sources ${p.processed}/${p.total || 0}`);
         }
       });
-      const resolutions = resolveResult.resolutions || [];
+      const pickedResolutions = await _showAnilistSourcePicker(resolveResult.choices || []);
+      const resolutions = pickedResolutions === null
+        ? []
+        : (Array.isArray(pickedResolutions) ? pickedResolutions : []);
+
       if (resolutions.length > 0) {
         await api('/api/anilist/resolve-apply', {
           method: 'POST',
@@ -470,7 +780,9 @@ async function anilistImportLibrary(opts = {}) {
         } catch (_) {}
       }
 
-      if (resolveResult.rateLimited) {
+      if (pickedResolutions === null) {
+        showToast('AniList Import', 'Seleção de source cancelada. Mantidos placeholders AniList.', 'warning');
+      } else if (resolveResult.rateLimited) {
         showToast('AniList Import', 'Rate limit reached while resolving sources. Continuing with partial sync.', 'warning');
       } else if (resolveResult.capped) {
         showToast('AniList Import', `Resolved first ${_AL_IMPORT_LIMITS.resolveEntriesMax} entries to keep import stable.`, 'info');
@@ -805,7 +1117,8 @@ async function showTrackerModal(manga) {
       const status = document.getElementById('trStatus').value;
       if (!status) { document.getElementById('trMsg').textContent = 'Choose a status first.'; return; }
       const progress    = parseInt(document.getElementById('trProgress').value, 10) || 0;
-      const score       = parseFloat(document.getElementById('trScore').value) || 0;
+      const scoreRaw    = String(document.getElementById('trScore').value || '').trim();
+      const score       = parseFloat(scoreRaw.replace(',', '.')) || 0;
       const startedAt   = parseDate(document.getElementById('trStart').value);
       const completedAt = parseDate(document.getElementById('trEnd').value);
       const saveBtn = document.getElementById('trSaveBtn');
@@ -821,6 +1134,54 @@ async function showTrackerModal(manga) {
         );
         if (saveRes?.errors?.length) throw new Error(saveRes.errors[0].message);
         _alSetLink(manga.id, media.id);
+
+        const localStatusMap = {
+          CURRENT: 'reading',
+          COMPLETED: 'completed',
+          PAUSED: 'on_hold',
+          DROPPED: 'dropped',
+          PLANNING: 'plan_to_read',
+          REPEATING: 'reading',
+        };
+        const sourceId = manga.sourceId || state.currentSourceId || '';
+        const localStatus = localStatusMap[status] || null;
+
+        if (sourceId && localStatus) {
+          try {
+            const rs = await api('/api/user/status', {
+              method: 'POST',
+              body: JSON.stringify({
+                mangaId: manga.id,
+                sourceId,
+                status: localStatus,
+                mangaData: state.currentManga || manga,
+              }),
+            });
+            state.readingStatus = rs.readingStatus || state.readingStatus;
+          } catch (_) {}
+        }
+
+        if (score > 0) {
+          try {
+            await api('/api/reviews', {
+              method: 'POST',
+              body: JSON.stringify({ mangaId: manga.id, rating: score, text: '' }),
+            });
+            const ratingKey = String(manga.id || '').replace(/[^a-z0-9:_-]/gi, '_');
+            state.ratings[ratingKey] = score;
+          } catch (_) {}
+        }
+
+        if (sourceId && progress > 0) {
+          try {
+            await _syncTrackerProgressToLocal(manga.id, sourceId, progress);
+          } catch (_) {}
+        }
+
+        try { renderLibrary(); } catch (_) {}
+        try { renderDetailRating(manga.id); } catch (_) {}
+        try { renderReadingStatusSection(manga.id, sourceId || state.currentSourceId || ''); } catch (_) {}
+
         const _tBtn = document.getElementById('trackerBtn');
         if (_tBtn) { _tBtn.innerHTML = 'Tracker \u2713'; _tBtn.classList.add('btn-tracker--tracked'); }
         document.getElementById('trMsg').textContent = '\u2713 Saved!';

@@ -142,9 +142,9 @@ function showSettings() {
           </div>
           ${(() => {
             const sync = state.anilistSync;
-            if (!sync?.lastImportAt) return '';
+            if (!sync?.lastImportAt) return '<p id="anilistLastImportLabel" class="setting-description" style="margin-top:4px;display:none"></p>';
             const d = new Date(sync.lastImportAt).toLocaleString();
-            return `<p class="setting-description" style="margin-top:4px">Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated</p>`;
+            return `<p id="anilistLastImportLabel" class="setting-description" style="margin-top:4px">Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated</p>`;
           })()}
         </div>
         <div class="settings-divider"></div>
@@ -308,53 +308,94 @@ function showSettings() {
   }
   const btnImportNow = $('btnAniListImportNow');
   if (btnImportNow) {
-    btnImportNow.onclick = async () => {
-      const progressWrap = $('anilistImportProgressWrap');
-      const progressFill = $('anilistImportProgressFill');
-      const progressText = $('anilistImportProgressText');
-      const setProgress = (pct, txt) => {
-        if (progressFill) progressFill.style.width = `${Math.max(0, Math.min(100, Number(pct) || 0))}%`;
-        if (progressText && txt) progressText.textContent = txt;
-      };
-
-      btnImportNow.disabled = true;
-      btnImportNow.textContent = '⏳ Importing…';
-      if (progressWrap) progressWrap.classList.remove('hidden');
-      setProgress(0, 'Starting AniList import…');
-
-      try {
-        const r = await anilistImportLibrary({
-          onProgress: ({ percent, label }) => {
-            setProgress(percent, label || 'Importing…');
-          }
-        });
-
-        if (r?.ok) {
-          setProgress(100, 'Import complete.');
-        } else {
-          setProgress(100, `Import stopped: ${r?.error || 'unable to complete'}`);
-        }
-
-        // Refresh sync metadata paragraph in-place
-        const sync = state.anilistSync;
-        if (sync?.lastImportAt) {
-          const d = new Date(sync.lastImportAt).toLocaleString();
-          const existing = btnImportNow.closest('.setting-group')?.nextElementSibling;
-          const syncLine = `Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated`;
-          if (existing && existing.classList.contains('setting-description')) {
-            existing.innerHTML = syncLine;
-          } else {
-            const p = document.createElement('p');
-            p.className = 'setting-description';
-            p.style.marginTop = '4px';
-            p.innerHTML = syncLine;
-            btnImportNow.closest('.setting-group').after(p);
-          }
-        }
-      } finally {
-        btnImportNow.disabled = false;
-        btnImportNow.textContent = '↓ Import Library Now';
+    btnImportNow.onclick = (e) => {
+      if ($('anilistImportMenu')) {
+        $('anilistImportMenu').remove();
+        return;
       }
+
+      const menu = document.createElement('div');
+      menu.id = 'anilistImportMenu';
+      menu.className = 'context-menu';
+      menu.style.position = 'absolute';
+      menu.style.zIndex = '9999';
+      menu.style.padding = '12px';
+      
+      menu.innerHTML = `
+        <div style="font-weight:600;margin-bottom:8px;font-size:0.9rem">Select Statuses to Import:</div>
+        <label style="display:flex;align-items:center;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="import-status-cb" value="CURRENT" checked style="margin-right:8px"> Reading</label>
+        <label style="display:flex;align-items:center;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="import-status-cb" value="COMPLETED" checked style="margin-right:8px"> Completed</label>
+        <label style="display:flex;align-items:center;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="import-status-cb" value="DROPPED" checked style="margin-right:8px"> Dropped</label>
+        <label style="display:flex;align-items:center;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="import-status-cb" value="PAUSED" checked style="margin-right:8px"> On Hold</label>
+        <label style="display:flex;align-items:center;margin-bottom:12px;cursor:pointer"><input type="checkbox" class="import-status-cb" value="PLANNING" checked style="margin-right:8px"> Plan to Read</label>
+        <button class="btn primary" id="btnConfirmImport" style="width:100%;font-size:0.85rem;padding:6px">Start Import</button>
+      `;
+
+      document.body.appendChild(menu);
+      const rect = btnImportNow.getBoundingClientRect();
+      menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+      menu.style.left = (rect.left + window.scrollX) + 'px';
+
+      const closeMenu = (ev) => {
+        if (!menu.contains(ev.target) && ev.target !== btnImportNow) {
+          menu.remove();
+          document.removeEventListener('click', closeMenu);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', closeMenu), 0);
+
+      menu.querySelector('#btnConfirmImport').onclick = async () => {
+        const selectedStatuses = [...menu.querySelectorAll('.import-status-cb:checked')].map(cb => cb.value);
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+
+        if (selectedStatuses.length === 0) {
+          showToast('Import', 'Please select at least one status to import.', 'warning');
+          return;
+        }
+
+        const progressWrap = $('anilistImportProgressWrap');
+        const progressFill = $('anilistImportProgressFill');
+        const progressText = $('anilistImportProgressText');
+        const setProgress = (pct, txt) => {
+          if (progressFill) progressFill.style.width = `${Math.max(0, Math.min(100, Number(pct) || 0))}%`;
+          if (progressText && txt) progressText.textContent = txt;
+        };
+
+        btnImportNow.disabled = true;
+        btnImportNow.textContent = '⏳ Importing…';
+        if (progressWrap) progressWrap.classList.remove('hidden');
+        setProgress(0, 'Starting AniList import…');
+
+        try {
+          const r = await anilistImportLibrary({
+            statuses: selectedStatuses,
+            onProgress: ({ percent, label }) => {
+              setProgress(percent, label || 'Importing…');
+            }
+          });
+
+          if (r?.ok) {
+            setProgress(100, 'Import complete.');
+          } else {
+            setProgress(100, `Import stopped: ${r?.error || 'unable to complete'}`);
+          }
+
+          const sync = state.anilistSync;
+          if (sync?.lastImportAt) {
+            const d = new Date(sync.lastImportAt).toLocaleString();
+            const syncLine = `Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated`;
+            const label = $('anilistLastImportLabel');
+            if (label) {
+              label.innerHTML = syncLine;
+              label.style.display = '';
+            }
+          }
+        } finally {
+          btnImportNow.disabled = false;
+          btnImportNow.textContent = '↓ Import Library Now';
+        }
+      };
     };
   }
 }

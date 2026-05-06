@@ -9,6 +9,7 @@ const LIBRARY_SORT_MODES = [
   { key: "rating",    label: "Rating"    },
   { key: "ongoing",   label: "Ongoing"   },
   { key: "completed", label: "Completed" },
+  { key: "source",    label: "Source"    },
 ];
 let _libSortMode = "added";
 let _librarySelectedKeys = new Set(); // key = "mangaId::sourceId"
@@ -19,6 +20,18 @@ function _libSourceId(sourceId) {
 
 function _libMangaKey(mangaId, sourceId) {
   return `${String(mangaId)}::${_libSourceId(sourceId)}`;
+}
+
+function _libStoreKeyPart(v) {
+  return String(v || '').replace(/[^a-z0-9:_-]/gi, '_');
+}
+
+function _libStatusKey(mangaId, sourceId) {
+  return `${_libStoreKeyPart(mangaId)}:${_libStoreKeyPart(sourceId || 'unknown')}`;
+}
+
+function _libRatingKey(mangaId) {
+  return _libStoreKeyPart(mangaId);
 }
 
 function _syncLibrarySelectionWithFavorites() {
@@ -121,14 +134,16 @@ function openLibrarySortDrawer() {
 function _sortLibrary(favs) {
   const STATUS_ORDER = { reading: 0, plan_to_read: 1, on_hold: 2, completed: 3, dropped: 4 };
   const title  = m => String(m.title || '').toLowerCase();
-  const rating = m => state.ratings[m.id] || 0;
-  const status = m => state.readingStatus[`${m.id}:${m.sourceId}`]?.status || '';
+  const rating = m => state.ratings[_libRatingKey(m.id)] || 0;
+  const status = m => state.readingStatus[_libStatusKey(m.id, m.sourceId)]?.status || '';
+  const source = m => String(m.sourceId || '').toLowerCase();
   switch (_libSortMode) {
     case "az":        return [...favs].sort((a, b) => title(a).localeCompare(title(b)));
     case "za":        return [...favs].sort((a, b) => title(b).localeCompare(title(a)));
     case "rating":    return [...favs].sort((a, b) => rating(b) - rating(a));
     case "ongoing":   return [...favs].sort((a, b) => (status(a) === 'reading' ? -1 : 1) - (status(b) === 'reading' ? -1 : 1));
     case "completed": return [...favs].sort((a, b) => (status(a) === 'completed' ? -1 : 1) - (status(b) === 'completed' ? -1 : 1));
+    case "source":    return [...favs].sort((a, b) => source(a).localeCompare(source(b)) || title(a).localeCompare(title(b)));
     default:          return favs; // "added" — keep insertion order
   }
 }
@@ -171,7 +186,7 @@ function renderLibrary() {
 
   let favs = state.favorites.filter(manga => {
     if (filterVal !== "all") {
-      const key    = `${manga.id}:${manga.sourceId}`;
+      const key    = _libStatusKey(manga.id, manga.sourceId);
       const status = state.readingStatus[key]?.status;
       if (status !== filterVal) return false;
     }
@@ -213,12 +228,12 @@ function renderLibrary() {
   }
 
   const favHTML = favs.map(manga => {
-    const key    = `${manga.id}:${manga.sourceId}`;
+    const key    = _libStatusKey(manga.id, manga.sourceId);
     const status = state.readingStatus[key]?.status;
     const statusBadge = status
       ? `<div class="library-card-status status-badge-${status}">${statusLabel(status).split(' ')[0]}</div>`
       : "";
-    const currentRating = state.ratings[manga.id] || 0;
+    const currentRating = state.ratings[_libRatingKey(manga.id)] || 0;
     const lastChapterId = state.lastReadChapter?.[manga.id];
     const btnLabel = lastChapterId ? "Continue Reading" : "Start Reading";
     const sourceLabel = state.settings.showLibrarySourceBadge !== false
@@ -242,7 +257,7 @@ function renderLibrary() {
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
 
     return `
-      <div class="library-card${isSelected ? ' library-card-selected' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}">
+      <div class="library-card${isSelected ? ' library-card-selected' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}">
         <div class="library-card-cover">
           ${manga.cover && !manga.cover.endsWith('.pdf') ? `<img src="${escapeHtml(manga.cover)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
           ${statusBadge}
@@ -265,7 +280,7 @@ function renderLibrary() {
   const localHTML = (filterVal === "all" && categoryFilter === "all" && filteredLocalManga.length > 0)
     ? `<div class="local-section-header">&#128193; Local Manga</div>` +
       filteredLocalManga.map(manga => {
-        const localRating = state.ratings[manga.id] || 0;
+        const localRating = state.ratings[_libRatingKey(manga.id)] || 0;
         const localLastChapter = state.lastReadChapter?.[manga.id];
         const localBtnLabel = localLastChapter ? 'Continue Reading' : 'Read';
         return `
@@ -296,6 +311,7 @@ function renderLibrary() {
   grid.querySelectorAll(".library-card:not(.local-manga-card)").forEach(card => {
     const mangaId  = card.dataset.mangaId;
     const sourceId = card.dataset.sourceId;
+    const cardTitle = card.dataset.title || '';
 
     card.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -324,10 +340,13 @@ function renderLibrary() {
       }
 
       const prevSource = state.currentSourceId;
-      if (sourceId && sourceId !== state.currentSourceId) {
-        state.currentSourceId = sourceId;
+      const fav = (state.favorites || []).find(m => String(m.id) === String(mangaId) && String(m.title || '') === String(cardTitle || m.title || ''));
+      const resolvedSourceId = sourceId || fav?.sourceId || '';
+
+      if (resolvedSourceId && resolvedSourceId !== state.currentSourceId) {
+        state.currentSourceId = resolvedSourceId;
         renderSourceSelect();
-        const srcName = state.installedSources[sourceId]?.name || sourceId;
+        const srcName = state.installedSources[resolvedSourceId]?.name || resolvedSourceId;
         showToast("Source switched", srcName, "info");
       }
 
@@ -338,13 +357,14 @@ function renderLibrary() {
         try {
           showToast("Resuming...", "", "info");
           // Load manga details silently so state.currentManga is populated
-          const result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
+          const sourceForOpen = resolvedSourceId || state.currentSourceId;
+          const result = await api(`/api/source/${sourceForOpen}/mangaDetails`, {
             method: "POST",
             body: JSON.stringify({ mangaId })
           });
           state.currentManga = result;
           // Load chapters so state.allChapters is populated
-          const cr = await api(`/api/source/${state.currentSourceId}/chapters`, {
+          const cr = await api(`/api/source/${sourceForOpen}/chapters`, {
             method: "POST",
             body: JSON.stringify({ mangaId })
           });
@@ -355,7 +375,7 @@ function renderLibrary() {
             await loadChapter(lastChapterId, ch.name || `Chapter ${ch.chapter || idx + 1}`, idx, lastPageIndex);
           } else {
             // Chapter no longer exists — fall back to detail page
-            await loadMangaDetails(mangaId, "library");
+            await loadMangaDetails(mangaId, "library", cardTitle, false, sourceForOpen);
           }
         } catch (err) {
           showToast("Error", err.message, "error");
@@ -363,7 +383,7 @@ function renderLibrary() {
         return;
       }
 
-      await loadMangaDetails(mangaId, "library");
+      await loadMangaDetails(mangaId, "library", cardTitle, false, resolvedSourceId || state.currentSourceId);
       if (!state.currentSourceId) state.currentSourceId = prevSource;
     };
   });
@@ -473,7 +493,7 @@ async function showLibraryContextMenu(e, manga, mangaCategories) {
     ...(mangaCategories[primaryKey] || []),
     ...(mangaCategories[legacyKey] || []),
   ]));
-  const statusKey = `${manga.id}:${sourceId}`;
+  const statusKey = _libStatusKey(manga.id, sourceId);
   const currentStatus = state.readingStatus[statusKey]?.status || null;
 
   // Pre-fetch current categories from server for accuracy.
@@ -517,6 +537,8 @@ async function showLibraryContextMenu(e, manga, mangaCategories) {
     <button class="context-item ${currentStatus === 'completed' ? 'ctx-item-active' : ''}" id="ctxMarkCompleted">${_ico('<polyline points="20 6 9 17 4 12"/>')} ${isBulk ? 'Mark Selected as Completed' : 'Mark as Completed'}</button>
     <button class="context-item ${currentStatus === 'reading'   ? 'ctx-item-active' : ''}" id="ctxMarkReading">${_ico('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>')} ${isBulk ? 'Mark Selected as Reading' : 'Mark as Reading'}</button>
     <button class="context-item ${!currentStatus             ? 'ctx-item-active' : ''}" id="ctxRemoveStatus">${_ico('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>')} ${isBulk ? 'Mark Selected as Unread' : 'Mark as Unread'}</button>
+    <div class="context-divider"></div>
+    <button class="context-item" id="ctxRemoveFromLibrary">${_ico('<path d="M3 6h18M9 6v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V6"/><path d="M10 11v6M14 11v6"/>')} ${isBulk ? 'Remove Selected from Library' : 'Remove from Library'}</button>
     ${categoriesSection}`;
 
   document.body.appendChild(menu);
@@ -532,6 +554,33 @@ async function showLibraryContextMenu(e, manga, mangaCategories) {
   menu.style.top  = `${y}px`;
 
   // ── Actions ────────────────────────────────────────────────────────────────
+
+  // Remove from Library (single or bulk)
+  menu.querySelector('#ctxRemoveFromLibrary').onclick = async () => {
+    if (!actionMangas.length) return;
+    if (!confirm(isBulk ? `Remove ${actionMangas.length} manga from your library?` : 'Remove this manga from your library?')) return;
+    let ok = 0, fail = 0;
+    for (const m of actionMangas) {
+      try {
+        await api('/api/library/remove', {
+          method: 'POST',
+          body: JSON.stringify({ mangaId: m.id, sourceId: m.sourceId })
+        });
+        // Remove from state
+        state.favorites = (state.favorites || []).filter(f => !(f.id === m.id && f.sourceId === m.sourceId));
+        // Remove reading status
+        const key = _libStatusKey(m.id, m.sourceId);
+        if (state.readingStatus) delete state.readingStatus[key];
+        ok++;
+      } catch (err) {
+        fail++;
+      }
+    }
+    _clearLibrarySelection();
+    renderLibrary();
+    showToast('Removed', ok ? `${ok} manga removed${fail ? `, ${fail} failed` : ''}` : 'No manga removed', fail ? 'warning' : 'info');
+    _closeLibraryContextMenu();
+  };
 
   // Download All
   menu.querySelector('#ctxDownloadAll').onclick = async () => {

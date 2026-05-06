@@ -9,8 +9,10 @@
 /** Group favorites by sourceId and return sorted array of { sourceId, count, mangas }. */
 function _migrateGroupBySource() {
   const map = new Map();
+  // Agrupa todos os mangas sem source sob o mesmo grupo 'unknown'
   for (const m of (state.favorites || [])) {
-    const sid = m.sourceId || 'unknown';
+    let sid = m.sourceId;
+    if (!sid || sid === 'unknown' || sid === 'null' || sid === 'undefined') sid = 'unknown';
     if (!map.has(sid)) map.set(sid, []);
     map.get(sid).push(m);
   }
@@ -28,6 +30,14 @@ function _srcName(sourceId) {
 
 function _normSourceId(sourceId) {
   return sourceId || 'unknown';
+}
+
+function _migrateStoreKeyPart(v) {
+  return String(v || '').replace(/[^a-z0-9:_-]/gi, '_');
+}
+
+function _migrateStatusKey(mangaId, sourceId) {
+  return `${_migrateStoreKeyPart(mangaId)}:${_migrateStoreKeyPart(sourceId || 'unknown')}`;
 }
 
 function _cleanTitle(s) {
@@ -126,6 +136,7 @@ async function _chapCount(sourceId, title) {
   try {
     const titleStr = String(title || '').trim();
     if (!titleStr) return null;
+    const MIN_SIM = 0.55;
 
     const queries = [...new Set([
       titleStr,
@@ -135,7 +146,6 @@ async function _chapCount(sourceId, title) {
     ].filter(Boolean))].slice(0, 4);
 
     let best = null;
-    let bestLoose = null;
 
     for (const q of queries) {
       const r = await _sourceSearch(sourceId, q);
@@ -149,18 +159,7 @@ async function _chapCount(sourceId, title) {
         }
 
         const rank = sim * 1000 + (chapCount || 0);
-        const rankLoose = (chapCount || 0) + (sim * 10);
-        if (!bestLoose || rankLoose > bestLoose.rank) {
-          bestLoose = {
-            rank: rankLoose,
-            chapCount,
-            mangaId: c.id,
-            cover: c.cover,
-            title: c.title || titleStr,
-          };
-        }
-
-        if (sim < 0.2) continue;
+        if (sim < MIN_SIM) continue;
 
         if (!best || rank > best.rank) {
           best = {
@@ -175,7 +174,6 @@ async function _chapCount(sourceId, title) {
       if (best && best.chapCount !== null && best.chapCount > 0) break;
     }
 
-    if (!best && bestLoose) best = bestLoose;
     if (!best) return null;
     return {
       chapCount: best.chapCount,
@@ -260,7 +258,7 @@ function _migrateShowStep2(modal, group) {
 
   const rows = mangas.map(m => {
     const currentSource = _normSourceId(m.sourceId || sourceId);
-    const key    = `${m.id}:${currentSource}`;
+    const key    = _migrateStatusKey(m.id, currentSource);
     const status = state.readingStatus[key]?.status;
     const badge  = status ? `<span class="status-badge status-badge-${status}" style="font-size:0.7rem;padding:2px 6px">${statusLabel(status)}</span>` : '';
     return `
@@ -610,22 +608,37 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
   for (const { manga, sourceResults } of results) {
     const rowKey = rowKeyFor(manga);
     const toSourceId = selectedTargets.get(rowKey);
-    if (!toSourceId) continue;
+    if (!toSourceId) {
+      console.warn('[MIGRATION] No target source selected for', manga);
+      continue;
+    }
 
     const info = sourceResults[toSourceId];
     if (!info?.mangaId) {
+      console.warn('[MIGRATION] No mangaId found in target source', { manga, toSourceId, info });
       skipped++;
       continue;
     }
+    // Garante que fromSourceId é sempre string ("unknown" se não houver)
+    let fromSourceId = manga.sourceId;
+    if (!fromSourceId || fromSourceId === null || fromSourceId === undefined) fromSourceId = 'unknown';
     migrations.push({
       fromMangaId:  manga.id,
-      fromSourceId: _normSourceId(manga.sourceId),
+      fromSourceId: fromSourceId,
       toMangaId:    info.mangaId,
       toSourceId,
       title:        info.title || manga.title,
       cover:        info.cover || manga.cover || '',
     });
+    console.log('[MIGRATION] Prepared migration:', {
+      fromMangaId: manga.id,
+      fromSourceId,
+      toMangaId: info.mangaId,
+      toSourceId,
+      title: info.title || manga.title
+    });
   }
+  console.log('[MIGRATION] Total migrations to send:', migrations.length);
 
   if (!migrations.length) {
     if (btn) { btn.disabled = false; btn.textContent = 'Migrate Selected'; }
@@ -639,6 +652,11 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
       body: JSON.stringify({ migrations }),
     });
 
+    // ── Remap localStorage data for migrated manga ────────────────────────
+    if (Array.isArray(res.migrations) && res.migrations.length > 0) {
+      _migrateRemapLocalStorage(res.migrations);
+    }
+
     // Refresh state
     try {
       const libData = await fetch('/api/library').then(r => r.json());
@@ -647,6 +665,9 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
       state.readingStatus = statusData.readingStatus || state.readingStatus;
       const listsData = await api('/api/lists');
       state.customLists = listsData.lists || [];
+      // Reload ratings so the UI reflects migrated scores immediately
+      const ratingsData = await fetch('/api/ratings').then(r => r.json());
+      state.ratings = ratingsData.ratings || state.ratings;
       renderLibrary();
     } catch (_) {}
 
@@ -654,9 +675,144 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
     const parts = [`${res.migrated} manga migrated`];
     if (res.failed) parts.push(`${res.failed} failed`);
     if (skipped) parts.push(`${skipped} without match`);
-    showToast('Migration complete', parts.join(', '), (res.failed || skipped) ? 'warning' : 'success');
+
+    // AVISO ESPECIAL PARA SEM SOURCE
+    // Verifica se algum dos migrados tinha sourceId 'unknown' e ficou sem status/review
+    let semSourceWarn = false;
+    if (Array.isArray(migrations)) {
+      for (const m of migrations) {
+        if ((m.fromSourceId === 'unknown' || !m.fromSourceId) && m.fromMangaId && m.toMangaId) {
+          // Verifica se o novo manga ficou sem status
+          const newKey = `${m.toMangaId}:${m.toSourceId}`.replace(/[^a-z0-9:_-]/gi, '_');
+          if (!state.readingStatus[newKey]) {
+            semSourceWarn = true;
+            break;
+          }
+        }
+      }
+    }
+    if (semSourceWarn) {
+      parts.push('⚠️ Alguns mangas migrados de "sem source" não tinham progresso/status para copiar.');
+    }
+
+    showToast('Migration complete', parts.join(', '), (res.failed || skipped || semSourceWarn) ? 'warning' : 'success');
   } catch (err) {
     if (btn) { btn.disabled = false; btn.textContent = 'Migrate Selected'; }
     showToast('Migration failed', err.message, 'error');
+  }
+}
+
+/**
+ * Remaps localStorage keys from old manga IDs to new manga IDs after a migration.
+ * Handles: scrollscapeReadChapters, scrollscapeFlaggedChapters,
+ *          scrollscapeReadingProgress, scrollscape_al_links (AniList tracker).
+ * Keys are of the form "mangaId:chapterId" (for chapters) or "mangaId" (for progress).
+ *
+ * @param {Array<{fromMangaId:string, toMangaId:string}>} migrationPairs
+ */
+function _migrateRemapLocalStorage(migrationPairs) {
+  try {
+    // Build a fast lookup map
+    const idMap = new Map(migrationPairs.map(p => [p.fromMangaId, p.toMangaId]));
+
+    // ── readChapters ─────────────────────────────────────────────────────────
+    const readRaw = localStorage.getItem('scrollscapeReadChapters');
+    if (readRaw) {
+      try {
+        const arr = JSON.parse(readRaw);
+        const remapped = arr.map(key => {
+          const sep = key.indexOf(':');
+          if (sep < 0) return key;
+          const mid = key.slice(0, sep);
+          const rest = key.slice(sep); // includes the colon
+          const newMid = idMap.get(mid);
+          return newMid ? newMid + rest : key;
+        });
+        localStorage.setItem('scrollscapeReadChapters', JSON.stringify(remapped));
+        state.readChapters = new Set(remapped);
+      } catch (_) {}
+    }
+
+    // ── flaggedChapters ──────────────────────────────────────────────────────
+    const flagRaw = localStorage.getItem('scrollscapeFlaggedChapters');
+    if (flagRaw) {
+      try {
+        const arr = JSON.parse(flagRaw);
+        const remapped = arr.map(key => {
+          const sep = key.indexOf(':');
+          if (sep < 0) return key;
+          const mid = key.slice(0, sep);
+          const rest = key.slice(sep);
+          const newMid = idMap.get(mid);
+          return newMid ? newMid + rest : key;
+        });
+        localStorage.setItem('scrollscapeFlaggedChapters', JSON.stringify(remapped));
+        state.flaggedChapters = new Set(remapped);
+      } catch (_) {}
+    }
+
+    // ── readingProgress (pages, chapters, highestChapter) ────────────────────
+    const progRaw = localStorage.getItem('scrollscapeReadingProgress');
+    if (progRaw) {
+      try {
+        const prog = JSON.parse(progRaw);
+
+        // `pages` and `chapters` keys are "mangaId:chapterId"
+        const remapColonKeys = (obj) => {
+          if (!obj || typeof obj !== 'object') return obj;
+          const out = {};
+          for (const [key, val] of Object.entries(obj)) {
+            const sep = key.indexOf(':');
+            if (sep >= 0) {
+              const mid = key.slice(0, sep);
+              const rest = key.slice(sep);
+              const newMid = idMap.get(mid);
+              out[newMid ? newMid + rest : key] = val;
+            } else {
+              out[key] = val;
+            }
+          }
+          return out;
+        };
+
+        // `highestChapter` keys are plain mangaId
+        const remapPlainKeys = (obj) => {
+          if (!obj || typeof obj !== 'object') return obj;
+          const out = {};
+          for (const [key, val] of Object.entries(obj)) {
+            const newKey = idMap.get(key) || key;
+            out[newKey] = val;
+          }
+          return out;
+        };
+
+        prog.pages          = remapColonKeys(prog.pages);
+        prog.chapters       = remapColonKeys(prog.chapters);
+        prog.highestChapter = remapPlainKeys(prog.highestChapter);
+
+        localStorage.setItem('scrollscapeReadingProgress', JSON.stringify(prog));
+        // Sync in-memory state
+        state.lastReadPages       = prog.pages          || {};
+        state.lastReadChapter     = prog.chapters       || {};
+        state.highestReadChapter  = prog.highestChapter || {};
+      } catch (_) {}
+    }
+
+    // ── AniList tracker links (mangaId -> anilistId) ────────────────────────
+    const alLinksRaw = localStorage.getItem('scrollscape_al_links');
+    if (alLinksRaw) {
+      try {
+        const links = JSON.parse(alLinksRaw);
+        if (links && typeof links === 'object') {
+          const remapped = {};
+          for (const [key, val] of Object.entries(links)) {
+            remapped[idMap.get(key) || key] = val;
+          }
+          localStorage.setItem('scrollscape_al_links', JSON.stringify(remapped));
+        }
+      } catch (_) {}
+    }
+  } catch (_) {
+    // Non-fatal — localStorage remap failure should not block the rest of the flow.
   }
 }

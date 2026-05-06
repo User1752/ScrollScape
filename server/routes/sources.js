@@ -67,6 +67,14 @@ const asyncHandler = (fn) => async (req, res, next) => {
   try {
     await fn(req, res, next);
   } catch (err) {
+    console.error('[SOURCES][ERROR]', {
+      method: req?.method,
+      path: req?.originalUrl,
+      params: req?.params,
+      body: req?.body,
+      error: err?.message,
+      stack: err?.stack,
+    });
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 };
@@ -162,7 +170,20 @@ function registerSourceRoutes(router) {
       // No default needed — ALLOWED_METHODS guard above ensures exhaustion.
     }
 
-    const result = await withTimeout(call, SOURCE_CALL_TIMEOUT, `${sid}.${method}`);
+    let result;
+    try {
+      result = await withTimeout(call, SOURCE_CALL_TIMEOUT, `${sid}.${method}`);
+    } catch (err) {
+      console.error('[SOURCES][CALL_FAILED]', {
+        sourceId: sid,
+        method,
+        mangaId,
+        chapterId,
+        query,
+        error: err?.message,
+      });
+      throw err;
+    }
     res.json(result);
   }));
 

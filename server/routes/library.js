@@ -34,6 +34,101 @@ function normSourceId(s) {
   return v.slice(0, 100);
 }
 
+function sanitizeCompositePart(v) {
+  return String(v || '').replace(/[^a-z0-9:_-]/gi, '_').slice(0, 300);
+}
+
+function safeStatusKey(mangaId, sourceId) {
+  const mid = sanitizeCompositePart(mangaId);
+  const sid = sanitizeCompositePart(sourceId || 'unknown');
+  return `${mid}:${sid}`.slice(0, 300);
+}
+
+function safeReviewKey(mangaId) {
+  return sanitizeCompositePart(mangaId).slice(0, 200);
+}
+
+function _mergeReviewEntries(existing, incoming) {
+  const out = [];
+  const seen = new Set();
+  for (const item of [...(incoming || []), ...(existing || [])]) {
+    if (!item || typeof item !== 'object') continue;
+    const key = `${Number(item.rating) || 0}|${String(item.text || '')}|${String(item.date || '')}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+function _collectReadingStatusCandidates(store, fromMangaId, fromSourceIdRaw) {
+  const wantedSource = normSourceId(fromSourceIdRaw);
+  const rawId = String(fromMangaId || '');
+  const safeIdPart = sanitizeCompositePart(rawId);
+  const out = [];
+
+  for (const [key, val] of Object.entries(store.readingStatus || {})) {
+    const sep = key.indexOf(':');
+    if (sep < 0) continue;
+    const left = key.slice(0, sep);
+    const right = normSourceId(key.slice(sep + 1));
+    const idMatch = left === rawId || left === safeIdPart;
+    if (!idMatch) continue;
+    if (wantedSource && right !== wantedSource) continue;
+    out.push({ key, value: val, score: Date.parse(val?.updatedAt || '') || 0 });
+  }
+
+  // Legacy fallback: unsanitized composite key may still exist in old stores.
+  if (out.length === 0 && wantedSource) {
+    const rawKey = `${rawId}:${wantedSource}`;
+    if (store.readingStatus?.[rawKey]) {
+      out.push({ key: rawKey, value: store.readingStatus[rawKey], score: Date.parse(store.readingStatus[rawKey]?.updatedAt || '') || 0 });
+    }
+  }
+
+  out.sort((a, b) => b.score - a.score);
+  return out;
+}
+
+function inferSourceIdForFavorite(store, fav) {
+  const idPart = sanitizeCompositePart(fav?.id || '');
+  if (!idPart) return '';
+
+  // 1) Try readingStatus keys: "mangaId:sourceId"
+  const candidates = new Set();
+  for (const k of Object.keys(store.readingStatus || {})) {
+    const sep = k.indexOf(':');
+    if (sep < 0) continue;
+    const left = k.slice(0, sep);
+    const right = normSourceId(k.slice(sep + 1));
+    if (left === idPart && right) candidates.add(right);
+  }
+  if (candidates.size === 1) return [...candidates][0];
+
+  // 2) Fallback to history entries with same manga id
+  const h = (store.history || []).find(x => String(x?.id || '') === String(fav?.id || '') && normSourceId(x?.sourceId));
+  if (h) return normSourceId(h.sourceId);
+
+  return '';
+}
+
+function normalizeFavoritesSourceIds(store) {
+  let changed = false;
+  store.favorites = (store.favorites || []).map((fav) => {
+    const current = normSourceId(fav?.sourceId);
+    if (current) {
+      if (fav.sourceId !== current) changed = true;
+      return { ...fav, sourceId: current };
+    }
+
+    const inferred = inferSourceIdForFavorite(store, fav) || 'unknown';
+    changed = true;
+    return { ...fav, sourceId: inferred };
+  });
+  return changed;
+}
+
 // Valid reading status states
 const VALID_STATUSES = new Set(['reading', 'completed', 'on_hold', 'plan_to_read', 'dropped']);
 
@@ -58,6 +153,11 @@ function registerLibraryRoutes(router) {
   // ── GET /api/library ────────────────────────────────────────────────────────
   router.get('/api/library', asyncHandler(async (_req, res) => {
     const store = await readStore();
+    // Self-heal legacy favorites that lost sourceId during earlier migrations.
+    if (normalizeFavoritesSourceIds(store)) {
+      await writeStore(store);
+      console.log('[LIBRARY][NORMALIZE] Repaired favorites missing sourceId');
+    }
     res.json({ favorites: store.favorites || [], history: store.history || [] });
   }));
 
@@ -193,10 +293,14 @@ function registerLibraryRoutes(router) {
     res.json({ ok: true, readingStatus: store.readingStatus });
   }));
 
-  // ── POST /api/anilist/import-apply ─────────────────────────────────────────
+  // ── POST /api/anilist/import-apply ───────────────────────────────────────
   // Bulk-apply a normalized AniList MANGA library to favorites + readingStatus.
   // Expects: { entries: [{ anilistId, title, cover, status, progress, score }] }
   // AniList always wins in conflicts (per user preference).
+  // Three-tier dedup to prevent duplicates:
+  //   Tier 1: id === alId && sourceId === 'anilist'  (existing anilist placeholder)
+  //   Tier 2: m.anilistId === alId                   (already resolved to real source)
+  //   Tier 3: normalized title match in real sources (added manually before import)
   router.post('/api/anilist/import-apply', asyncHandler(async (req, res) => {
     const { entries } = req.body || {};
     if (!Array.isArray(entries) || entries.length === 0) {
@@ -215,6 +319,14 @@ function registerLibraryRoutes(router) {
       REPEATING:  'reading',
     };
 
+    // Normalize a title for fuzzy dedup (lowercase, strip accents & punctuation)
+    const normTitle = (s) => String(s || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
     const store = await readStore();
     let imported = 0, overwritten = 0, skipped = 0, failed = 0;
 
@@ -232,30 +344,40 @@ function registerLibraryRoutes(router) {
           cover:   String(entry.cover || '').slice(0, 2000),
         });
 
-        // Favorites — upsert
-        // Check both: anilist placeholder AND already-resolved real entry (has anilistId field)
         const alId = String(anilistId);
-        const favIdx = store.favorites.findIndex(
+        const nt   = normTitle(entry.title);
+
+        // Tier 1 & 2: anilist placeholder or already-resolved real-source entry
+        let favIdx = store.favorites.findIndex(
           m => (m.id === alId && m.sourceId === 'anilist') || m.anilistId === alId
         );
-        const alreadyFav = favIdx >= 0;
+
+        // Tier 3: title match — catches manga the user added manually before this import
+        if (favIdx < 0 && nt) {
+          favIdx = store.favorites.findIndex(
+            m => m.sourceId !== 'anilist' && normTitle(m.title) === nt
+          );
+        }
+
+        const alreadyFav  = favIdx >= 0;
         const existingFav = alreadyFav ? store.favorites[favIdx] : null;
+
         if (alreadyFav) {
-          // If this entry was already resolved to a real source, preserve real id/source.
-          // Otherwise keep/update as AniList placeholder.
           if (existingFav?.sourceId && existingFav.sourceId !== 'anilist') {
+            // Already in library under a real source — stamp anilistId, keep local title/cover
             store.favorites[favIdx] = {
               ...existingFav,
-              title: mangaObj.title || existingFav.title,
-              cover: mangaObj.cover || existingFav.cover,
+              title:     existingFav.title || mangaObj.title,
+              cover:     existingFav.cover || mangaObj.cover,
               anilistId: alId,
               updatedAt: new Date().toISOString(),
             };
           } else {
+            // Existing anilist placeholder — refresh metadata
             store.favorites[favIdx] = {
               ...existingFav,
               ...mangaObj,
-              sourceId: 'anilist',
+              sourceId:  'anilist',
               anilistId: alId,
               updatedAt: new Date().toISOString(),
             };
@@ -269,17 +391,19 @@ function registerLibraryRoutes(router) {
         // Reading status — always overwrite with AniList value
         if (localStatus) {
           const alKey = `${anilistId}:anilist`;
-          let targetKey = alKey;
+          let targetKey   = alKey;
           let targetManga = { ...mangaObj, sourceId: 'anilist' };
 
-          if (existingFav?.id && existingFav?.sourceId && existingFav.sourceId !== 'anilist') {
-            targetKey = `${existingFav.id}:${existingFav.sourceId}`.replace(/[^a-z0-9:_-]/gi, '_');
+          // Use the (possibly just-updated) favorite to resolve the correct key
+          const updatedFav = store.favorites[favIdx];
+          if (updatedFav?.id && updatedFav?.sourceId && updatedFav.sourceId !== 'anilist') {
+            targetKey = `${updatedFav.id}:${updatedFav.sourceId}`.replace(/[^a-z0-9:_-]/gi, '_');
             targetManga = safeManga({
-              id: existingFav.id,
-              title: existingFav.title || mangaObj.title,
-              cover: existingFav.cover || mangaObj.cover,
+              id:    updatedFav.id,
+              title: updatedFav.title || mangaObj.title,
+              cover: updatedFav.cover || mangaObj.cover,
             });
-            targetManga.sourceId = existingFav.sourceId;
+            targetManga.sourceId = updatedFav.sourceId;
           }
 
           store.readingStatus[targetKey] = {
@@ -346,9 +470,11 @@ function registerLibraryRoutes(router) {
         const alFav    = alFavIdx >= 0 ? store.favorites[alFavIdx] : null;
 
         if (realFavIdx >= 0) {
+          // Real entry already exists: stamp anilistId, preserve local title/cover
           store.favorites[realFavIdx] = {
             ...store.favorites[realFavIdx],
-            ...mangaObj,
+            title:     store.favorites[realFavIdx].title || mangaObj.title,
+            cover:     store.favorites[realFavIdx].cover || mangaObj.cover,
             sourceId,
             anilistId,
             updatedAt: new Date().toISOString(),
@@ -362,21 +488,21 @@ function registerLibraryRoutes(router) {
           });
         }
 
-        // Copy reading status from the anilist key to the real key (overwrite so AniList stays authoritative)
+        // Copy reading status: anilist key -> real key (only if AniList entry is newer)
         const alKey   = `${anilistId}:anilist`;
         const realKey = `${mangaId}:${sourceId}`.replace(/[^a-z0-9:_-]/gi, '_');
         const alStatus = store.readingStatus[alKey];
         if (alStatus) {
-          store.readingStatus[realKey] = { ...alStatus, manga: { ...mangaObj, sourceId } };
+          const existingSt = store.readingStatus[realKey];
+          if (!existingSt || new Date(alStatus.updatedAt) >= new Date(existingSt.updatedAt || 0)) {
+            store.readingStatus[realKey] = { ...alStatus, manga: { ...mangaObj, sourceId } };
+          }
           delete store.readingStatus[alKey];
         }
 
-        // Remove the anilist placeholder favorite now that the real one is in place
-        if (alFavIdx >= 0) {
-          // splice index may have shifted if realFavIdx was before it
-          const freshIdx = store.favorites.findIndex(m => m.id === anilistId && m.sourceId === 'anilist');
-          if (freshIdx >= 0) store.favorites.splice(freshIdx, 1);
-        }
+        // Always remove the anilist placeholder - even if the real-source entry pre-existed
+        const freshAlIdx = store.favorites.findIndex(m => m.id === anilistId && m.sourceId === 'anilist');
+        if (freshAlIdx >= 0) store.favorites.splice(freshAlIdx, 1);
 
         resolved++;
       } catch (_) { /* skip bad entry */ }
@@ -397,9 +523,11 @@ function registerLibraryRoutes(router) {
   // Expects: { migrations: [{ fromMangaId, fromSourceId, toMangaId, toSourceId, title, cover }] }
   // For each entry:
   //  1. Upserts a new favorite with the target source (carries addedAt from old entry)
-  //  2. Copies readingStatus from old key to new key (only if new key absent)
-  //  3. Replaces manga in all custom lists
-  //  4. Removes the old favorite
+  //  2. Copies readingStatus from old key to new key
+  //  3. Copies reviews/rating from old mangaId key to new mangaId key
+  //  4. Replaces manga in all custom lists
+  //  5. Removes the old favorite
+  // Response includes a `migrations` array so the client can remap localStorage data.
   router.post('/api/library/migrate', asyncHandler(async (req, res) => {
     const { migrations } = req.body || {};
     if (!Array.isArray(migrations) || migrations.length === 0) {
@@ -408,6 +536,7 @@ function registerLibraryRoutes(router) {
 
     const store = await readStore();
     let migrated = 0, failed = 0;
+    const migratedEntries = [];
 
     for (const m of migrations.slice(0, 500)) {
       try {
@@ -418,10 +547,21 @@ function registerLibraryRoutes(router) {
         const title        = String(m.title        || '').slice(0, 400);
         const cover        = String(m.cover        || '').slice(0, 2000);
 
-        if (!fromMangaId || !toMangaId || !toSourceId) { failed++; continue; }
-        if (fromMangaId === toMangaId && fromSourceIdRaw === toSourceId) { failed++; continue; }
+        // LOG: início da migração
+        console.log('[MIGRATION][BACKEND] Attempt:', {
+          fromMangaId, fromSourceId: fromSourceIdRaw, toMangaId, toSourceId, title
+        });
 
-        const mangaObj = safeManga({ id: toMangaId, title, cover, sourceId: toSourceId });
+        if (!fromMangaId || !toMangaId || !toSourceId) {
+          console.warn('[MIGRATION][BACKEND] Skipped: missing ids', { fromMangaId, toMangaId, toSourceId });
+          failed++; continue;
+        }
+        if (fromMangaId === toMangaId && fromSourceIdRaw === toSourceId) {
+          console.warn('[MIGRATION][BACKEND] Skipped: same manga and source', { fromMangaId, toMangaId, fromSourceIdRaw, toSourceId });
+          failed++; continue;
+        }
+
+        const mangaObj = { ...safeManga({ id: toMangaId, title, cover, sourceId: toSourceId }), sourceId: toSourceId };
 
         // 1. Upsert target-source favorite
         const oldFavIdx = store.favorites.findIndex(
@@ -430,6 +570,10 @@ function registerLibraryRoutes(router) {
         const oldFav    = oldFavIdx >= 0 ? store.favorites[oldFavIdx] : null;
         const newFavIdx = store.favorites.findIndex(f => f.id === toMangaId   && f.sourceId === toSourceId);
 
+        // LOG: estado dos favoritos
+        if (oldFav) console.log('[MIGRATION][BACKEND] Old favorite found:', oldFav);
+        if (newFavIdx >= 0) console.log('[MIGRATION][BACKEND] Overwriting existing favorite:', store.favorites[newFavIdx]);
+
         if (newFavIdx >= 0) {
           store.favorites[newFavIdx] = { ...store.favorites[newFavIdx], ...mangaObj, updatedAt: new Date().toISOString() };
         } else {
@@ -437,26 +581,53 @@ function registerLibraryRoutes(router) {
         }
 
         // 2. Copy reading status (old key → new key, overwrite to keep latest status)
-        const oldKey = `${fromMangaId}:${fromSourceIdRaw || 'unknown'}`.replace(/[^a-z0-9:_-]/gi, '_');
-        const newKey = `${toMangaId}:${toSourceId}`.replace(/[^a-z0-9:_-]/gi, '_');
-        const oldStatus = store.readingStatus[oldKey];
-        if (oldStatus) {
-          store.readingStatus[newKey] = { ...oldStatus, manga: mangaObj };
+        const newKey = safeStatusKey(toMangaId, toSourceId);
+        const statusCandidates = _collectReadingStatusCandidates(store, fromMangaId, fromSourceIdRaw);
+        if (statusCandidates.length > 0) {
+          const picked = statusCandidates[0];
+          store.readingStatus[newKey] = { ...picked.value, manga: mangaObj };
+          if (picked.key !== newKey) delete store.readingStatus[picked.key];
+          console.log('[MIGRATION][BACKEND] Copied reading status from key:', picked.key);
+        } else {
+          console.warn('[MIGRATION][BACKEND] No reading status found for migration', {
+            fromMangaId,
+            fromSourceId: fromSourceIdRaw || 'unknown',
+          });
         }
-        delete store.readingStatus[oldKey];
 
-        // 3. Update category lists — replace the old manga entry with the new one
+        // 3. Copy reviews / rating (keyed by mangaId only, not source)
+        const oldReviewRawKey = String(fromMangaId).slice(0, 200);
+        const oldReviewSafeKey = safeReviewKey(fromMangaId);
+        const newReviewKey = safeReviewKey(toMangaId);
+        const reviewSourceKeys = [...new Set([oldReviewRawKey, oldReviewSafeKey])]
+          .filter(k => k && Array.isArray(store.reviews?.[k]) && store.reviews[k].length > 0);
+
+        if (newReviewKey && reviewSourceKeys.length > 0) {
+          let incoming = [];
+          for (const k of reviewSourceKeys) incoming = incoming.concat(store.reviews[k] || []);
+          store.reviews[newReviewKey] = _mergeReviewEntries(store.reviews[newReviewKey], incoming);
+
+          for (const k of reviewSourceKeys) {
+            if (k !== newReviewKey) delete store.reviews[k];
+          }
+          console.log('[MIGRATION][BACKEND] Copied reviews from keys:', reviewSourceKeys);
+        } else if (reviewSourceKeys.length === 0) {
+          console.warn('[MIGRATION][BACKEND] No reviews to copy for manga:', fromMangaId);
+        }
+
+        // 4. Update category lists — replace the old manga entry with the new one
         for (const list of (store.customLists || [])) {
           const idx = list.mangaItems.findIndex(
             i => i.id === fromMangaId && normSourceId(i.sourceId) === fromSourceIdRaw
           );
           if (idx >= 0) {
-            // Only add new entry if it isn't already in the list
             const alreadyIn = list.mangaItems.some(i => i.id === toMangaId && i.sourceId === toSourceId);
             if (!alreadyIn) {
               list.mangaItems[idx] = { ...mangaObj, addedAt: list.mangaItems[idx].addedAt || new Date().toISOString() };
+              console.log('[MIGRATION][BACKEND] Updated custom list', list.id);
             } else {
               list.mangaItems.splice(idx, 1);
+              console.log('[MIGRATION][BACKEND] Removed duplicate from custom list', list.id);
             }
           }
         }
@@ -465,14 +636,23 @@ function registerLibraryRoutes(router) {
         const freshOldIdx = store.favorites.findIndex(
           f => f.id === fromMangaId && normSourceId(f.sourceId) === fromSourceIdRaw
         );
-        if (freshOldIdx >= 0) store.favorites.splice(freshOldIdx, 1);
+        if (freshOldIdx >= 0) {
+          store.favorites.splice(freshOldIdx, 1);
+          console.log('[MIGRATION][BACKEND] Removed old favorite', fromMangaId, fromSourceIdRaw);
+        }
 
         migrated++;
-      } catch (_) { failed++; }
+        migratedEntries.push({ fromMangaId, toMangaId });
+        console.log('[MIGRATION][BACKEND] Migration complete:', { fromMangaId, toMangaId, fromSourceId: fromSourceIdRaw, toSourceId });
+      } catch (err) {
+        failed++;
+        console.error('[MIGRATION][BACKEND] Migration failed:', err);
+      }
     }
 
     await writeStore(store);
-    res.json({ ok: true, migrated, failed });
+    // Return only successful migrations so the client remaps local data safely.
+    res.json({ ok: true, migrated, failed, migrations: migratedEntries });
   }));
 
   // ── DELETE /api/library/clear ────────────────────────────────────────────────

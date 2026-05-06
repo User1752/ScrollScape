@@ -139,7 +139,88 @@ async function switchToSourceSearch(sourceId, title) {
   }
 }
 
-async function loadMangaDetails(mangaId, fromView = "discover") {
+function _normalizeLookupTitle(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function _titleScore(a, b) {
+  const aa = _normalizeLookupTitle(a);
+  const bb = _normalizeLookupTitle(b);
+  if (!aa || !bb) return 0;
+  if (aa === bb) return 1;
+  if (aa.includes(bb) || bb.includes(aa)) return 0.9;
+  const sa = new Set(aa.split(' '));
+  const sb = new Set(bb.split(' '));
+  let inter = 0;
+  for (const w of sa) if (sb.has(w)) inter++;
+  return inter / Math.max(sa.size || 1, sb.size || 1);
+}
+
+async function _resolveMangaByTitleAcrossSources(title, excludeSourceId) {
+  const wanted = String(title || '').trim();
+  if (!wanted) return null;
+
+  const sourceIds = Object.keys(state.installedSources || {})
+    .filter(sid => sid !== 'local' && sid !== excludeSourceId);
+
+  let best = null;
+  for (const sid of sourceIds) {
+    try {
+      const r = await api(`/api/source/${sid}/search`, {
+        method: 'POST',
+        body: JSON.stringify({ query: wanted, page: 1 }),
+      });
+      for (const c of (r?.results || []).slice(0, 8)) {
+        if (!c?.id) continue;
+        const sim = _titleScore(wanted, c.title || '');
+        if (sim < 0.55) continue;
+        if (!best || sim > best.sim) {
+          best = { sourceId: sid, mangaId: c.id, title: c.title || wanted, sim };
+        }
+      }
+    } catch (_) {
+      // Ignore one failing source and continue trying the others.
+    }
+  }
+  return best;
+}
+
+async function _resolveMangaInSourceByTitle(sourceId, title) {
+  const wanted = String(title || '').trim();
+  if (!sourceId || !wanted) return null;
+
+  const r = await api(`/api/source/${sourceId}/search`, {
+    method: 'POST',
+    body: JSON.stringify({ query: wanted, page: 1 }),
+  });
+
+  let best = null;
+  for (const c of (r?.results || []).slice(0, 10)) {
+    if (!c?.id) continue;
+    const sim = _titleScore(wanted, c.title || '');
+    if (sim < 0.6) continue;
+    if (!best || sim > best.sim) {
+      best = {
+        mangaId: c.id,
+        title: c.title || wanted,
+        cover: c.cover || '',
+        sim,
+      };
+    }
+  }
+  return best;
+}
+
+async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = "", skipFallback = false, forcedSourceId = "") {
+  if (forcedSourceId && forcedSourceId !== state.currentSourceId) {
+    state.currentSourceId = forcedSourceId;
+    try { renderSourceSelect(); } catch (_) {}
+  }
   $("searchStatus").textContent = "Loading details...";
   try {
     const result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
@@ -287,14 +368,60 @@ async function loadMangaDetails(mangaId, fromView = "discover") {
     await loadChapters();
     $("searchStatus").textContent = "";
   } catch (e) {
+    if (!skipFallback && fromView === 'library') {
+      const sourceId = forcedSourceId || state.currentSourceId;
+      const wantedTitle = String(fallbackTitle || '').trim();
+      if (sourceId && wantedTitle) {
+        try {
+          const fixed = await _resolveMangaInSourceByTitle(sourceId, wantedTitle);
+          if (fixed?.mangaId && String(fixed.mangaId) !== String(mangaId)) {
+            const migrateRes = await api('/api/library/migrate', {
+              method: 'POST',
+              body: JSON.stringify({
+                migrations: [{
+                  fromMangaId: mangaId,
+                  fromSourceId: sourceId,
+                  toMangaId: fixed.mangaId,
+                  toSourceId: sourceId,
+                  title: fixed.title || wantedTitle,
+                  cover: fixed.cover || '',
+                }]
+              }),
+            });
+
+            if (Array.isArray(migrateRes?.migrations) && migrateRes.migrations.length > 0 && typeof _migrateRemapLocalStorage === 'function') {
+              _migrateRemapLocalStorage(migrateRes.migrations);
+            }
+
+            try {
+              const libData = await fetch('/api/library').then(r => r.json());
+              state.favorites = libData.favorites || state.favorites;
+              const statusData = await fetch('/api/user/status').then(r => r.json());
+              state.readingStatus = statusData.readingStatus || state.readingStatus;
+              const ratingsData = await fetch('/api/ratings').then(r => r.json());
+              state.ratings = ratingsData.ratings || state.ratings;
+              renderLibrary();
+            } catch (_) {}
+
+            showToast('Library repaired', `${wantedTitle} ID was fixed in ${state.installedSources[sourceId]?.name || sourceId}.`, 'warning');
+            return loadMangaDetails(fixed.mangaId, fromView, wantedTitle, true);
+          }
+        } catch (_) {
+          // Continue with original error message.
+        }
+      }
+    }
+
     $("searchStatus").textContent = `Error: ${e.message}`;
+    showToast("Error", e.message, "error");
   }
 }
 
 function renderDetailRating(mangaId) {
   const wrap = $("detailRatingWrap");
   if (!wrap) return;
-  const current = state.ratings[mangaId] || 0;
+  const ratingKey = String(mangaId || '').replace(/[^a-z0-9:_-]/gi, '_');
+  const current = state.ratings[ratingKey] || 0;
   wrap.innerHTML = `
     <div class="detail-rating-row" data-manga-id="${escapeHtml(mangaId)}">
       <span class="detail-rating-label">Rating</span>
@@ -317,11 +444,11 @@ function renderDetailRating(mangaId) {
     btn.onmouseleave = () => row.querySelectorAll(".detail-score-btn").forEach(b => b.classList.remove("hover"));
     btn.onclick = async () => {
       const score = Number(btn.dataset.score);
-      const newScore = state.ratings[mangaId] === score ? null : score;
+      const newScore = state.ratings[ratingKey] === score ? null : score;
       try {
         if (newScore) {
           await api("/api/reviews", { method: "POST", body: JSON.stringify({ mangaId, rating: newScore, text: "" }) });
-          state.ratings[mangaId] = newScore;
+          state.ratings[ratingKey] = newScore;
           // Sync score to AniList if this manga is linked
           const _alId = _alGetLink(mangaId);
           if (_alId && _alToken()) {
@@ -332,7 +459,7 @@ function renderDetailRating(mangaId) {
           }
         } else {
           await api('/api/ratings/clear', { method: 'POST', body: JSON.stringify({ mangaId }) });
-          delete state.ratings[mangaId];
+          delete state.ratings[ratingKey];
         }
         renderDetailRating(mangaId);
         renderLibrary();
@@ -344,7 +471,7 @@ function renderDetailRating(mangaId) {
     clearBtn.onclick = async () => {
       try {
         await api('/api/ratings/clear', { method: 'POST', body: JSON.stringify({ mangaId }) });
-        delete state.ratings[mangaId];
+        delete state.ratings[ratingKey];
         renderDetailRating(mangaId);
         renderLibrary();
       } catch (e) { showToast("Error", e.message, "error"); }
