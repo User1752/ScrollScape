@@ -156,6 +156,8 @@ function cycleLibrarySort() {
 function renderLibrary() {
   const grid = $("library"); // Fixed: was "library-grid", correct ID is "library"
   if (!grid) return;
+  const bookshelf3dEnabled = state.settings.libraryBookshelf3d === true;
+  grid.classList.toggle('library-grid-bookshelf', bookshelf3dEnabled);
 
   _syncLibrarySelectionWithFavorites();
 
@@ -257,7 +259,7 @@ function renderLibrary() {
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
 
     return `
-      <div class="library-card${isSelected ? ' library-card-selected' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}">
+      <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}">
         <div class="library-card-cover">
           ${manga.cover && !manga.cover.endsWith('.pdf') ? `<img src="${escapeHtml(manga.cover)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
           ${statusBadge}
@@ -284,7 +286,7 @@ function renderLibrary() {
         const localLastChapter = state.lastReadChapter?.[manga.id];
         const localBtnLabel = localLastChapter ? 'Continue Reading' : 'Read';
         return `
-        <div class="library-card local-manga-card" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local">
+        <div class="library-card local-manga-card${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local">
           <div class="library-card-cover">
             <img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
             <div class="no-cover" style="display:none">&#128196;</div>

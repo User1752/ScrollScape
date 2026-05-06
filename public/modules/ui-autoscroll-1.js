@@ -4,6 +4,40 @@
 
 let _autoScrollRAF = null;
 const AUTOSCROLL_SPEEDS = [0.2, 0.5, 1.0, 2.0, 3.5]; // px per animation frame
+const READER_PREFETCH_AHEAD = 6;
+const READER_PREFETCH_BEHIND = 1;
+const READER_PREFETCH_MAX_CACHE = 36;
+const _readerPrefetchCache = new Map();
+
+function _prefetchReaderImage(src) {
+  if (!src || _readerPrefetchCache.has(src)) return;
+
+  const img = new Image();
+  img.decoding = "async";
+  img.src = src;
+  _readerPrefetchCache.set(src, img);
+
+  // Keep cache bounded to avoid unbounded memory growth across chapters.
+  while (_readerPrefetchCache.size > READER_PREFETCH_MAX_CACHE) {
+    const oldestKey = _readerPrefetchCache.keys().next().value;
+    _readerPrefetchCache.delete(oldestKey);
+  }
+
+  if (typeof img.decode === "function") {
+    img.decode().catch(() => {});
+  }
+}
+
+function prefetchReaderPages(pages, currentIdx) {
+  if (!Array.isArray(pages) || !pages.length) return;
+
+  const start = Math.max(0, currentIdx - READER_PREFETCH_BEHIND);
+  const end = Math.min(pages.length - 1, currentIdx + READER_PREFETCH_AHEAD);
+  for (let i = start; i <= end; i++) {
+    const src = pages[i]?.img;
+    if (src) _prefetchReaderImage(src);
+  }
+}
 
 function startAutoScroll() {
   stopAutoScroll();
@@ -89,6 +123,7 @@ function renderPage() {
   } else {
     pageWrap.className = "reader-content";
     if (idx < 0 || idx >= pages.length) return;
+    prefetchReaderPages(pages, idx);
     const page     = pages[idx];
     const isLast   = idx === pages.length - 1;
     const imgClass = state.settings.panWideImages ? "page-img pannable" : "page-img";

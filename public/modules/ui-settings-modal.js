@@ -65,6 +65,14 @@ function showSettings() {
           <p class="setting-description">Displays the source name in the bottom-right corner of each library cover</p>
         </div>
         <div class="setting-group">
+          <label class="toggle-label">
+            <span class="toggle-text">Prateleira 3D na biblioteca</span>
+            <input type="checkbox" id="libraryBookshelf3dToggle" ${state.settings.libraryBookshelf3d ? "checked" : ""}>
+            <span class="toggle-slider"></span>
+          </label>
+          <p class="setting-description">Mostra os cards da biblioteca numa prateleira com profundidade 3D</p>
+        </div>
+        <div class="setting-group">
           <label>Library default status view</label>
           <select id="libraryDefaultStatusFilterSelect" class="input">
             <option value="all" ${state.settings.libraryDefaultStatusFilter === 'all' ? 'selected' : ''}>All Manga</option>
@@ -196,6 +204,15 @@ function showSettings() {
   if (sourceBadgeToggle) {
     sourceBadgeToggle.onchange = (e) => {
       state.settings.showLibrarySourceBadge = e.target.checked;
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
+  const bookshelf3dToggle = $("libraryBookshelf3dToggle");
+  if (bookshelf3dToggle) {
+    bookshelf3dToggle.onchange = (e) => {
+      state.settings.libraryBookshelf3d = e.target.checked;
       saveSettings();
       renderLibrary();
     };
