@@ -17,7 +17,8 @@
   <link rel="stylesheet" href="./css-modules/chapters-section.css">
   <link rel="stylesheet" href="./css-modules/integrity-report.css">
   <link rel="stylesheet" href="./css-modules/library.css">
-  <link rel="stylesheet" href="./css-modules/reader.css">
+  <link rel="stylesheet" href="./css-modules/reader.css?v=5">
+  <link rel="stylesheet" href="./css-modules/tracker-modal.css?v=1">
   <link rel="stylesheet" href="./css-modules/context-menu.css">
   <link rel="stylesheet" href="./css-modules/settings-modal.css?v=2">
   <link rel="stylesheet" href="./css-modules/footer.css">
@@ -43,7 +44,7 @@
   <link rel="stylesheet" href="./css-modules/download-modal.css">
   <link rel="stylesheet" href="./css-modules/library-controls-status-filter.css?v=3">
   <link rel="stylesheet" href="./css-modules/add-to-list-button-on-manga-details.css">
-  <link rel="stylesheet" href="./css-modules/responsive-additions.css">
+  <link rel="stylesheet" href="./css-modules/responsive-additions.css?v=2">
   <link rel="stylesheet" href="./css-modules/search-inline-dropdown.css">
   <link rel="stylesheet" href="./css-modules/manga-card-genres.css">
   <link rel="stylesheet" href="./css-modules/chapter-completeness-bar.css">
@@ -52,7 +53,7 @@
   <link rel="stylesheet" href="./css-modules/library-card-score-badge-read-only-just-shows-the-number.css">
   <link rel="stylesheet" href="./css-modules/manga-detail-page-rating-widget.css">
   <link rel="stylesheet" href="./css-modules/library-card-rating-widget.css">
-  <link rel="stylesheet" href="./css-modules/book-reader-rtl-double-page-spread-3d-flip.css">
+  <link rel="stylesheet" href="./css-modules/book-reader-rtl-double-page-spread-3d-flip.css?v=7">
   <link rel="stylesheet" href="./css-modules/color-themes-override-primary-family.css">
   <link rel="stylesheet" href="./css-modules/sidebar-ap-badge.css">
   <link rel="stylesheet" href="./css-modules/achievements-page.css">
@@ -97,7 +98,7 @@
     ===================================================================== -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-brand">
-        <span class="sidebar-logo">M</span>
+        <span class="sidebar-logo">S</span>
         <span class="sidebar-brand-text">ScrollScape</span>
       </div>
 
@@ -293,36 +294,42 @@
             <!-- Summary cards -->
             <div class="analytics-stats">
               <div class="analytics-card">
-                <div class="analytics-icon">&#x1F4D6;</div>
+                <div class="analytics-icon"><i data-feather="book-open"></i></div>
                 <div class="analytics-value" id="anaChapters">0</div>
-                <div class="analytics-label" data-i18n="analytics.chaptersRead">Chapters Read</div>
+                <div class="analytics-label">Chapters Read</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon">&#x23F1;</div>
+                <div class="analytics-icon"><i data-feather="clock"></i></div>
                 <div class="analytics-value" id="anaTime">0h</div>
-                <div class="analytics-label" data-i18n="analytics.timeSpent">Time Spent</div>
+                <div class="analytics-label">Time Spent</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon">&#x2B50;</div>
+                <div class="analytics-icon"><i data-feather="star"></i></div>
                 <div class="analytics-value" id="anaMeanScore">&#8212;</div>
-                <div class="analytics-label" data-i18n="analytics.meanScore">Mean Score</div>
+                <div class="analytics-label">Mean Score</div>
               </div>
               <div class="analytics-card">
-                <div class="analytics-icon"><i data-feather="book" class="icon-medium"></i></div>
+                <div class="analytics-icon"><i data-feather="book"></i></div>
                 <div class="analytics-value" id="anaLibrary">0</div>
-                <div class="analytics-label" data-i18n="analytics.inLibrary">In Library</div>
+                <div class="analytics-label">In Library</div>
               </div>
             </div>
 
             <!-- Status distribution -->
             <div class="analytics-section">
-              <h3 data-i18n="analytics.byStatus">Library by Status</h3>
+              <h3><i data-feather="bar-chart-2"></i> Library by Status</h3>
               <div id="statusDistribution" class="status-distribution"></div>
+            </div>
+
+            <!-- Genre overview -->
+            <div class="analytics-section">
+              <h3><i data-feather="tag"></i> Genre Overview</h3>
+              <div id="genreOverview" class="genre-overview"></div>
             </div>
 
             <!-- Recent sessions -->
             <div class="analytics-section">
-              <h3 data-i18n="analytics.recentSessions">Recent Reading Sessions</h3>
+              <h3><i data-feather="activity"></i> Recent Reading Sessions</h3>
               <div id="recentSessions" class="sessions-list"></div>
             </div>
           </div>
@@ -419,7 +426,7 @@
                     <option value="oneshot">One-Shot</option>
                   </select>
                 </div>
-                <div class="filter-group">
+                <div class="filter-group" id="advancedContentRatingGroup">
                   <label>Content Rating</label>
                   <select id="advancedContentRating" class="form-control filter-dropdown">
                     <option value="">Any</option>
@@ -453,7 +460,7 @@
                   <label class="genre-check"><input type="checkbox" value="Cooking"><span>Cooking</span></label>
                   <label class="genre-check"><input type="checkbox" value="Doujinshi"><span>Doujinshi</span></label>
                   <label class="genre-check"><input type="checkbox" value="Drama"><span>Drama</span></label>
-                  <label class="genre-check"><input type="checkbox" value="Ecchi"><span>Ecchi</span></label>
+                  <label class="genre-check" data-nsfw="1"><input type="checkbox" value="Ecchi"><span>Ecchi</span></label>
                   <label class="genre-check"><input type="checkbox" value="Fantasy"><span>Fantasy</span></label>
                   <label class="genre-check"><input type="checkbox" value="Gender Bender"><span>Gender Bender</span></label>
                   <label class="genre-check"><input type="checkbox" value="Harem"><span>Harem</span></label>
@@ -462,7 +469,7 @@
                   <label class="genre-check"><input type="checkbox" value="Isekai"><span>Isekai</span></label>
                   <label class="genre-check"><input type="checkbox" value="Josei"><span>Josei</span></label>
                   <label class="genre-check"><input type="checkbox" value="Martial Arts"><span>Martial Arts</span></label>
-                  <label class="genre-check"><input type="checkbox" value="Mature"><span>Mature</span></label>
+                  <label class="genre-check" data-nsfw="1"><input type="checkbox" value="Mature"><span>Mature</span></label>
                   <label class="genre-check"><input type="checkbox" value="Mecha"><span>Mecha</span></label>
                   <label class="genre-check"><input type="checkbox" value="Mystery"><span>Mystery</span></label>
                   <label class="genre-check"><input type="checkbox" value="One Shot"><span>One Shot</span></label>
@@ -477,7 +484,7 @@
                   <label class="genre-check"><input type="checkbox" value="Shounen"><span>Shounen</span></label>
                   <label class="genre-check"><input type="checkbox" value="Shounen Ai"><span>Shounen Ai</span></label>
                   <label class="genre-check"><input type="checkbox" value="Slice of Life"><span>Slice of Life</span></label>
-                  <label class="genre-check"><input type="checkbox" value="Smut"><span>Smut</span></label>
+                  <label class="genre-check" data-nsfw="1"><input type="checkbox" value="Smut"><span>Smut</span></label>
                   <label class="genre-check"><input type="checkbox" value="Sports"><span>Sports</span></label>
                   <label class="genre-check"><input type="checkbox" value="Supernatural"><span>Supernatural</span></label>
                   <label class="genre-check"><input type="checkbox" value="Tragedy"><span>Tragedy</span></label>
@@ -515,45 +522,65 @@
            MANGA READER (fixed overlay)
       ================================================================== -->
       <div id="reader" class="reader hidden">
-        <!-- Collapsible wrapper — slides up/down for auto-hide header -->
-        <div class="reader-header-outer">
-        <div class="reader-header">
-          <button id="closeReader" class="btn-close" title="Close reader">&#x2715;</button>
+        <div class="reader-topbar">
           <div id="readerTitle" class="reader-title"></div>
-          <div class="reader-controls">
-            <!-- Zoom controls -->
-            <button id="zoomOut" class="btn-zoom" title="Zoom out">&#x2212;</button>
-            <span id="zoomLevel" class="zoom-level">100%</span>
-            <button id="zoomIn" class="btn-zoom" title="Zoom in">+</button>
-            <button id="zoomReset" class="btn-zoom" title="Reset zoom">&#x2299;</button>
-            <!-- AutoScroll toggle -->
-            <button id="autoScrollToggle" class="btn-zoom btn-autoscroll" title="Start AutoScroll">Auto</button>
-            <!-- Settings shortcut -->
-            <button id="readerSettingsBtn" class="btn-zoom btn-reader-settings" title="Settings">&#x2699;</button>
-          </div>
-          <div class="reader-nav">
-            <button id="prevPage" class="btn-nav">&#x25C0; Prev</button>
-            <span id="pageCounter" class="page-info"></span>
-            <button id="nextPage" class="btn-nav">Next &#x25B6;</button>
-          </div>
         </div>
-        <!-- AutoScroll speed bar (shown when AutoScroll is active) -->
-        <div id="autoScrollBar" class="autoscroll-bar hidden">
-          <span class="autoscroll-bar-label">Speed:</span>
-          <div class="autoscroll-control">
-            <div class="autoscroll-ticks">
-              <span>Slow</span>
-              <span>Medium</span>
-              <span>Fast</span>
-              <span>Faster</span>
-              <span>Fastest</span>
+
+        <button id="readerSidebarToggle" class="reader-sidebar-arrow" title="Show or hide reader panel" aria-label="Toggle reader panel">
+          &#10095;
+        </button>
+
+        <div class="reader-layout">
+          <div id="pageWrap" class="reader-content"></div>
+
+          <aside id="readerSidebar" class="reader-sidebar" aria-label="Reader controls">
+            <div class="reader-sidebar-section">
+              <p class="reader-sidebar-heading">Chapter</p>
+              <div class="reader-nav">
+                <button id="prevPage" class="btn-nav">&#x25C0; Prev</button>
+                <span id="pageCounter" class="page-info"></span>
+                <button id="nextPage" class="btn-nav">Next &#x25B6;</button>
+              </div>
             </div>
-            <input type="range" id="autoScrollSpeed" class="autoscroll-slider" min="1" max="5" step="1" value="2">
-          </div>
-          <span id="autoScrollSpeedLabel" class="autoscroll-speed-label">Medium</span>
+
+            <div class="reader-sidebar-section">
+              <p class="reader-sidebar-heading">Zoom</p>
+              <div class="reader-controls">
+                <button id="zoomOut" class="btn-zoom" title="Zoom out">&#x2212;</button>
+                <span id="zoomLevel" class="zoom-level">100%</span>
+                <button id="zoomIn" class="btn-zoom" title="Zoom in">+</button>
+                <button id="zoomReset" class="btn-zoom" title="Reset zoom">&#x2299;</button>
+              </div>
+            </div>
+
+            <div class="reader-sidebar-section">
+              <p class="reader-sidebar-heading">Auto Scroll</p>
+              <div class="reader-controls">
+                <button id="autoScrollToggle" class="btn-zoom btn-autoscroll" title="Start AutoScroll">Auto</button>
+              </div>
+              <div id="autoScrollBar" class="autoscroll-bar">
+                <span class="autoscroll-bar-label">Speed</span>
+                <div class="autoscroll-control">
+                  <div class="autoscroll-ticks">
+                    <span>Slow</span>
+                    <span>Medium</span>
+                    <span>Fast</span>
+                    <span>Faster</span>
+                    <span>Fastest</span>
+                  </div>
+                  <input type="range" id="autoScrollSpeed" class="autoscroll-slider" min="1" max="5" step="1" value="2">
+                </div>
+                <span id="autoScrollSpeedLabel" class="autoscroll-speed-label">Medium</span>
+              </div>
+            </div>
+
+            <div class="reader-sidebar-section">
+              <p class="reader-sidebar-heading">Settings</p>
+              <button id="readerSettingsBtn" class="btn-nav btn-reader-settings">Open Settings</button>
+              <button id="closeReader" class="btn-nav btn-reader-close">Close Reader</button>
+            </div>
+          </aside>
         </div>
-        </div><!-- /.reader-header-outer -->
-        <div id="pageWrap" class="reader-content"></div>
       </div>
 
       <!-- ==================================================================
@@ -620,33 +647,33 @@
   <script src="./modules/i18n.js" defer></script>
   <script src="./modules/state.js" defer></script>
   <script src="./modules/navigation.js" defer></script>
-  <script src="./modules/utils.js" defer></script>
-  <script src="./modules/anilist.js?v=5" defer></script>
+  <script src="./modules/utils.js?v=4" defer></script>
+  <script src="./modules/anilist.js?v=6" defer></script>
 
   <script src="./modules/ui-themes.js" defer></script>
   <script src="./modules/ui-settings.js" defer></script>
   <script src="./modules/ui-state.js" defer></script>
-  <script src="./modules/ui-discover.js" defer></script>
-  <script src="./modules/ui-history.js" defer></script>
+  <script src="./modules/ui-discover.js?v=2" defer></script>
+  <script src="./modules/ui-history.js?v=2" defer></script>
   <script src="./modules/ui-calendar.js" defer></script>
   <script src="./modules/ui-autoscroll.js" defer></script>
   <script src="./modules/ui-stats.js" defer></script>
-  <script src="./modules/ui-library.js?v=10" defer></script>
+  <script src="./modules/ui-library.js?v=12" defer></script>
   <script src="./modules/ui-local-import.js" defer></script>
   <script src="./modules/ui-reading-status.js" defer></script>
-  <script src="./modules/ui-search.js?v=5" defer></script>
-  <script src="./modules/ui-add-to-list-modal.js" defer></script>
+  <script src="./modules/ui-search.js?v=6" defer></script>
+  <script src="./modules/ui-add-to-list-modal.js?v=2" defer></script>
   <script src="./modules/ui-chapter-navigation.js" defer></script>
   <script src="./modules/ui-download-functions.js" defer></script>
   <script src="./modules/ui-offline-save.js" defer></script>
   <script src="./modules/ui-chapter-integrity-check.js" defer></script>
   <script src="./modules/ui-anime-film-adaptation-check-via-anilist-graphql.js" defer></script>
-  <script src="./modules/ui-reader-page-rendering.js" defer></script>
-  <script src="./modules/ui-autoscroll-1.js" defer></script>
-  <script src="./modules/ui-book-reader-rtl-double-page-spread-with-3d-page-flip.js" defer></script>
-  <script src="./modules/ui-ltr-western-double-page-spread-left-first-with-the-same-3-d-flip-engine.js" defer></script>
+  <script src="./modules/ui-reader-page-rendering.js?v=5" defer></script>
+  <script src="./modules/ui-autoscroll-1.js?v=2" defer></script>
+  <script src="./modules/ui-book-reader-rtl-double-page-spread-with-3d-page-flip.js?v=10" defer></script>
+  <script src="./modules/ui-ltr-western-double-page-spread-left-first-with-the-same-3-d-flip-engine.js?v=6" defer></script>
   <script src="./modules/ui-pdf-reader.js" defer></script>
-  <script src="./modules/ui-settings-modal.js?v=2" defer></script>
+  <script src="./modules/ui-settings-modal.js?v=4" defer></script>
   <script src="./modules/ui-custom-lists-view.js?v=8" defer></script>
   <script src="./modules/ui-migrate.js" defer></script>
   <script src="./modules/ui-custom-lists-view-removed.js" defer></script>
@@ -656,9 +683,9 @@
   <script src="./modules/ui-achievements-1.js" defer></script>
   <script src="./modules/ui-shop-view.js" defer></script>
   <script src="./modules/ui-genre-author-navigation.js" defer></script>
-  <script src="./modules/ui-advanced-search.js?v=5" defer></script>
+  <script src="./modules/ui-advanced-search.js?v=6" defer></script>
   <script src="./modules/ui-view-management.js" defer></script>
-  <script src="./modules/ui-ui-binding.js?v=6" defer></script>
+  <script src="./modules/ui-ui-binding.js?v=8" defer></script>
   <script src="./modules/ui-initialization.js" defer></script>
   <script src="./app.js?v=5" defer></script>
 </body>

@@ -3,8 +3,53 @@
 // ============================================================================
 
 let _bookFlipAnimating = false;
+const WIDE_PAGE_RATIO_THRESHOLD = 1.33;
+const _bookImageMeta = new Map(); // src -> { width, height, isWide }
+
+function _cacheBookImageMeta(src, imgLike) {
+  if (!src || !imgLike?.naturalWidth || !imgLike?.naturalHeight) return;
+  const ratio = imgLike.naturalWidth / Math.max(1, imgLike.naturalHeight);
+  _bookImageMeta.set(src, {
+    width: imgLike.naturalWidth,
+    height: imgLike.naturalHeight,
+    isWide: ratio >= WIDE_PAGE_RATIO_THRESHOLD,
+  });
+}
+
+function _hydrateWideFlagFromCache(page) {
+  if (!page || page.isWide || !page.img) return;
+  const meta = _bookImageMeta.get(page.img);
+  if (meta?.isWide) page.isWide = true;
+}
+
+function _prepareBookImages(root = document) {
+  const imgs = root.querySelectorAll('img.book-page-img');
+  imgs.forEach((img) => {
+    img.decoding = 'async';
+    img.loading = 'eager';
+    if (img.dataset.prepared === '1') return;
+    img.dataset.prepared = '1';
+
+    const reveal = () => {
+      _cacheBookImageMeta(img.currentSrc || img.src, img);
+      img.classList.add('is-ready');
+    };
+
+    if (img.complete && img.naturalWidth > 0) {
+      // Already available in memory/cache: reveal immediately to avoid black flashes.
+      reveal();
+      return;
+    }
+
+    img.addEventListener('load', () => {
+      // Reveal as soon as it loads; decode can happen progressively after paint.
+      reveal();
+    }, { once: true });
+  });
+}
 
 function getBookSpread(idx, pages) {
+  _hydrateWideFlagFromCache(pages[idx]);
   const page = pages[idx];
   // Wide (double-page scan): same image fills both panels, each showing one half
   if (page?.isWide) {
@@ -19,6 +64,7 @@ function getBookSpread(idx, pages) {
 
 // LTR (Western) spread: left = pages[idx], right = pages[idx+1]
 function getLTRSpread(idx, pages) {
+  _hydrateWideFlagFromCache(pages[idx]);
   const page = pages[idx];
   if (page?.isWide) {
     return { left: page.img || null, right: page.img || null, isWide: true };
@@ -36,57 +82,69 @@ function getLTRSpread(idx, pages) {
 // After rendering a spread, probe both panel images.
 // If either is landscape (wider than tall) it is a double-page scan —
 // overlay it as ONE full-spread image covering both panels.
-function _applyWideSplitIfNeeded(idx, pages) {
-  const spread = $('bookSpread');
+// Inject a full-spread overlay image for a wide (double-page scan) page.
+// The overlay is position:absolute inset:0 on the book-spread, showing
+// the image with object-fit:contain — no per-panel CSS math needed.
+function _injectWideOverlay(src, idx, pages) {
+  const spread = document.getElementById('bookSpread');
   if (!spread) return;
+  // Blank both panels
+  const sL = document.getElementById('bookLeft');
+  const sR = document.getElementById('bookRight');
+  if (sL) sL.innerHTML = '<div class="book-page-blank"></div>';
+  if (sR) sR.innerHTML = '<div class="book-page-blank"></div>';
+  if (sL) sL.className = sL.className.replace(/\bwide-source-\S+/g, '').trim();
+  if (sR) sR.className = sR.className.replace(/\bwide-source-\S+/g, '').trim();
+  document.getElementById('bookWideOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'bookWideOverlay';
+  overlay.className = 'book-wide-overlay';
+  const img = new Image();
+  img.src = src;
+  overlay.appendChild(img);
+  spread.appendChild(overlay);
+  const show = () => overlay.classList.add('visible');
+  if (img.complete && img.naturalWidth > 0) requestAnimationFrame(show);
+  else img.addEventListener('load', show, { once: true });
+  const total = (pages || []).length;
+  const ctr = $('pageCounter');
+  if (ctr && total) ctr.textContent = `${idx + 1} / ${total}`;
+}
 
+// Called after a flip completes. If page is already known wide → inject overlay.
+// If not yet known → probe image dimensions async and inject when ready.
+function _applyWideForCurrentPage(idx, pages) {
+  _hydrateWideFlagFromCache(pages[idx]);
+  if (pages[idx]?.isWide) {
+    if (!document.getElementById('bookWideOverlay')) {
+      _injectWideOverlay(pages[idx].img, idx, pages);
+    }
+    return;
+  }
+  _applyWideSplitIfNeeded(idx, pages);
+}
+
+function _applyWideSplitIfNeeded(idx, pages) {
+  if (pages[idx]?.isWide) return;
+  const selector = state.settings.readingMode === 'ltr'
+    ? '#bookLeft img.book-page-img'
+    : '#bookRight img.book-page-img';
+  const probe = document.querySelector(selector);
+  if (!probe) return;
   let applied = false;
-
-  const imgs = [
-    document.querySelector('#bookRight img.book-page-img'),
-    document.querySelector('#bookLeft  img.book-page-img'),
-  ].filter(Boolean);
-
-  imgs.forEach(imgEl => {
-    const check = () => {
-      if (applied) return;
-      if (state.currentPageIndex !== idx) return;
-      if (imgEl.naturalWidth <= imgEl.naturalHeight) return; // portrait, skip
-
-      applied = true;
-      const src = imgEl.src;
-      if (pages[idx]) pages[idx].isWide = true;
-
-      // Remove any previous overlay
-      const old = document.getElementById('bookWideOverlay');
-      if (old) old.remove();
-
-      // Full-spread overlay with the wide image shown at natural aspect ratio
-      const overlay = document.createElement('div');
-      overlay.className = 'book-wide-overlay';
-      overlay.id = 'bookWideOverlay';
-      const wImg = document.createElement('img');
-      wImg.src = src;
-      overlay.appendChild(wImg);
-      spread.appendChild(overlay);
-
-      // Fade in only once the image is decoded — no flash of blank overlay
-      const showOverlay = () => requestAnimationFrame(() => overlay.classList.add('visible'));
-      if (wImg.complete) showOverlay();
-      else wImg.addEventListener('load', showOverlay, { once: true });
-
-      // Fix counter (1 page consumed) and nav buttons
-      const total = pages.length;
-      const ctr = $('pageCounter');
-      if (ctr) ctr.textContent = `${idx + 1} / ${total}`;
-      const nx = $('nextPage');
-      const hasNextCh = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
-      if (nx) nx.disabled = idx + 1 >= total && !hasNextCh;
-    };
-
-    if (imgEl.complete && imgEl.naturalWidth > 0) check();
-    else imgEl.addEventListener('load', check, { once: true });
-  });
+  const check = () => {
+    if (applied) return;
+    if (state.currentPageIndex !== idx) return;
+    if (!probe.naturalWidth) return;
+    const ratio = probe.naturalWidth / Math.max(1, probe.naturalHeight);
+    if (ratio < WIDE_PAGE_RATIO_THRESHOLD) return;
+    applied = true;
+    if (pages[idx]) pages[idx].isWide = true;
+    _cacheBookImageMeta(probe.src, probe);
+    _injectWideOverlay(probe.src, idx, pages);
+  };
+  if (probe.complete && probe.naturalWidth > 0) check();
+  else probe.addEventListener('load', check, { once: true });
 }
 
 function renderBookSpread() {
@@ -121,13 +179,17 @@ function renderBookSpread() {
 
   const wrapZoomStyle = '';
 
-  // RTL: right panel reads first. For wide page: right half on right, left half on left.
-  const rightHtml = rightImg
-    ? `<img class="book-page-img${isWide ? ' wide-split-right' : ''}" src="${escapeHtml(rightImg)}" alt="Page ${idx + 1}">`
+  // RTL: right panel reads first.
+  // Wide pages: both panels blank, a full-spread overlay is shown instead.
+  const rightHtml = (rightImg && !isWide)
+    ? `<img class="book-page-img" src="${escapeHtml(rightImg)}" alt="Page ${idx + 1}">`
     : `<div class="book-page-blank"></div>`;
-  const leftHtml = leftImg
-    ? `<img class="book-page-img${isWide ? ' wide-split-left' : ''}" src="${escapeHtml(leftImg)}" alt="Page ${isWide ? idx + 1 : idx + 2}">`
+  const leftHtml = (leftImg && !isWide)
+    ? `<img class="book-page-img" src="${escapeHtml(leftImg)}" alt="Page ${idx + 2}">`
     : `<div class="book-page-blank"></div>`;
+  const overlayHtml = isWide && rightImg
+    ? `<div class="book-wide-overlay visible" id="bookWideOverlay"><img src="${escapeHtml(rightImg)}"></div>`
+    : '';
 
   pageWrap.innerHTML = `
     <div class="book-reader-wrap" id="bookReaderWrap" ${wrapZoomStyle}>
@@ -135,15 +197,18 @@ function renderBookSpread() {
         <div class="book-side book-left" id="bookLeft">${leftHtml}</div>
         <div class="book-spine"></div>
         <div class="book-side book-right" id="bookRight">${rightHtml}</div>
+        ${overlayHtml}
       </div>
     </div>
   `;
+
+  _prepareBookImages(pageWrap);
 
   updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, idx);
   attachBookDragEvents();
   preloadBookPages(idx, pages);
   _applyBookZoom();
-  _applyWideSplitIfNeeded(idx, pages);
+  if (!isWide) _applyWideSplitIfNeeded(idx, pages);
 }
 
 function attachBookDragEvents() {
@@ -226,6 +291,17 @@ function navigateBook(direction) {
 
   if (_bookFlipAnimating) return;
 
+  // Sync-probe destination page — catches images already in browser cache
+  // so playBookFlip sees the correct isWide flag without waiting for async load.
+  _syncProbeWide(pages[newIdx]);
+
+  // No-animation mode: just re-render instantly.
+  if (state.settings.pageFlipAnimation === false) {
+    state.currentPageIndex = newIdx;
+    renderBookSpread();
+    return;
+  }
+
   _bookFlipAnimating = true;
   // RTL (manga): spine is on the right. "forward" = left page flips rightward → invert animation direction
   const animDir = direction === "forward" ? "backward" : "forward";
@@ -247,7 +323,7 @@ function navigateBook(direction) {
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, newIdx);
     preloadBookPages(newIdx, pages);
     attachBookDragEvents();
-    _applyWideSplitIfNeeded(newIdx, pages);
+    _applyWideForCurrentPage(newIdx, pages);
   });
 }
 
@@ -256,38 +332,34 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
   if (!spread) { onComplete(); return; }
 
   // Remove any wide-page overlay from the previous spread immediately
-  const prevOverlay = document.getElementById('bookWideOverlay');
-  if (prevOverlay) prevOverlay.remove();
+  // Remove existing overlay before animating — panels need to be visible for the flip.
+  document.getElementById('bookWideOverlay')?.remove();
 
-  const { right: newRight, left: newLeft } = getSpread(newIdx, pages);
+  const newSpread = getSpread(newIdx, pages);
+  const newIsWide = newSpread.isWide;
+  const nRight = newSpread.right;
+  const nLeft  = newSpread.left;
   const isForward = direction === "forward";
 
   const sL = document.getElementById("bookLeft");
   const sR = document.getElementById("bookRight");
 
-  // ── Helper ─────────────────────────────────────────────────────────────────
-  const mkImg = (src, extraClass = '') =>
-    src ? `<img class="book-page-img${extraClass ? ' ' + extraClass : ''}" src="${escapeHtml(src)}">` : `<div class="book-page-blank"></div>`;
-
-  const newSpread = getSpread(newIdx, pages);
-  const newIsWide = newSpread.isWide;
-  // Recompute newRight/newLeft from the spread (already done above for the non-wide case)
-  const nRight = newSpread.right;
-  const nLeft  = newSpread.left;
+  const mkImg = (src) =>
+    src ? `<img class="book-page-img" src="${escapeHtml(src)}">` : `<div class="book-page-blank"></div>`;
 
   // Clone the existing rendered <img> from the panel that is about to flip.
-  // Cloning guarantees the image is already loaded — no fetch needed, no blank frame.
   const flipPanel   = isForward ? sR : sL;
   const existingImg = flipPanel?.querySelector("img");
   const frontClone  = existingImg ? existingImg.cloneNode() : null;
 
-  // Panel UNDER the flipper: set to the new destination page immediately.
-  // It is fully hidden by the flipper at t=0 so the image can load silently.
+  // Panel UNDER the flipper: hidden by flipper at t=0, loads silently.
+  // For wide destination: keep blank — overlay will appear after flip via _applyWideForCurrentPage.
   if (isForward) {
-    if (sR) sR.innerHTML = mkImg(newRight);
+    if (sR) sR.innerHTML = newIsWide ? '<div class="book-page-blank"></div>' : mkImg(nRight);
   } else {
-    if (sL) sL.innerHTML = mkImg(newLeft);
+    if (sL) sL.innerHTML = newIsWide ? '<div class="book-page-blank"></div>' : mkImg(nLeft);
   }
+  _prepareBookImages(spread);
 
   const w = spread.offsetWidth / 2;
   const h = spread.offsetHeight;
@@ -328,15 +400,14 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
   front.appendChild(curlShadow);
 
   // ── Back face: the new incoming page (shown as the page lands) ──────────────
-  // Forward: flipper sweeps right→left, back face lands on LEFT → show nLeft
-  // Backward: flipper sweeps left→right, back face lands on RIGHT → show nRight
-  const backSrc   = isForward ? nLeft  : nRight;
-  const backClass = isForward ? (newIsWide ? 'wide-split-left' : '') : (newIsWide ? 'wide-split-right' : '');
+  // Forward: lands on LEFT; Backward: lands on RIGHT.
+  // For wide pages: show blank on back face — overlay appears after flip.
+  const backSrc = newIsWide ? null : (isForward ? nLeft : nRight);
   const back = document.createElement("div");
   back.className = "book-flipper-face book-flipper-back";
   if (backSrc) {
     const bi = new Image();
-    bi.className = `book-page-img${backClass ? ' ' + backClass : ''}`;
+    bi.className = 'book-page-img is-ready';
     bi.src = backSrc;
     back.appendChild(bi);
   } else {
@@ -399,11 +470,13 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
     // Update it now so the image has the remaining ~260ms to decode before reveal.
     if (!midUpdated && raw >= 0.48) {
       midUpdated = true;
-      if (isForward) {
-        if (sL) sL.innerHTML = mkImg(nLeft,  newIsWide ? 'wide-split-left'  : '');
-      } else {
-        if (sR) sR.innerHTML = mkImg(nRight, newIsWide ? 'wide-split-right' : '');
+      if (!newIsWide) {
+        // Normal page: update opposite panel mid-flip while hidden by flipper.
+        if (isForward) { if (sL) sL.innerHTML = mkImg(nLeft); }
+        else           { if (sR) sR.innerHTML = mkImg(nRight); }
+        _prepareBookImages(spread);
       }
+      // Wide page: leave panels blank — overlay appears after flip.
     }
 
     // Shadow intensity peaks at 90° fold (sin curve)
@@ -424,11 +497,12 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
     done = true;
     flipper.remove();
     castShadow.remove();
-    // Ensure both panels show correct content before handing back
-    if (!midUpdated) {
-      if (isForward) { if (sL) sL.innerHTML = mkImg(nLeft,  newIsWide ? 'wide-split-left'  : ''); }
-      else           { if (sR) sR.innerHTML = mkImg(nRight, newIsWide ? 'wide-split-right' : ''); }
+    // Ensure opposite panel has correct content before handing back
+    if (!midUpdated && !newIsWide) {
+      if (isForward) { if (sL) sL.innerHTML = mkImg(nLeft); }
+      else           { if (sR) sR.innerHTML = mkImg(nRight); }
     }
+    _prepareBookImages(spread);
     onComplete();
   }
 
@@ -596,13 +670,66 @@ async function playPDFFlip(isRTL, direction, oldIdx, newIdx, onComplete) {
 // Pre-fetch images for the next 3 spreads (6 pages) and 1 previous spread
 function preloadBookPages(idx, pages) {
   const srcs = new Set();
+  const markBySrc = new Map();
   for (let offset = -2; offset <= 8; offset += 2) {
     const si = idx + offset;
     if (si < 0 || si >= pages.length) continue;
     const { right, left } = getBookSpread(si, pages);
-    if (right) srcs.add(right);
-    if (left)  srcs.add(left);
+    const page = pages[si];
+    if (right) {
+      srcs.add(right);
+      if (!markBySrc.has(right)) markBySrc.set(right, []);
+      if (page) markBySrc.get(right).push(page);
+    }
+    if (left) {
+      srcs.add(left);
+      if (!markBySrc.has(left)) markBySrc.set(left, []);
+      if (page) markBySrc.get(left).push(page);
+    }
   }
-  srcs.forEach(src => { const img = new Image(); img.src = src; });
+  srcs.forEach(src => {
+    const known = _bookImageMeta.get(src);
+    if (known) {
+      if (known.isWide) {
+        (markBySrc.get(src) || []).forEach(p => { if (p) p.isWide = true; });
+      }
+      return;
+    }
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = src;
+    // Synchronous path: image already in browser cache
+    if (img.complete && img.naturalWidth > 0) {
+      _cacheBookImageMeta(src, img);
+      const meta = _bookImageMeta.get(src);
+      if (meta?.isWide) {
+        (markBySrc.get(src) || []).forEach(p => { if (p) p.isWide = true; });
+      }
+      return;
+    }
+    img.addEventListener('load', () => {
+      _cacheBookImageMeta(src, img);
+      const meta = _bookImageMeta.get(src);
+      if (meta?.isWide) {
+        (markBySrc.get(src) || []).forEach(p => { if (p) p.isWide = true; });
+      }
+    }, { once: true });
+  });
+}
+
+// Synchronously probe a page's image for wide-detection using browser cache.
+// If the image is in HTTP cache, new Image() resolves dimensions immediately.
+function _syncProbeWide(page) {
+  if (!page || page.isWide || !page.img) return;
+  if (_bookImageMeta.has(page.img)) {
+    _hydrateWideFlagFromCache(page);
+    return;
+  }
+  const probe = new Image();
+  probe.src = page.img;
+  if (probe.complete && probe.naturalWidth > 0) {
+    _cacheBookImageMeta(page.img, probe);
+    _hydrateWideFlagFromCache(page);
+  }
 }
 

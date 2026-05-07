@@ -49,6 +49,7 @@ echo   !BCYN!  [ .. ]!R!  Scanning for Node.js runtime environment...
 node --version >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     set "NODE_EXE=node"
+    set "NPM_CMD=npm"
     for /f "tokens=*" %%V in ('node --version 2^>^&1') do set "NODEVER=%%V"
     echo   !BGRN!  [ OK ]!R!  System Node.js !NODEVER! detected.
     goto :run_node
@@ -56,13 +57,20 @@ if %ERRORLEVEL% EQU 0 (
 
 if exist "%~dp0tools\node\node.exe" (
     set "NODE_EXE=%~dp0tools\node\node.exe"
+    set "NPM_CMD=%~dp0tools\node\npm.cmd"
     for /f "tokens=*" %%V in ('"%~dp0tools\node\node.exe" --version 2^>^&1') do set "NODEVER=%%V"
     echo   !BGRN!  [ OK ]!R!  Local Node.js !NODEVER! detected in tools\node\.
     goto :run_node
 )
 
+:: --- Auto-download portable Node.js 20 LTS ---------------------------------
+echo   !YLW!  [INFO]!R!  Node.js not found — downloading portable Node.js 20 LTS into tools\node\...
+echo.
+call :download_node
+if defined NODE_EXE goto :run_node
+
 :: --- Fall back to Docker ----------------------------------------------------
-echo   !YLW!  [INFO]!R!  Node.js not found. Checking if Docker CLI is available...
+echo   !YLW!  [INFO]!R!  Download failed. Checking if Docker CLI is available...
 where docker >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     echo   !BGRN!  [ OK ]!R!  Docker runtime located.
@@ -75,6 +83,18 @@ pause & exit /b 1
 :: ============================================================================
 :run_node
 :: ============================================================================
+:: Install dependencies if node_modules is missing or incomplete
+if not exist "%~dp0node_modules\express\package.json" (
+    echo   !BCYN!  [ .. ]!R!  Installing dependencies into project folder...
+    if not "!NODE_EXE!"=="node" set "PATH=%~dp0tools\node;!PATH!"
+    call \"!NPM_CMD!\" install --cache \"%~dp0tools\\npm-cache\" --prefer-offline 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        call :err "npm install failed" "Check your internet connection."
+        pause & exit /b 1
+    )
+    echo   !BGRN!  [ OK ]!R!  Dependencies installed.
+    echo.
+)
 echo.
 echo   !BCYN!  [ .. ]!R!  Reserving localhost network port...
 call :find_port
@@ -273,6 +293,45 @@ if %ERRORLEVEL% EQU 0 (
 timeout /t 1 /nobreak >nul
 set /a _wp_try+=1
 goto :_wploop
+
+:download_node
+if not exist "%~dp0tools" mkdir "%~dp0tools"
+for /f "usebackq delims=" %%F in (`powershell -NoProfile -Command "try{$r=(Invoke-WebRequest 'https://nodejs.org/dist/latest-v20.x/' -UseBasicParsing).Content;$m=[regex]::Match($r,'node-(v20\.[0-9]+\.[0-9]+)-win-x64\.zip');if($m.Success){Write-Output $m.Value}else{exit 1}}catch{exit 1}"`) do set "NODE_ZIP=%%F"
+if not defined NODE_ZIP (
+    echo   !BRED!  [ ERR ]!R!  Could not resolve Node.js 20 version from nodejs.org.
+    goto :eof
+)
+set "NODE_URL=https://nodejs.org/dist/latest-v20.x/!NODE_ZIP!"
+set "NODE_ZIPPATH=%~dp0tools\!NODE_ZIP!"
+echo   !BCYN!  [ .. ]!R!  Downloading !BOLD!!NODE_ZIP!!R! ...
+powershell -NoProfile -Command "try{Invoke-WebRequest '!NODE_URL!' -OutFile '!NODE_ZIPPATH!' -UseBasicParsing}catch{Write-Error $_.Exception.Message;exit 1}"
+if %ERRORLEVEL% NEQ 0 (
+    echo   !BRED!  [ ERR ]!R!  Download failed — check your internet connection.
+    goto :eof
+)
+echo   !BGRN!  [ OK ]!R!  Download complete.
+echo.
+echo   !BCYN!  [ .. ]!R!  Extracting...
+powershell -NoProfile -Command "Expand-Archive -Path '!NODE_ZIPPATH!' -DestinationPath '%~dp0tools\_noderaw' -Force"
+if %ERRORLEVEL% NEQ 0 (
+    echo   !BRED!  [ ERR ]!R!  Extraction failed.
+    if exist "!NODE_ZIPPATH!" del /f /q "!NODE_ZIPPATH!"
+    goto :eof
+)
+if exist "%~dp0tools\node" rd /s /q "%~dp0tools\node"
+for /d %%D in ("%~dp0tools\_noderaw\node-v*") do move "%%D" "%~dp0tools\node" >nul
+if exist "%~dp0tools\_noderaw" rd /s /q "%~dp0tools\_noderaw"
+del /f /q "!NODE_ZIPPATH!" >nul 2>&1
+if exist "%~dp0tools\node\node.exe" (
+    set "NODE_EXE=%~dp0tools\node\node.exe"
+    set "NPM_CMD=%~dp0tools\node\npm.cmd"
+    for /f "tokens=*" %%V in ('"%~dp0tools\node\node.exe" --version 2^>^&1') do set "NODEVER=%%V"
+    echo   !BGRN!  [ OK ]!R!  Node.js !NODEVER! installed to tools\node\
+    echo.
+) else (
+    echo   !BRED!  [ ERR ]!R!  Extraction did not produce tools\node\node.exe.
+)
+goto :eof
 
 ::  Banner (big logo in box)
 :banner

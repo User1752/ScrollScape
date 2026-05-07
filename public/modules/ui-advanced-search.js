@@ -5,6 +5,33 @@
 const ADV_PAGE_SIZE = 50;
 const ADV_MAX_API_PAGES = 20; // safety limit per user-page
 
+function applyAdvancedSearchNsfwVisibility() {
+  const hideNsfw = state.settings.hideNsfw === true;
+  let changed = false;
+
+  const contentRatingGroup = $("advancedContentRatingGroup");
+  if (contentRatingGroup) {
+    contentRatingGroup.style.display = hideNsfw ? "none" : "";
+  }
+
+  const contentRatingSel = $("advancedContentRating");
+  if (hideNsfw && contentRatingSel && contentRatingSel.value) {
+    contentRatingSel.value = "";
+    changed = true;
+  }
+
+  document.querySelectorAll('#genreGrid .genre-check[data-nsfw="1"]').forEach(label => {
+    label.style.display = hideNsfw ? "none" : "";
+    const cb = label.querySelector('input[type="checkbox"]');
+    if (hideNsfw && cb?.checked) {
+      cb.checked = false;
+      changed = true;
+    }
+  });
+
+  return changed;
+}
+
 /**
  * Apply client-side filters to a batch of results.
  * Returns only items that pass all active filter criteria.
@@ -29,12 +56,17 @@ function _applyAdvFilters(results, query, selectedGenres, publicationStatus, con
 }
 
 async function advancedSearch(page = 1) {
+  applyAdvancedSearchNsfwVisibility();
+
   const query   = $("advancedSearchInput").value.trim();
   const orderBy = $("advancedOrderBy").value;
   const publicationStatus = $("advancedPublicationStatus")?.value || "";
-  const contentRating = $("advancedContentRating")?.value || "";
+  const contentRating = state.settings.hideNsfw ? "" : ($("advancedContentRating")?.value || "");
   const format = $("advancedFormat")?.value || "";
-  const selectedGenres = Array.from(document.querySelectorAll('#genreGrid input[type="checkbox"]:checked')).map(cb => cb.value);
+  let selectedGenres = Array.from(document.querySelectorAll('#genreGrid input[type="checkbox"]:checked')).map(cb => cb.value);
+  if (state.settings.hideNsfw) {
+    selectedGenres = selectedGenres.filter(g => !isNsfwTag(g));
+  }
 
   // "local" is not a plugin source — fall back to the dropdown value or first installed source
   if (!state.currentSourceId || !state.installedSources[state.currentSourceId]) {
@@ -265,6 +297,8 @@ function openRandomPickerDrawer() {
 }
 
 function initAdvancedFilters() {
+  applyAdvancedSearchNsfwVisibility();
+
   // Auto-refresh on dropdown changes
   const dropdownFilters = [
     "advancedOrderBy",

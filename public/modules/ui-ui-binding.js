@@ -62,6 +62,13 @@ function bindUI() {
 
   const readerSettingsBtn = $("readerSettingsBtn");
   if (readerSettingsBtn) readerSettingsBtn.onclick = showSettings;
+  const readerSidebarToggle = $("readerSidebarToggle");
+  if (readerSidebarToggle) {
+    readerSidebarToggle.onclick = () => {
+      const reader = $("reader");
+      if (reader) reader.classList.toggle("reader-sidebar-collapsed");
+    };
+  }
 
   // Reader controls
   const closeReader = $("closeReader");
@@ -98,7 +105,12 @@ function bindUI() {
   const zoomReset = $("zoomReset");
   if (zoomIn)    zoomIn.onclick    = () => applyZoom(+0.1);
   if (zoomOut)   zoomOut.onclick   = () => applyZoom(-0.1);
-  if (zoomReset) zoomReset.onclick = () => { state.zoomLevel = 1.0; updateZoomUI(); renderPage(); };
+  if (zoomReset) zoomReset.onclick = () => {
+    const mode = state.settings.readingMode;
+    state.zoomLevel = (mode === "ltr" || mode === "rtl") ? 1.2 : 1.0;
+    updateZoomUI();
+    renderPage();
+  };
 
   // AutoScroll controls
   const autoScrollToggle = $("autoScrollToggle");
@@ -153,7 +165,12 @@ function bindUI() {
 
   // Library status filter
   const libFilter = $("libraryStatusFilter");
-  if (libFilter) libFilter.onchange = renderLibrary;
+  if (libFilter) libFilter.onchange = (e) => {
+    // If triggered programmatically by setView to sync the custom select label, skip
+    if (e.target.dataset.settingSync === "1") return;
+    e.target.dataset.userChanged = "1";
+    renderLibrary();
+  };
 
   // Library category filter
   const libCatFilter = $("libraryCategoryFilter");

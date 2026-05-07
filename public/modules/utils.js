@@ -61,6 +61,96 @@ function statusLabel(status) {
   return map[status] || status;
 }
 
+const NSFW_TAGS = new Set([
+  'ecchi',
+  'mature',
+  'smut',
+  'hentai',
+  'adult',
+  'nsfw',
+  'erotica',
+  'suggestive',
+  'pornographic',
+  'sexual violence'
+]);
+
+const NSFW_TEXT_HINTS = [
+  'mature',
+  'adult',
+  'hentai',
+  'ecchi',
+  'smut',
+  'nsfw',
+  'sex',
+  'sexual',
+  'erot',
+  'porn',
+  'oppai',
+  'boobs',
+  'breasts',
+  'milf',
+  'fetish',
+  'bdsm',
+  'incest',
+  'hitozuma',
+  'netorare',
+  'ntr',
+  'ahegao',
+  'yuri h',
+  'doujin',
+  'lewdness'
+];
+
+function normalizeTagValue(tag) {
+  return String(tag || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function isNsfwTag(tag) {
+  return NSFW_TAGS.has(normalizeTagValue(tag));
+}
+
+function isNsfwManga(manga) {
+  if (!manga) return false;
+  const allTags = [
+    ...(Array.isArray(manga.genres) ? manga.genres : []),
+    ...(Array.isArray(manga.tags) ? manga.tags : []),
+    manga.contentRating,
+    manga.content_rating,
+    manga.ageRating,
+  ].filter(Boolean);
+  if (allTags.some(isNsfwTag)) return true;
+
+  // Fallback for legacy entries that were saved without usable genre/tag metadata.
+  const text = `${manga.title || ''} ${manga.description || ''}`.toLowerCase();
+  return NSFW_TEXT_HINTS.some(k => text.includes(k));
+}
+
+// ── Webtoon / Manhwa / Manhua auto-detection ──────────────────────────────
+
+const WEBTOON_TYPES = new Set(['manhwa', 'manhua', 'webtoon', 'webtoons']);
+const WEBTOON_GENRES = new Set(['manhwa', 'manhua', 'webtoons', 'webtoon']);
+
+/**
+ * Returns true when the manga is a vertical-scroll format (Manhwa / Manhua / Webtoon).
+ * Checks the `type` field first, then genres/tags.
+ *
+ * @param {object} manga
+ * @returns {boolean}
+ */
+function isWebtoonFormat(manga) {
+  if (!manga) return false;
+  const type = String(manga.type || '').toLowerCase().trim();
+  if (WEBTOON_TYPES.has(type)) return true;
+  const allTags = [
+    ...(Array.isArray(manga.genres) ? manga.genres : []),
+    ...(Array.isArray(manga.tags)   ? manga.tags   : []),
+  ].map(t => String(t || '').toLowerCase().trim());
+  return allTags.some(t => WEBTOON_GENRES.has(t));
+}
+
 // ── Theme (dark / light toggle) ───────────────────────────────────────────
 
 /**

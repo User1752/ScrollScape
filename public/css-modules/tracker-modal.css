@@ -1,0 +1,265 @@
+/* Tracker modal (AniList) */
+.tracker-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  padding: 1rem;
+}
+
+.tracker-content {
+  width: min(980px, 96vw);
+  max-height: 90vh;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(130, 80, 255, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tracker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(130, 80, 255, 0.14);
+}
+
+.tracker-title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.tracker-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 0;
+  flex: 1;
+}
+
+.tracker-sidebar {
+  border-right: 1px solid rgba(130, 80, 255, 0.12);
+  background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
+  padding: 0.95rem;
+}
+
+.tracker-sidebar-cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tracker-sidebar-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tracker-sidebar-no-cover {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  opacity: 0.7;
+}
+
+.tracker-sidebar-title {
+  margin: 0.75rem 0 0.25rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.tracker-sidebar-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.tracker-main {
+  overflow: auto;
+  padding: 1rem;
+}
+
+.tracker-info-msg {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.tracker-search-bar {
+  display: flex;
+  gap: 0.55rem;
+  margin-bottom: 0.8rem;
+}
+
+.tracker-search-bar .input {
+  flex: 1;
+}
+
+.tracker-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.55rem;
+}
+
+.tracker-pick-item {
+  border: 1px solid rgba(130, 80, 255, 0.16);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 0.55rem;
+  text-align: left;
+}
+
+.tracker-pick-item:hover,
+.tracker-pick-item--selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.tracker-pick-cover {
+  width: 50px;
+  height: 70px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tracker-pick-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tracker-pick-no-cover {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.tracker-pick-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.tracker-pick-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tracker-pick-meta {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.tracker-back-btn {
+  margin-bottom: 0.7rem;
+}
+
+.tracker-media-title {
+  font-weight: 700;
+  margin-bottom: 0.9rem;
+}
+
+.tracker-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tracker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tracker-label {
+  font-weight: 600;
+  font-size: 0.87rem;
+}
+
+.tracker-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
+.tracker-footer {
+  margin-top: 0.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.tracker-footer-left,
+.tracker-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.tracker-msg {
+  margin: 0;
+  min-width: 120px;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.tracker-msg-ok {
+  color: #4ade80;
+}
+
+.tracker-msg-err {
+  color: #fb7185;
+}
+
+@media (max-width: 860px) {
+  .tracker-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tracker-sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(130, 80, 255, 0.12);
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 0.7rem;
+    align-items: center;
+  }
+
+  .tracker-sidebar-cover {
+    width: 72px;
+    aspect-ratio: 3 / 4;
+  }
+
+  .tracker-sidebar-title {
+    margin: 0;
+  }
+
+  .tracker-sidebar-hint {
+    margin-top: 0.2rem;
+  }
+
+  .tracker-dates {
+    grid-template-columns: 1fr;
+  }
+}

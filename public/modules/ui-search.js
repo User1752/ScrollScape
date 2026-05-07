@@ -71,7 +71,8 @@ async function search(page = 1) {
       method: "POST",
       body: JSON.stringify({ query, page })
     });
-    const results = result.results || [];
+    const rawResults = result.results || [];
+    const results = rawResults.filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
     const hasNextPage = result.hasNextPage || false;
     state.searchHasNextPage = hasNextPage;
     if (!dropdown) return;

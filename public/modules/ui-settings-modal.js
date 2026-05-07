@@ -8,169 +8,277 @@ function showSettings() {
   modal.innerHTML = `
     <div class="settings-content">
       <div class="settings-header">
-        <h2>Settings</h2>
+        <h2>⚙️ Settings</h2>
         <button class="btn secondary" id="closeSettings">&#x2715;</button>
       </div>
-      <div class="settings-body">
-        <div class="setting-group">
-          <label>Reading Mode</label>
-          <select id="modeSelect" class="input">
-            <option value="ltr"     ${state.settings.readingMode === "ltr"     ? "selected" : ""}>Left to Right</option>
-            <option value="rtl"     ${state.settings.readingMode === "rtl"     ? "selected" : ""}>Right to Left (Manga)</option>
-            <option value="webtoon" ${state.settings.readingMode === "webtoon" ? "selected" : ""}>Webtoon (Vertical Scroll)</option>
-          </select>
-        </div>
-        <div class="settings-divider"></div>
-        <h3 class="settings-subsection">Advanced Settings</h3>
-        <div class="setting-group">
-          <label>Line Sharpness</label>
-          <select id="sharpnessSelect" class="input">
-            <option value="0" ${(state.settings.lineSharpness||0) === 0 ? 'selected' : ''}>Off</option>
-            <option value="1" ${(state.settings.lineSharpness||0) === 1 ? 'selected' : ''}>Subtle</option>
-            <option value="2" ${(state.settings.lineSharpness||0) === 2 ? 'selected' : ''}>Strong</option>
-            <option value="3" ${(state.settings.lineSharpness||0) === 3 ? 'selected' : ''}>Max</option>
-          </select>
-          <p class="setting-description">Increases contrast to make manga lines crisper</p>
-        </div>
-        <div class="setting-group">
-          <label class="toggle-label">
-            <span class="toggle-text">Hide read chapters</span>
-            <input type="checkbox" id="skipReadToggle" ${state.settings.skipReadChapters ? "checked" : ""}>
-            <span class="toggle-slider"></span>
-          </label>
-          <p class="setting-description">Hides chapters you've already finished reading</p>
-        </div>
-        <div class="setting-group">
-          <label class="toggle-label">
-            <span class="toggle-text">Skip duplicate chapters</span>
-            <input type="checkbox" id="skipDuplicatesToggle" ${state.settings.skipDuplicates ? "checked" : ""}>
-            <span class="toggle-slider"></span>
-          </label>
-          <p class="setting-description">Automatically advances past duplicates of the same chapter number</p>
-        </div>
-        <div class="setting-group">
-          <label class="toggle-label">
-            <span class="toggle-text">Pan wide images</span>
-            <input type="checkbox" id="panWideToggle" ${state.settings.panWideImages ? "checked" : ""}>
-            <span class="toggle-slider"></span>
-          </label>
-          <p class="setting-description">Allows horizontal scrolling on double-page spreads</p>
-        </div>
-        <div class="setting-group">
-          <label class="toggle-label">
-            <span class="toggle-text">Show source on library cards</span>
-            <input type="checkbox" id="showLibrarySourceToggle" ${state.settings.showLibrarySourceBadge !== false ? "checked" : ""}>
-            <span class="toggle-slider"></span>
-          </label>
-          <p class="setting-description">Displays the source name in the bottom-right corner of each library cover</p>
-        </div>
-        <div class="setting-group">
-          <label class="toggle-label">
-            <span class="toggle-text">Prateleira 3D na biblioteca</span>
-            <input type="checkbox" id="libraryBookshelf3dToggle" ${state.settings.libraryBookshelf3d ? "checked" : ""}>
-            <span class="toggle-slider"></span>
-          </label>
-          <p class="setting-description">Mostra os cards da biblioteca numa prateleira com profundidade 3D</p>
-        </div>
-        <div class="setting-group">
-          <label>Library default status view</label>
-          <select id="libraryDefaultStatusFilterSelect" class="input">
-            <option value="all" ${state.settings.libraryDefaultStatusFilter === 'all' ? 'selected' : ''}>All Manga</option>
-            <option value="reading" ${state.settings.libraryDefaultStatusFilter === 'reading' ? 'selected' : ''}>Reading</option>
-            <option value="completed" ${state.settings.libraryDefaultStatusFilter === 'completed' ? 'selected' : ''}>Completed</option>
-            <option value="on_hold" ${state.settings.libraryDefaultStatusFilter === 'on_hold' ? 'selected' : ''}>On Hold</option>
-            <option value="plan_to_read" ${state.settings.libraryDefaultStatusFilter === 'plan_to_read' ? 'selected' : ''}>Plan to Read</option>
-            <option value="dropped" ${state.settings.libraryDefaultStatusFilter === 'dropped' ? 'selected' : ''}>Dropped</option>
-          </select>
-          <p class="setting-description">When you open Library, this filter is selected automatically</p>
-        </div>
-        <div class="settings-divider"></div>
-        <div class="setting-group">
-          <button class="btn secondary" id="clearReadBtn">Clear Reading History</button>
-        </div>
-        <div class="settings-divider"></div>
-        <h3 class="settings-subsection">Tracking</h3>
-        <div id="anilist-loggedout" ${_alToken() ? 'style="display:none"' : ''}>
-          <div class="setting-group">
-            <label>AniList Client ID</label>
-            <input type="text" id="anilistClientIdInput" class="input" value="${escapeHtml(_alClientId())}" placeholder="e.g. 23361" autocomplete="off" spellcheck="false">
-            <p class="setting-description">
-              Register a free app at <strong>anilist.co/settings/developer</strong> and set the
-              redirect URI to <code>${escapeHtml(window.location.origin)}</code>.
-            </p>
-          </div>
-          <div class="setting-group">
-            <button class="btn primary" id="btnAniListConnect">Connect AniList</button>
-          </div>
-        </div>
-        <div id="anilist-loggedin" ${_alToken() ? '' : 'style="display:none"'}>
-          <div class="setting-group">
-            <div class="anilist-user-card" id="anilistUserCard">
-              ${(() => {
-                const u = _alUser();
-                if (!u) return '<span class="muted" style="padding:0">Loading…</span>';
-                return `${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="" class="anilist-avatar">` : ''}
-                        <span class="anilist-username">${escapeHtml(u.name)}</span>`;
-              })()}
+      <div class="settings-layout">
+
+        <!-- ── Sidebar nav ── -->
+        <nav class="settings-nav">
+          <button class="settings-nav-item active" data-tab="tab-reading">
+            <span class="settings-nav-icon">📖</span><span>Reading</span>
+          </button>
+          <button class="settings-nav-item" data-tab="tab-library">
+            <span class="settings-nav-icon">📚</span><span>Library</span>
+          </button>
+          <button class="settings-nav-item" data-tab="tab-tracking">
+            <span class="settings-nav-icon">🔗</span><span>Tracking</span>
+          </button>
+          <button class="settings-nav-item" data-tab="tab-advanced">
+            <span class="settings-nav-icon">🛠️</span><span>Advanced</span>
+          </button>
+        </nav>
+
+        <!-- ── Content panels ── -->
+        <div class="settings-panel-wrap">
+
+          <!-- Reading tab -->
+          <div class="settings-tab active" id="tab-reading">
+            <div class="settings-section-card">
+              <p class="settings-section-title">Reading Mode</p>
+              <div class="setting-group">
+                <label>Default reading direction</label>
+                <select id="modeSelect" class="input">
+                  <option value="ltr"     ${state.settings.readingMode === "ltr"     ? "selected" : ""}>Left to Right</option>
+                  <option value="rtl"     ${state.settings.readingMode === "rtl"     ? "selected" : ""}>Right to Left (Manga)</option>
+                  <option value="webtoon" ${state.settings.readingMode === "webtoon" ? "selected" : ""}>Webtoon (Vertical Scroll)</option>
+                </select>
+              </div>
+              <div class="setting-group">
+                <label>Line Sharpness</label>
+                <select id="sharpnessSelect" class="input">
+                  <option value="0" ${(state.settings.lineSharpness||0) === 0 ? 'selected' : ''}>Off</option>
+                  <option value="1" ${(state.settings.lineSharpness||0) === 1 ? 'selected' : ''}>Subtle</option>
+                  <option value="2" ${(state.settings.lineSharpness||0) === 2 ? 'selected' : ''}>Strong</option>
+                  <option value="3" ${(state.settings.lineSharpness||0) === 3 ? 'selected' : ''}>Max</option>
+                </select>
+                <p class="setting-description">Increases contrast to make manga lines crisper</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Pan wide images</span>
+                  <input type="checkbox" id="panWideToggle" ${state.settings.panWideImages ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Allows horizontal scrolling on double-page spreads</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Auto-detect Manhwa / Manhua</span>
+                  <input type="checkbox" id="autoWebtoonToggle" ${state.settings.autoWebtoonDetect !== false ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Automatically switches to Webtoon (vertical scroll) mode for Korean and Chinese comics</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Page flip animation</span>
+                  <input type="checkbox" id="pageFlipAnimationToggle" ${state.settings.pageFlipAnimation !== false ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">3D page-turn effect in Book (RTL/LTR) mode. Disable for instant page switching.</p>
+              </div>
+              <div class="setting-group">
+                <label>Reader background</label>
+                <select id="readerBgSelect" class="input">
+                  <option value="black" ${(state.settings.readerBackground||'black') === 'black' ? 'selected' : ''}>Black</option>
+                  <option value="dark"  ${(state.settings.readerBackground||'black') === 'dark'  ? 'selected' : ''}>Dark</option>
+                  <option value="gray"  ${(state.settings.readerBackground||'black') === 'gray'  ? 'selected' : ''}>Gray</option>
+                  <option value="sepia" ${(state.settings.readerBackground||'black') === 'sepia' ? 'selected' : ''}>Sepia</option>
+                  <option value="white" ${(state.settings.readerBackground||'black') === 'white' ? 'selected' : ''}>White</option>
+                </select>
+                <p class="setting-description">Background color shown behind pages while reading</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Chapter Behaviour</p>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Hide read chapters</span>
+                  <input type="checkbox" id="skipReadToggle" ${state.settings.skipReadChapters ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Hides chapters you've already finished reading</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Skip duplicate chapters</span>
+                  <input type="checkbox" id="skipDuplicatesToggle" ${state.settings.skipDuplicates ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Automatically advances past duplicates of the same chapter number</p>
+              </div>
             </div>
           </div>
-          <div class="setting-group">
-            <label class="toggle-label">
-              <span class="toggle-text">Auto-sync progress</span>
-              <input type="checkbox" id="anilistAutoSyncToggle" ${state.settings.anilistAutoSync ? 'checked' : ''}>
-              <span class="toggle-slider"></span>
-            </label>
-            <p class="setting-description">Automatically updates your AniList chapter progress when you read</p>
-          </div>
-          <div class="setting-group">
-            <label class="toggle-label">
-              <span class="toggle-text">Auto-import on connect</span>
-              <input type="checkbox" id="anilistAutoImportToggle" ${state.settings.anilistAutoImportOnConnect ? 'checked' : ''}>
-              <span class="toggle-slider"></span>
-            </label>
-            <p class="setting-description">Imports your AniList manga library automatically when you connect your account</p>
-          </div>
-          <div class="setting-group">
-            <label class="toggle-label">
-              <span class="toggle-text">Auto-categorize on import</span>
-              <input type="checkbox" id="anilistAutoCategorizeToggle" ${state.settings.anilistAutoCategorize ? 'checked' : ''}>
-              <span class="toggle-slider"></span>
-            </label>
-            <p class="setting-description">Automatically adds completed manga to a &ldquo;Read&rdquo; category when importing</p>
-          </div>
-          <div class="setting-group" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn primary" id="btnAniListImportNow">&#8595; Import Library Now</button>
-            <button class="btn secondary" id="btnAniListDisconnect">Disconnect AniList</button>
-          </div>
-          <div id="anilistImportProgressWrap" class="anilist-import-progress hidden">
-            <div class="anilist-import-progress-bar">
-              <div id="anilistImportProgressFill" class="anilist-import-progress-fill"></div>
+
+          <!-- Library tab -->
+          <div class="settings-tab" id="tab-library">
+            <div class="settings-section-card">
+              <p class="settings-section-title">Appearance</p>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Show source on library cards</span>
+                  <input type="checkbox" id="showLibrarySourceToggle" ${state.settings.showLibrarySourceBadge !== false ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Displays the source name in the bottom-right corner of each library cover</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Hide NSFW</span>
+                  <input type="checkbox" id="hideNsfwToggle" ${state.settings.hideNsfw ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Hides NSFW-related filters in Advanced Search and excludes NSFW-tagged titles from Library</p>
+              </div>
+              <div class="setting-group">
+                <label>Reading status badge location</label>
+                <select id="statusBadgeLocationSelect" class="input">
+                  <option value="cover" ${(state.settings.statusBadgeLocation || 'cover') === 'cover' ? 'selected' : ''}>On cover (top-left)</option>
+                  <option value="info" ${state.settings.statusBadgeLocation === 'info' ? 'selected' : ''}>Below title</option>
+                  <option value="both" ${state.settings.statusBadgeLocation === 'both' ? 'selected' : ''}>Both</option>
+                </select>
+                <p class="setting-description">Controls where the Reading/Completed/etc. badge appears on each library card</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">3D Bookshelf</span>
+                  <input type="checkbox" id="libraryBookshelf3dToggle" ${state.settings.libraryBookshelf3d ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Shows library cards in a 3D bookshelf with depth effect</p>
+              </div>
             </div>
-            <p id="anilistImportProgressText" class="setting-description">Waiting to start import…</p>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Defaults</p>
+              <div class="setting-group">
+                <label>Default status filter when opening Library</label>
+                <select id="libraryDefaultStatusFilterSelect" class="input">
+                  <option value="all" ${state.settings.libraryDefaultStatusFilter === 'all' ? 'selected' : ''}>All Manga</option>
+                  <option value="reading" ${state.settings.libraryDefaultStatusFilter === 'reading' ? 'selected' : ''}>Reading</option>
+                  <option value="completed" ${state.settings.libraryDefaultStatusFilter === 'completed' ? 'selected' : ''}>Completed</option>
+                  <option value="on_hold" ${state.settings.libraryDefaultStatusFilter === 'on_hold' ? 'selected' : ''}>On Hold</option>
+                  <option value="plan_to_read" ${state.settings.libraryDefaultStatusFilter === 'plan_to_read' ? 'selected' : ''}>Plan to Read</option>
+                  <option value="dropped" ${state.settings.libraryDefaultStatusFilter === 'dropped' ? 'selected' : ''}>Dropped</option>
+                </select>
+                <p class="setting-description">When you open Library, this filter is selected automatically</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Data</p>
+              <div class="setting-group">
+                <button class="btn secondary" id="clearReadBtn">🗑️ Clear Reading History</button>
+                <p class="setting-description">Removes all reading history, last-read pages, and chapter flags</p>
+              </div>
+            </div>
           </div>
-          ${(() => {
-            const sync = state.anilistSync;
-            if (!sync?.lastImportAt) return '<p id="anilistLastImportLabel" class="setting-description" style="margin-top:4px;display:none"></p>';
-            const d = new Date(sync.lastImportAt).toLocaleString();
-            return `<p id="anilistLastImportLabel" class="setting-description" style="margin-top:4px">Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated</p>`;
-          })()}
-        </div>
-        <div class="settings-divider"></div>
-        <h3 class="settings-subsection">Commands</h3>
-        <div class="setting-group">
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="text" id="cheatInput" class="input" placeholder="Enter command…" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1;font-family:monospace">
-            <button class="btn primary" id="cheatRunBtn">Run</button>
+
+          <!-- Tracking tab -->
+          <div class="settings-tab" id="tab-tracking">
+            <div class="settings-section-card">
+              <p class="settings-section-title">AniList</p>
+              <div id="anilist-loggedout" ${_alToken() ? 'style="display:none"' : ''}>
+                <div class="setting-group">
+                  <label>AniList Client ID</label>
+                  <input type="text" id="anilistClientIdInput" class="input" value="${escapeHtml(_alClientId())}" placeholder="e.g. 23361" autocomplete="off" spellcheck="false">
+                  <p class="setting-description">
+                    Register a free app at <strong>anilist.co/settings/developer</strong> and set the
+                    redirect URI to <code>${escapeHtml(window.location.origin)}</code>.
+                  </p>
+                </div>
+                <div class="setting-group">
+                  <button class="btn primary" id="btnAniListConnect">Connect AniList</button>
+                </div>
+              </div>
+              <div id="anilist-loggedin" ${_alToken() ? '' : 'style="display:none"'}>
+                <div class="setting-group">
+                  <div class="anilist-user-card" id="anilistUserCard">
+                    ${(() => {
+                      const u = _alUser();
+                      if (!u) return '<span class="muted" style="padding:0">Loading…</span>';
+                      return `${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="" class="anilist-avatar">` : ''}
+                              <span class="anilist-username">${escapeHtml(u.name)}</span>`;
+                    })()}
+                  </div>
+                </div>
+                <div class="setting-group">
+                  <label class="toggle-label">
+                    <span class="toggle-text">Auto-sync progress</span>
+                    <input type="checkbox" id="anilistAutoSyncToggle" ${state.settings.anilistAutoSync ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <p class="setting-description">Automatically updates your AniList chapter progress when you read</p>
+                </div>
+                <div class="setting-group">
+                  <label class="toggle-label">
+                    <span class="toggle-text">Auto-import on connect</span>
+                    <input type="checkbox" id="anilistAutoImportToggle" ${state.settings.anilistAutoImportOnConnect ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <p class="setting-description">Imports your AniList manga library automatically when you connect your account</p>
+                </div>
+                <div class="setting-group">
+                  <label class="toggle-label">
+                    <span class="toggle-text">Auto-categorize on import</span>
+                    <input type="checkbox" id="anilistAutoCategorizeToggle" ${state.settings.anilistAutoCategorize ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <p class="setting-description">Automatically adds completed manga to a "Read" category when importing</p>
+                </div>
+                <div class="setting-group" style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn primary" id="btnAniListImportNow">⬇️ Import Library Now</button>
+                  <button class="btn secondary" id="btnAniListDisconnect">Disconnect</button>
+                </div>
+                <div id="anilistImportProgressWrap" class="anilist-import-progress hidden">
+                  <div class="anilist-import-progress-bar">
+                    <div id="anilistImportProgressFill" class="anilist-import-progress-fill"></div>
+                  </div>
+                  <p id="anilistImportProgressText" class="setting-description">Waiting to start import…</p>
+                </div>
+                ${(() => {
+                  const sync = state.anilistSync;
+                  if (!sync?.lastImportAt) return '<p id="anilistLastImportLabel" class="setting-description" style="margin-top:4px;display:none"></p>';
+                  const d = new Date(sync.lastImportAt).toLocaleString();
+                  return `<p id="anilistLastImportLabel" class="setting-description" style="margin-top:4px">Last import: <strong>${escapeHtml(d)}</strong> &mdash; ${sync.importedCount || 0} new, ${sync.overwriteCount || 0} updated</p>`;
+                })()}
+              </div>
+            </div>
           </div>
-          <p class="setting-description" style="margin-top:6px">Available: <code>cls</code> — reset all AP &amp; achievements &nbsp;·&nbsp; <code>godmode</code> — add 500 AP &nbsp;·&nbsp; <code>lcls</code> — clear library</p>
-        </div>
-      </div>
-    </div>
+
+          <!-- Advanced tab -->
+          <div class="settings-tab" id="tab-advanced">
+            <div class="settings-section-card">
+              <p class="settings-section-title">Commands</p>
+              <div class="setting-group">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input type="text" id="cheatInput" class="input" placeholder="Enter command…" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1;font-family:monospace">
+                  <button class="btn primary" id="cheatRunBtn">Run</button>
+                </div>
+                <p class="setting-description">Available: <code>cls</code> — reset all AP &amp; achievements &nbsp;·&nbsp; <code>godmode</code> — add 500 AP &nbsp;·&nbsp; <code>lcls</code> — clear library</p>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- end panel-wrap -->
+      </div><!-- end layout -->
+    </div><!-- end content -->
   `;
   document.body.appendChild(modal);
 
   $("closeSettings").onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  // Tab switching
+  modal.querySelectorAll('.settings-nav-item').forEach(btn => {
+    btn.onclick = () => {
+      modal.querySelectorAll('.settings-nav-item').forEach(b => b.classList.remove('active'));
+      modal.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      modal.querySelector('#' + btn.dataset.tab)?.classList.add('active');
+      // Re-init custom selects inside newly visible tab
+      if (window.initCustomSelects) initCustomSelects();
+    };
+  });
 
   $("modeSelect").onchange = (e) => {
     state.settings.readingMode = e.target.value;
@@ -199,12 +307,54 @@ function showSettings() {
     state.settings.panWideImages = e.target.checked;
     saveSettings();
     if (state.currentChapter) renderPage();
-  };
+  };  const autoWebtoonToggle = $('autoWebtoonToggle');
+  if (autoWebtoonToggle) {
+    autoWebtoonToggle.onchange = (e) => {
+      state.settings.autoWebtoonDetect = e.target.checked;
+      saveSettings();
+    };
+  }  const pageFlipAnimationToggle = $('pageFlipAnimationToggle');
+  if (pageFlipAnimationToggle) {
+    pageFlipAnimationToggle.onchange = (e) => {
+      state.settings.pageFlipAnimation = e.target.checked;
+      saveSettings();
+    };
+  }
+
+  const readerBgSelect = $('readerBgSelect');
+  if (readerBgSelect) {
+    readerBgSelect.onchange = (e) => {
+      state.settings.readerBackground = e.target.value;
+      saveSettings();
+      applyReaderBackground();
+    };
+  }
+
   const sourceBadgeToggle = $("showLibrarySourceToggle");
   if (sourceBadgeToggle) {
     sourceBadgeToggle.onchange = (e) => {
       state.settings.showLibrarySourceBadge = e.target.checked;
       saveSettings();
+      renderLibrary();
+    };
+  }
+
+  const hideNsfwToggle = $("hideNsfwToggle");
+  if (hideNsfwToggle) {
+    hideNsfwToggle.onchange = (e) => {
+      state.settings.hideNsfw = e.target.checked;
+      saveSettings();
+
+      let advChanged = false;
+      if (typeof applyAdvancedSearchNsfwVisibility === 'function') {
+        advChanged = applyAdvancedSearchNsfwVisibility();
+      }
+
+      const advView = document.querySelector("#view-advanced-search");
+      if (advView && !advView.classList.contains("hidden") && advChanged) {
+        advancedSearch(1);
+      }
+
       renderLibrary();
     };
   }
@@ -223,6 +373,15 @@ function showSettings() {
     libraryDefaultStatusSel.onchange = (e) => {
       state.settings.libraryDefaultStatusFilter = e.target.value || 'all';
       saveSettings();
+    };
+  }
+
+  const statusBadgeLocSel = $("statusBadgeLocationSelect");
+  if (statusBadgeLocSel) {
+    statusBadgeLocSel.onchange = (e) => {
+      state.settings.statusBadgeLocation = e.target.value || 'cover';
+      saveSettings();
+      renderLibrary();
     };
   }
   async function runCheatCommand(cmd) {

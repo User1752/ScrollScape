@@ -2,49 +2,72 @@
 // READER & PAGE RENDERING
 // ============================================================================
 
-// ── Auto-hide header state ──────────────────────────────────────────────────
-let _headerHideTimer = null;
+let _readerArrowProximityListener = null;
 
-function _readerMouseMove(e) {
-  const readerEl = $("reader");
-  if (!readerEl) return;
-  const SHOW_ZONE = 72; // px from top of viewport
-  if (e.clientY <= SHOW_ZONE) {
-    // Mouse is in the header zone — show and cancel any pending hide
-    readerEl.classList.remove("header-hidden");
-    clearTimeout(_headerHideTimer);
-    _headerHideTimer = null;
-  } else {
-    // Mouse left the zone — schedule hide if not already pending
-    if (!_headerHideTimer && !readerEl.classList.contains("header-hidden")) {
-      _headerHideTimer = setTimeout(() => {
-        readerEl.classList.add("header-hidden");
-        _headerHideTimer = null;
-      }, 2000);
-    }
-  }
+function _bindReaderArrowProximity(readerEl) {
+  if (!readerEl || _readerArrowProximityListener) return;
+  _readerArrowProximityListener = (e) => {
+    const arrow = $("readerSidebarToggle");
+    if (!arrow) return;
+    const r = arrow.getBoundingClientRect();
+    const expand = 78;
+    const nearArrow = (
+      e.clientX >= (r.left - expand) &&
+      e.clientX <= (r.right + expand) &&
+      e.clientY >= (r.top - expand) &&
+      e.clientY <= (r.bottom + expand)
+    );
+    readerEl.classList.toggle("reader-arrow-visible", nearArrow);
+  };
+  readerEl.addEventListener("mousemove", _readerArrowProximityListener);
+}
+
+function _unbindReaderArrowProximity(readerEl) {
+  if (!readerEl || !_readerArrowProximityListener) return;
+  readerEl.removeEventListener("mousemove", _readerArrowProximityListener);
+  _readerArrowProximityListener = null;
+}
+
+function applyReaderBackground() {
+  const colours = {
+    black:  '#000000',
+    dark:   '#111318',
+    gray:   '#2a2a2e',
+    sepia:  '#1e160c',
+    white:  '#ffffff',
+  };
+  const bg = colours[state.settings.readerBackground] || colours.black;
+  $('reader').style.backgroundColor = bg;
 }
 
 function showReader() {
   const readerEl = $("reader");
-  readerEl.classList.remove("hidden", "header-hidden");
-  const chapterName = state.currentChapter?.name || "Chapter";
-  $("readerTitle").textContent = `${state.currentManga?.title || ""} — ${chapterName}`;
+  readerEl.classList.remove("hidden");
+  applyReaderBackground();
+  const mode = state.settings.readingMode;
+  if ((mode === "ltr" || mode === "rtl") && state.zoomLevel === 1.0) {
+    state.zoomLevel = 1.2;
+  }
+  const chapterMeta = state.allChapters?.[state.currentChapterIndex];
+  const chapterNumber = chapterMeta?.chapter;
+  const chapterName = state.currentChapter?.name || "";
+  const chapterLabel = chapterNumber ? `Chapter ${chapterNumber}` : (chapterName || "Chapter");
+  $("readerTitle").textContent = `${state.currentManga?.title || ""} - ${chapterLabel}`;
   updateZoomUI();
-  // Auto-hide header after 3 s of inactivity and on mouse position
-  clearTimeout(_headerHideTimer);
-  _headerHideTimer = setTimeout(() => { readerEl.classList.add("header-hidden"); _headerHideTimer = null; }, 3000);
-  readerEl.addEventListener("mousemove", _readerMouseMove);
+  _bindReaderArrowProximity(readerEl);
 }
 
 async function hideReader() {
   stopAutoScroll();
   await recordReadingSession();
+  // Restore reading mode if it was auto-overridden by webtoon detection
+  if (state._preAutoReadingMode != null) {
+    state.settings.readingMode = state._preAutoReadingMode;
+    state._preAutoReadingMode = null;
+  }
   const readerEl = $("reader");
   readerEl.classList.add("hidden");
-  readerEl.classList.remove("header-hidden");
-  readerEl.removeEventListener("mousemove", _readerMouseMove);
-  clearTimeout(_headerHideTimer);
-  _headerHideTimer = null;
+  readerEl.classList.remove("reader-sidebar-collapsed", "reader-arrow-visible");
+  _unbindReaderArrowProximity(readerEl);
 }
 

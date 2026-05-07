@@ -153,3 +153,54 @@
 }
 .import-error.hidden { display: none; }
 
+/* ── Migrate pick-manga custom checkboxes ── */
+.migrate-chk {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid rgba(130, 80, 255, 0.35);
+  background: var(--surface2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.migrate-chk:hover {
+  border-color: var(--primary-light);
+  background: rgba(130, 80, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(130, 80, 255, 0.12);
+}
+.migrate-chk:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(145, 63, 226, 0.2);
+}
+.migrate-chk:checked::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 6px;
+  height: 11px;
+  border: 2.5px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+.migrate-chk:indeterminate {
+  background: rgba(130, 80, 255, 0.45);
+  border-color: var(--primary);
+}
+.migrate-chk:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  width: 12px;
+  height: 2.5px;
+  background: #fff;
+  border-radius: 2px;
+}
+

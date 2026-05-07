@@ -5,7 +5,7 @@
 function renderHistoryView() {
   const container = $("historyList");
   if (!container) return;
-  const history = state.history || [];
+  const history = (state.history || []).filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
   if (!history.length) {
     container.innerHTML = `<div class="muted" style="text-align:center;padding:3rem 0">No reading history yet.</div>`;
     return;

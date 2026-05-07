@@ -262,11 +262,11 @@ function _migrateShowStep2(modal, group) {
     const status = state.readingStatus[key]?.status;
     const badge  = status ? `<span class="status-badge status-badge-${status}" style="font-size:0.7rem;padding:2px 6px">${statusLabel(status)}</span>` : '';
     return `
-      <label class="migrate-manga-row" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(currentSource)}" style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.6rem;border-radius:8px;cursor:pointer;transition:background-color .15s ease">
-        <input type="checkbox" class="migrate-manga-chk" style="accent-color:var(--primary);width:16px;height:16px;flex-shrink:0" value="${escapeHtml(m.id)}">
-        ${m.cover ? `<img src="${escapeHtml(m.cover)}" style="width:42px;height:58px;object-fit:cover;border-radius:5px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">` : `<div style="width:42px;height:58px;background:rgba(130,80,255,0.12);border-radius:5px;flex-shrink:0"></div>`}
+      <label class="migrate-manga-row" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(currentSource)}" style="display:flex;align-items:center;gap:0.9rem;padding:0.65rem 0.75rem;border-radius:10px;cursor:pointer;transition:background-color .15s ease">
+        <input type="checkbox" class="migrate-manga-chk migrate-chk" value="${escapeHtml(m.id)}">
+        ${m.cover ? `<img src="${escapeHtml(m.cover)}" style="width:56px;height:76px;object-fit:cover;border-radius:7px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">` : `<div style="width:56px;height:76px;background:rgba(130,80,255,0.12);border-radius:7px;flex-shrink:0"></div>`}
         <div style="flex:1;min-width:0">
-          <div style="font-size:0.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.title || m.id)}</div>
+          <div style="font-size:1.05rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.title || m.id)}</div>
           ${badge}
         </div>
       </label>`;
@@ -276,16 +276,16 @@ function _migrateShowStep2(modal, group) {
     <div class="settings-header">
       <div style="display:flex;align-items:center;gap:0.6rem">
         <button class="btn secondary" id="migrateBtnBack" style="padding:4px 10px;font-size:0.8rem">← Back</button>
-        <h2 style="font-size:1.05rem">${escapeHtml(_srcName(sourceId))} — pick manga</h2>
+        <h2 style="font-size:1.2rem">${escapeHtml(_srcName(sourceId))} — pick manga</h2>
       </div>
       <button class="btn secondary" id="migrateBtnClose2">&#x2715;</button>
     </div>
     <div class="settings-body" style="padding-bottom:0">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
-        <label style="font-size:0.83rem;display:flex;align-items:center;gap:0.4rem;cursor:pointer">
-          <input type="checkbox" id="migrateSelectAll" style="accent-color:var(--primary)"> Select all
+        <label style="font-size:0.92rem;display:flex;align-items:center;gap:0.55rem;cursor:pointer;font-weight:500">
+          <input type="checkbox" id="migrateSelectAll" class="migrate-chk"> Select all
         </label>
-        <span id="migrateSelCount" style="font-size:0.82rem;color:var(--text-muted)">0 selected</span>
+        <span id="migrateSelCount" style="font-size:0.88rem;color:var(--text-muted)">0 selected</span>
       </div>
       <div id="migrateMangaList" style="max-height:74vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding-right:4px">${rows}</div>
     </div>
@@ -434,7 +434,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
       <div class="settings-header">
         <div style="display:flex;align-items:center;gap:0.6rem">
           <button class="btn secondary" id="migrateBtnBackNoSources" style="padding:4px 10px;font-size:0.8rem">← Back</button>
-          <h2 style="font-size:1.05rem">Choose target source</h2>
+          <h2 style="font-size:1.2rem">Choose target source</h2>
         </div>
         <button class="btn secondary" id="migrateBtnCloseNoSources">&#x2715;</button>
       </div>
@@ -455,7 +455,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
 
   // Build table HTML
   const colHeaders = allSources.map(sid =>
-    `<th style="padding:0.4rem 0.6rem;font-size:0.76rem;color:var(--text-muted);font-weight:500;text-align:center;white-space:nowrap">${escapeHtml(_srcName(sid))}</th>`
+    `<th style="padding:0.5rem 0.75rem;font-size:0.85rem;color:var(--text-muted);font-weight:600;text-align:center;white-space:nowrap">${escapeHtml(_srcName(sid))}</th>`
   ).join('');
 
   const tableRows = results.map(({ manga, sourceResults }) => {
@@ -469,9 +469,9 @@ function _migrateShowStep3Table(modal, results, allSources) {
       const count = info?.chapCount ?? null;
       const isBest = count !== null && count === maxCount && maxCount >= 0;
       const isCurrent = sid === manga.sourceId;
-      let cellStyle = 'padding:0.4rem 0.6rem;text-align:center;font-variant-numeric:tabular-nums;font-size:0.82rem;';
+      let cellStyle = 'padding:0.5rem 0.75rem;text-align:center;font-variant-numeric:tabular-nums;font-size:0.95rem;';
       if (isBest)    cellStyle += 'color:#7cfc88;font-weight:700;';
-      else if (isCurrent) cellStyle += 'color:var(--primary);';
+      else if (isCurrent) cellStyle += 'color:var(--primary);font-weight:600;';
       else           cellStyle += 'color:var(--text-muted);';
       const label = count !== null ? String(count) : '—';
       const crown = isBest && !isCurrent ? ' 👑' : '';
@@ -485,13 +485,12 @@ function _migrateShowStep3Table(modal, results, allSources) {
       }
 
       return `<td style="${cellStyle}">
-        <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer">
+        <label style="display:inline-flex;align-items:center;gap:0.55rem;cursor:pointer">
           <input
             type="checkbox"
-            class="migrate-target-chk"
+            class="migrate-target-chk migrate-chk"
             data-row-key="${escapeHtml(rowKey)}"
             data-target-source="${escapeHtml(sid)}"
-            style="accent-color:var(--primary);width:15px;height:15px;cursor:pointer"
           >
           <span>${label}${crown}</span>
         </label>
@@ -500,10 +499,10 @@ function _migrateShowStep3Table(modal, results, allSources) {
 
     return `
       <tr data-row-key="${escapeHtml(rowKey)}" style="border-bottom:1px solid rgba(130,80,255,0.08)">
-        <td style="padding:0.4rem 0.6rem;max-width:180px">
-          <div style="display:flex;align-items:center;gap:0.5rem">
-            ${manga.cover ? `<img src="${escapeHtml(manga.cover)}" style="width:28px;height:38px;object-fit:cover;border-radius:3px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">` : ''}
-            <span style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${escapeHtml(manga.title || manga.id)}</span>
+        <td style="padding:0.5rem 0.75rem;max-width:220px">
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            ${manga.cover ? `<img src="${escapeHtml(manga.cover)}" style="width:44px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">` : ''}
+            <span style="font-size:0.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${escapeHtml(manga.title || manga.id)}</span>
           </div>
         </td>
         ${cells}
@@ -514,12 +513,12 @@ function _migrateShowStep3Table(modal, results, allSources) {
     <div class="settings-header">
       <div style="display:flex;align-items:center;gap:0.6rem">
         <button class="btn secondary" id="migrateBtnBack3" style="padding:4px 10px;font-size:0.8rem">← Back</button>
-        <h2 style="font-size:1.05rem">Choose target source</h2>
+        <h2 style="font-size:1.2rem">Choose target source</h2>
       </div>
       <button class="btn secondary" id="migrateBtnClose4">&#x2715;</button>
     </div>
     <div class="settings-body" style="padding-bottom:0">
-      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem">
+      <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:0.75rem">
         Chapter counts show the top search result per source.
         <span style="color:#7cfc88">Green / 👑</span> = most chapters.
         Current source highlighted in <span style="color:var(--primary)">purple</span>. Only one checkbox per manga row.
@@ -528,7 +527,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
         <table style="width:100%;border-collapse:collapse;min-width:900px">
           <thead style="position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:1">
             <tr style="border-bottom:1px solid rgba(130,80,255,0.2)">
-              <th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.76rem;color:var(--text-muted);font-weight:500">Manga</th>
+              <th style="text-align:left;padding:0.5rem 0.75rem;font-size:0.85rem;color:var(--text-muted);font-weight:600">Manga</th>
               ${colHeaders}
             </tr>
           </thead>
@@ -537,7 +536,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
       </div>
     </div>
     <div style="padding:0.75rem 1.2rem;border-top:1px solid rgba(130,80,255,0.15);display:flex;justify-content:space-between;align-items:center">
-      <span id="migrateChoiceCount" style="font-size:0.82rem;color:var(--text-muted)">0 manga with target selected</span>
+      <span id="migrateChoiceCount" style="font-size:0.9rem;color:var(--text-muted)">0 manga with target selected</span>
       <button class="btn primary" id="migrateBtnConfirm" disabled>Migrate Selected</button>
     </div>`;
 

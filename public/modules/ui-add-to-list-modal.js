@@ -195,6 +195,19 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
     }).catch(() => {});
 
     showReader();
+    // Auto-detect manhwa/manhua and switch to webtoon mode for this session
+    if (state.settings.autoWebtoonDetect && state.currentManga) {
+      if (isWebtoonFormat(state.currentManga)) {
+        if (state.settings.readingMode !== 'webtoon') {
+          state._preAutoReadingMode = state.settings.readingMode;
+          state.settings.readingMode = 'webtoon';
+        }
+      } else if (state._preAutoReadingMode != null) {
+        // Restore if we moved to a non-webtoon manga
+        state.settings.readingMode = state._preAutoReadingMode;
+        state._preAutoReadingMode = null;
+      }
+    }
     renderPage();
     $("searchStatus").textContent = "";
     loadChapters();

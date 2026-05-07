@@ -921,7 +921,15 @@ async function anilistImportLibrary(opts = {}) {
 
 
 async function showTrackerModal(manga) {
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.style.visibility = '';
   document.querySelector('.tracker-modal')?.remove();
+
+  manga = manga || state.currentManga;
+  if (!manga?.id || !manga?.title) {
+    showToast('Tracker', 'Could not detect the current manga.', 'warning');
+    return;
+  }
 
   const AL_STATUSES = [
     ['CURRENT',   'Reading'],
@@ -932,14 +940,9 @@ async function showTrackerModal(manga) {
     ['REPEATING', 'Rereading'],
   ];
 
-  // Hide sidebar for more room
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) sidebar.style.visibility = 'hidden';
-
   const modal = document.createElement('div');
   modal.className = 'tracker-modal';
   const closeModal = () => {
-    if (sidebar) sidebar.style.visibility = '';
     modal.remove();
   };
   modal.onclick = (e) => { if (e.target === modal) closeModal(); };

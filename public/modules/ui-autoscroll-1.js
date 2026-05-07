@@ -67,7 +67,7 @@ function toggleAutoScroll() {
     btn.classList.toggle("active", state.autoScroll.enabled);
     btn.title = state.autoScroll.enabled ? "Stop AutoScroll" : "Start AutoScroll";
   }
-  if (bar) bar.classList.toggle("hidden", !state.autoScroll.enabled);
+  if (bar) bar.classList.toggle("is-disabled", !state.autoScroll.enabled);
   if (state.autoScroll.enabled) startAutoScroll();
   else stopAutoScroll();
 }

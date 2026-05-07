@@ -174,6 +174,49 @@ function renderLibrary() {
   const filterVal    = $("libraryStatusFilter")?.value   || "all";
   const categoryFilter = $("libraryCategoryFilter")?.value || "all";
   const searchQuery  = ($("librarySearchInput")?.value || "").trim().toLowerCase();
+  const hideNsfw = state.settings.hideNsfw === true;
+
+  // Build a genres enrichment map from history (history entries have full genre data,
+  // while favorites added via import often have genres: []).
+  // Keyed as "id:sourceId" for direct lookup.
+  let _histGenresMap = null;
+  function _getEnrichedGenres(manga) {
+    if ((manga.genres || []).length > 0) return manga.genres;
+    if (!_histGenresMap) {
+      _histGenresMap = new Map();
+      for (const h of (state.history || [])) {
+        if ((h.genres || []).length > 0) {
+          _histGenresMap.set(`${h.id}:${h.sourceId || ''}`, h.genres);
+          // also index by anilistId if present
+          if (h.anilistId) _histGenresMap.set(`anilist:${h.anilistId}`, h.genres);
+        }
+      }
+      // also pull from readingStatus manga entries
+      for (const rs of Object.values(state.readingStatus || {})) {
+        const rsm = rs.manga;
+        if (rsm && (rsm.genres || []).length > 0) {
+          _histGenresMap.set(`${rsm.id}:${rsm.sourceId || ''}`, rsm.genres);
+        }
+      }
+    }
+    const key = `${manga.id}:${manga.sourceId || ''}`;
+    if (_histGenresMap.has(key)) return _histGenresMap.get(key);
+    // For AniList-sourced entries, also try matching by anilistId
+    if (manga.anilistId) {
+      const aKey = `anilist:${manga.anilistId}`;
+      if (_histGenresMap.has(aKey)) return _histGenresMap.get(aKey);
+    }
+    return [];
+  }
+  function _isNsfwEnriched(manga) {
+    if (!manga) return false;
+    const enrichedGenres = _getEnrichedGenres(manga);
+    if (enrichedGenres.length > 0) {
+      const enriched = Object.assign({}, manga, { genres: enrichedGenres });
+      return isNsfwManga(enriched);
+    }
+    return isNsfwManga(manga);
+  }
 
   // Build a reverse-index: mangaId -> [listId, ...]
   const mangaCategories = {};
@@ -187,6 +230,8 @@ function renderLibrary() {
   }
 
   let favs = state.favorites.filter(manga => {
+    if (hideNsfw && _isNsfwEnriched(manga)) return false;
+
     if (filterVal !== "all") {
       const key    = _libStatusKey(manga.id, manga.sourceId);
       const status = state.readingStatus[key]?.status;
@@ -209,6 +254,7 @@ function renderLibrary() {
   favs = _sortLibrary(favs);
 
   const filteredLocalManga = state.localManga.filter(manga => {
+    if (hideNsfw && _isNsfwEnriched(manga)) return false;
     if (searchQuery && !String(manga.title || '').toLowerCase().includes(searchQuery)) return false;
     return true;
   });
@@ -232,7 +278,8 @@ function renderLibrary() {
   const favHTML = favs.map(manga => {
     const key    = _libStatusKey(manga.id, manga.sourceId);
     const status = state.readingStatus[key]?.status;
-    const statusBadge = status
+    const badgeLoc = state.settings.statusBadgeLocation || 'cover';
+    const statusBadge = status && badgeLoc !== 'info'
       ? `<div class="library-card-status status-badge-${status}">${statusLabel(status).split(' ')[0]}</div>`
       : "";
     const currentRating = state.ratings[_libRatingKey(manga.id)] || 0;
@@ -271,7 +318,7 @@ function renderLibrary() {
         <div class="library-card-info">
           <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
           <p class="library-card-author">${escapeHtml(manga.author || "")}</p>
-          ${status ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : ""}
+          ${status && badgeLoc !== 'cover' ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : ""}
           ${catChips ? `<div class="category-chips">${catChips}</div>` : ''}
           ${currentRating ? `<span class="card-score-badge">${currentRating}<span class="card-score-badge-max">/10</span></span>` : ""}
         </div>

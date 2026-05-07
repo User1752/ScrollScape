@@ -261,10 +261,15 @@ async function loadRecommendations() {
 
   const topGenresLower = topGenres.map(g => g.toLowerCase());
 
-  const libraryIds = new Set([
-    ...state.favorites.map(m => m.id),
-    ...state.history.map(m => m.id)
-  ]);
+  const normalizeTitle = (title = "") =>
+    String(title).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+
+  const favoriteIdsBySource = new Set(
+    (state.favorites || []).map(m => `${_normSourceId(m.sourceId)}::${m.id}`)
+  );
+  const favoriteTitleKeys = new Set(
+    (state.favorites || []).map(m => normalizeTitle(m.title || m.id)).filter(Boolean)
+  );
 
   // Score a result by how many label genres it matches (used for sources that return genres)
   const genreMatchScore = m => {
@@ -283,7 +288,11 @@ async function loadRecommendations() {
           body: JSON.stringify({ genres: topGenres })
         });
         return (result.results || [])
-          .filter(m => !libraryIds.has(m.id))
+          .filter(m => {
+            const sourceKey = `${sid}::${m.id}`;
+            const titleKey = normalizeTitle(m.title || m.id);
+            return !favoriteIdsBySource.has(sourceKey) && !favoriteTitleKeys.has(titleKey);
+          })
           .map(m => ({ ...m, sourceId: sid, _score: genreMatchScore(m) }))
           // Sort within each source: best genre match first
           .sort((a, b) => b._score - a._score);

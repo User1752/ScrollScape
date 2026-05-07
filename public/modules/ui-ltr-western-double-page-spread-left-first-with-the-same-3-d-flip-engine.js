@@ -36,12 +36,16 @@ function renderLTRSpread() {
 
   const wrapZoomStyle = '';
 
-  const leftHtml = leftImg
-    ? `<img class="book-page-img${isWide ? ' wide-split-left' : ''}" src="${escapeHtml(leftImg)}" alt="Page ${idx + 1}">`
+  // Wide pages: both panels blank, full-spread overlay shown instead.
+  const leftHtml = (leftImg && !isWide)
+    ? `<img class="book-page-img" src="${escapeHtml(leftImg)}" alt="Page ${idx + 1}">`
     : `<div class="book-page-blank"></div>`;
-  const rightHtml = rightImg
-    ? `<img class="book-page-img${isWide ? ' wide-split-right' : ''}" src="${escapeHtml(rightImg)}" alt="Page ${isWide ? idx + 1 : idx + 2}">`
+  const rightHtml = (rightImg && !isWide)
+    ? `<img class="book-page-img" src="${escapeHtml(rightImg)}" alt="Page ${idx + 2}">`
     : `<div class="book-page-blank"></div>`;
+  const overlayHtml = isWide && leftImg
+    ? `<div class="book-wide-overlay visible" id="bookWideOverlay"><img src="${escapeHtml(leftImg)}"></div>`
+    : '';
 
   pageWrap.innerHTML = `
     <div class="book-reader-wrap" id="bookReaderWrap" ${wrapZoomStyle}>
@@ -49,15 +53,18 @@ function renderLTRSpread() {
         <div class="book-side book-left" id="bookLeft">${leftHtml}</div>
         <div class="book-spine"></div>
         <div class="book-side book-right" id="bookRight">${rightHtml}</div>
+        ${overlayHtml}
       </div>
     </div>
   `;
+
+  if (typeof _prepareBookImages === 'function') _prepareBookImages(pageWrap);
 
   updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, idx);
   attachBookDragEvents();
   preloadBookPages(idx, pages);
   _applyBookZoom();
-  _applyWideSplitIfNeeded(idx, pages);
+  if (!isWide) _applyWideSplitIfNeeded(idx, pages);
 }
 
 function navigateLTR(direction) {
@@ -107,6 +114,16 @@ function navigateLTR(direction) {
 
   if (_ltrFlipAnimating) return;
 
+  // Sync-probe destination page — catches images already in browser cache
+  _syncProbeWide(pages[newIdx]);
+
+  // No-animation mode: just re-render instantly.
+  if (state.settings.pageFlipAnimation === false) {
+    state.currentPageIndex = newIdx;
+    renderLTRSpread();
+    return;
+  }
+
   _ltrFlipAnimating = true;
   playBookFlip(direction, idx, newIdx, pages, () => {
     state.currentPageIndex = newIdx;
@@ -125,7 +142,7 @@ function navigateLTR(direction) {
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, newIdx);
     preloadBookPages(newIdx, pages);
     attachBookDragEvents();
-    _applyWideSplitIfNeeded(newIdx, pages);
+    _applyWideForCurrentPage(newIdx, pages);
   }, getLTRSpread);
 }
 

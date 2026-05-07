@@ -51,10 +51,15 @@ const state = {
     skipDuplicates: true,
     panWideImages: false,
     lineSharpness: 0,
+    hideNsfw: false,
     showLibrarySourceBadge: true,
+    statusBadgeLocation: 'cover',
     anilistAutoSync: true,
     anilistAutoImportOnConnect: false,
     anilistAutoCategorize: true,
+    autoWebtoonDetect: true,
+    pageFlipAnimation: true,
+    readerBackground: 'black',
   },
 
   // ── Reading status & analytics ────────────────────────────────────────────

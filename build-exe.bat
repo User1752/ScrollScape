@@ -24,8 +24,12 @@ set "GRY=!ESC![90m"
 cd /d "%~dp0"
 call :banner
 
-:: --- Step 1: ensure dist\ exists ------------------------------------------
+:: --- Step 1: ensure dist\ and pkg cache dirs exist -----------------------
 if not exist "dist" mkdir dist
+:: Force pkg to store its Node.js fetch-cache inside the project folder
+:: so the build works on a clean machine without writing to %APPDATA%
+if not exist "tools\pkg-cache" mkdir tools\pkg-cache
+set "PKG_CACHE_PATH=%~dp0tools\pkg-cache"
 
 :: ============================================================================
 :: Determine Node.js  –  1) system  2) tools\node  3) auto-download  4) Docker
@@ -71,7 +75,7 @@ if not "!NODE_EXE!"=="node" set "PATH=%~dp0tools\node;!PATH!"
 
 :: Install / refresh dependencies (including devDeps for pkg)
 echo   !BCYN!  [ .. ]!R!  Installing dependencies...
-call "!NPM_CMD!" install 2>&1
+call "!NPM_CMD!" install --cache "%~dp0tools\npm-cache" --prefer-offline 2>&1
 if %errorlevel% neq 0 (
     call :err "npm install failed" "See output above."
     goto :end

@@ -21,8 +21,13 @@ Thumbs.db
 # Build output
 dist/
 
-# Portable Node.js (auto-downloaded by build-exe.bat)
+# Portable Node.js (auto-downloaded by build-exe.bat / ScrollScape.bat)
 tools/
+# pkg binary cache (populated by build-exe.bat)
+tools/pkg-cache/
 
-# Planning artefacts
+# Planning artefacts / personal notes
 mvp.sql
+Todo.txt
+temp_check.html
+server.legacy.js

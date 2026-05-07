@@ -8,7 +8,7 @@ async function loadAllTimePopular() {
   row.innerHTML = `<div class="muted">Loading...</div>`;
   try {
     const result = await api("/api/popular-all");
-    const list = result.results || [];
+    const list = (result.results || []).filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
     if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     row.innerHTML = list.map(m => {
       const genres = (m.genres || []).slice(0, 2);
@@ -46,7 +46,7 @@ async function loadPopularToday() {
       method: "POST",
       body: JSON.stringify({})
     });
-    const list = result.results || [];
+    const list = (result.results || []).filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
     if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     row.innerHTML = list.slice(0, 10).map(m => mangaCardHTML(m)).join("");
     bindMangaCards(row);
@@ -66,7 +66,7 @@ async function loadRecentlyAdded() {
       method: "POST",
       body: JSON.stringify({})
     });
-    const list = result.results || [];
+    const list = (result.results || []).filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
     if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     renderMangaGrid(row, list.slice(0, 12));
     initRowAutoScroll(row);
@@ -85,7 +85,7 @@ async function loadLatestUpdates() {
       method: "POST",
       body: JSON.stringify({})
     });
-    const list = result.results || [];
+    const list = (result.results || []).filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
     if (!list.length) { row.innerHTML = `<div class="muted">No manga found.</div>`; return; }
     renderMangaGrid(row, list.slice(0, 12));
     initRowAutoScroll(row);
