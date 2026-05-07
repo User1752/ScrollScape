@@ -272,37 +272,48 @@ async function showCategoryModal(manga) {
 
   const renderList = () => {
     if (state.customLists.length === 0) {
-      return `<div class="muted" style="text-align:center;padding:1.5rem 0">No categories yet. Create one first.</div>`;
+      return `<div style="text-align:center;padding:2rem 0;color:var(--text-secondary)">
+        <div style="font-size:0.9rem">No categories yet. Create one first.</div>
+      </div>`;
     }
     return state.customLists.map(l => {
       const checked = currentCategoryIds.includes(l.id);
       const count   = l.mangaItems?.length || 0;
       return `
-        <label class="toggle-label" style="margin-bottom:0.75rem;cursor:pointer">
-          <input type="checkbox" class="category-checkbox" value="${escapeHtml(l.id)}" ${checked ? 'checked' : ''} style="width:16px;height:16px;margin-right:8px;accent-color:var(--primary)">
-          <span class="toggle-text" style="font-size:0.95rem">${escapeHtml(l.name)}</span>
-          <span style="margin-left:auto;font-size:0.8rem;color:var(--text-secondary)">${count} manga</span>
+        <label class="cat-modal-row ${checked ? 'cat-modal-row--checked' : ''}">
+          <input type="checkbox" class="category-checkbox" value="${escapeHtml(l.id)}" ${checked ? 'checked' : ''}>
+          <span class="cat-modal-row__name">${escapeHtml(l.name)}</span>
+          <span class="cat-modal-row__count">${count}</span>
         </label>`;
     }).join('');
   };
 
   modal.innerHTML = `
-    <div class="settings-content" style="max-width:440px">
-      <div class="settings-header">
-        <h2>Assign Categories</h2>
-        <button class="btn secondary" id="closeCatModal">&#x2715;</button>
-      </div>
-      <div class="settings-body">
-        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem">${escapeHtml(manga.title || '')}</p>
-        <div id="catCheckboxList">${renderList()}</div>
-        <div style="display:flex;gap:8px;margin-top:1.5rem;flex-wrap:wrap">
-          <button class="btn primary"   id="saveCatBtn">Save</button>
-          <button class="btn secondary" id="newCatFromModal">+ New Category</button>
-          <button class="btn secondary" id="closeCatModal2">Cancel</button>
+    <div class="settings-content cat-modal-panel">
+      <div class="cat-modal-header">
+        <div class="cat-modal-header__text">
+          <h2 class="cat-modal-title">Assign Categories</h2>
+          <p class="cat-modal-subtitle">${escapeHtml(manga.title || '')}</p>
         </div>
+        <button class="cat-modal-close" id="closeCatModal">&#x2715;</button>
+      </div>
+      <div class="cat-modal-body">
+        <div id="catCheckboxList" class="cat-modal-list">${renderList()}</div>
+      </div>
+      <div class="cat-modal-footer">
+        <button class="btn primary"   id="saveCatBtn">Save</button>
+        <button class="btn secondary" id="newCatFromModal">+ New Category</button>
+        <button class="btn secondary" id="closeCatModal2">Cancel</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
+
+  // Toggle checked style on rows when checkbox changes
+  modal.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('category-checkbox')) return;
+    const row = e.target.closest('.cat-modal-row');
+    if (row) row.classList.toggle('cat-modal-row--checked', e.target.checked);
+  });
 
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   $('closeCatModal').onclick  = () => modal.remove();

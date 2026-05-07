@@ -6,8 +6,14 @@
   initTheme();
   applyTranslations();
   loadSettings();
-  applyTheme(getActiveTheme());
-  applyCustomization(getActiveCustom());
+  var activeCustom = getActiveCustom();
+  var activeTheme = getActiveTheme();
+  if (activeCustom && activeTheme !== 'default') {
+    localStorage.setItem('scrollscape_active_theme', 'default');
+    activeTheme = 'default';
+  }
+  applyTheme(activeTheme);
+  applyCustomization(activeCustom);
 
   // Handle AniList OAuth redirect (token arrives in the URL hash after login)
   await anilistHandleCallback();

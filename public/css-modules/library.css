@@ -166,6 +166,38 @@
   pointer-events: none;
 }
 
+.library-card-status--bottom-left {
+  top: auto;
+  bottom: 8px;
+  left: 8px;
+}
+
+.library-card-chapters-count {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 3;
+  width: fit-content;
+  height: fit-content;
+  padding: 0.13rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.library-card-chapters-count--done {
+  background: rgba(0,208,132,0.18);
+  border-color: var(--success);
+  color: var(--success);
+}
+
 .btn-read {
   padding: 0.75rem 1.5rem;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);

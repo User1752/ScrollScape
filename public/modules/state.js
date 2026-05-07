@@ -53,6 +53,7 @@ const state = {
     lineSharpness: 0,
     hideNsfw: false,
     showLibrarySourceBadge: true,
+    showChaptersLeft: false,
     statusBadgeLocation: 'cover',
     anilistAutoSync: true,
     anilistAutoImportOnConnect: false,
@@ -108,5 +109,9 @@ const state = {
 
   // ── AniList progress tracking ─────────────────────────────────────────────
   /** @type {Record<string, number>} mangaId → highest chapter number read */
-  highestReadChapter: {}
+  highestReadChapter: {},
+
+  // ── Chapter count cache ───────────────────────────────────────────────────
+  /** @type {Record<string, number>} mangaId → total number of chapters (cached from last fetch) */
+  chapterCountCache: {}
 };

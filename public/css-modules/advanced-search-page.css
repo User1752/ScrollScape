@@ -147,10 +147,10 @@
   flex-direction: column;
   gap: 2rem;
   margin-bottom: 2rem;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(145, 63, 226, 0.05) 100%);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, color-mix(in srgb, var(--primary) 5%, transparent) 100%);
   padding: 2rem;
   border-radius: 16px;
-  border: 1px solid rgba(145, 63, 226, 0.25);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
   position: relative;
@@ -164,7 +164,7 @@
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(145, 63, 226, 0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 70%);
   opacity: 0;
   transition: opacity 0.5s ease;
   pointer-events: none;
@@ -175,8 +175,8 @@
 }
 
 .advanced-filters-section:hover {
-  border-color: rgba(145, 63, 226, 0.5);
-  box-shadow: 0 12px 48px rgba(145, 63, 226, 0.3);
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  box-shadow: 0 12px 48px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .filters-row {
@@ -188,7 +188,7 @@
 
 .filters-row .filter-group {
   background: linear-gradient(160deg, rgba(20, 18, 28, 0.85) 0%, rgba(28, 24, 40, 0.85) 100%);
-  border: 1px solid rgba(145, 63, 226, 0.2);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
   border-left: 3px solid var(--primary);
   padding: 1.1rem 1rem 1rem;
   border-radius: 12px;
@@ -198,9 +198,9 @@
 
 .filters-row .filter-group:hover {
   background: linear-gradient(160deg, rgba(28, 24, 40, 0.95) 0%, rgba(36, 30, 52, 0.95) 100%);
-  border-color: rgba(145, 63, 226, 0.45);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
   border-left-color: var(--primary-light);
-  box-shadow: 0 6px 24px rgba(145, 63, 226, 0.2);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--primary) 20%, transparent);
   transform: translateY(-1px);
 }
 
@@ -220,7 +220,7 @@
 
 .advanced-filters-section .filter-group {
   background: rgba(17, 15, 21, 0.5);
-  border: 1px solid rgba(145, 63, 226, 0.2);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
   padding: 1.5rem;
   border-radius: 12px;
   transition: all 0.3s ease;
@@ -229,8 +229,8 @@
 
 .advanced-filters-section .filter-group:hover {
   background: rgba(22, 21, 29, 0.6);
-  border-color: rgba(145, 63, 226, 0.4);
-  box-shadow: 0 4px 20px rgba(145, 63, 226, 0.15);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 15%, transparent);
 }
 
 .advanced-filters-section .filter-group label {
@@ -251,7 +251,7 @@
   height: 20px;
   background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
   border-radius: 3px;
-  box-shadow: 0 0 10px rgba(145, 63, 226, 0.5);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 50%, transparent);
 }
 
 .advanced-tags-section {
@@ -263,7 +263,7 @@
   padding: 1rem;
   background: rgba(17, 15, 21, 0.4);
   border-radius: 8px;
-  border: 1px solid rgba(145, 63, 226, 0.1);
+  border: 1px solid color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .advanced-tags-section::-webkit-scrollbar {
@@ -284,6 +284,6 @@
 
 .advanced-tags-section::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
-  box-shadow: 0 0 10px rgba(145, 63, 226, 0.5);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 50%, transparent);
 }
 

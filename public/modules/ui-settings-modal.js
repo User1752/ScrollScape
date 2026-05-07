@@ -148,6 +148,14 @@ function showSettings() {
                 </label>
                 <p class="setting-description">Shows library cards in a 3D bookshelf with depth effect</p>
               </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Mostrar capítulos em falta</span>
+                  <input type="checkbox" id="showChaptersLeftToggle" ${state.settings.showChaptersLeft ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Mostra quantos capítulos faltam por ler em cada carta da biblioteca (requer ter aberto o manga pelo menos uma vez)</p>
+              </div>
             </div>
             <div class="settings-section-card">
               <p class="settings-section-title">Defaults</p>
@@ -363,6 +371,15 @@ function showSettings() {
   if (bookshelf3dToggle) {
     bookshelf3dToggle.onchange = (e) => {
       state.settings.libraryBookshelf3d = e.target.checked;
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
+  const showChaptersLeftToggle = $("showChaptersLeftToggle");
+  if (showChaptersLeftToggle) {
+    showChaptersLeftToggle.onchange = (e) => {
+      state.settings.showChaptersLeft = e.target.checked;
       saveSettings();
       renderLibrary();
     };

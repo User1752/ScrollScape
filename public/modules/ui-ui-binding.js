@@ -212,6 +212,15 @@ const CUSTOM_PRESETS_KEY = 'scrollscape_custom_presets';
 
 const CUSTOM_ACTIVE_KEY  = 'scrollscape_active_custom';
 
+const CUSTOM_FONT_OPTIONS = [
+  { value: '', label: 'System UI' },
+  { value: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", label: 'Segoe UI' },
+  { value: "'Trebuchet MS', 'Segoe UI', sans-serif", label: 'Trebuchet MS' },
+  { value: "'Georgia', 'Times New Roman', serif", label: 'Georgia' },
+  { value: "'Courier New', monospace", label: 'Courier New' },
+  { value: "'Orbitron', sans-serif", label: 'Orbitron' }
+];
+
 // Shared callback so initColorPicker can trigger livePreview
 var _cpLivePreviewCb = null;
 // Tracks whether we are currently editing an existing preset
@@ -245,6 +254,15 @@ function setActiveCustom(cfg) {
 
 }
 
+function resetBaseThemeForCustomActivation() {
+  if (typeof window.getActiveTheme !== 'function' || typeof window.applyTheme !== 'function') return;
+  var current = window.getActiveTheme();
+  if (current && current !== 'default') {
+    localStorage.setItem('scrollscape_active_theme', 'default');
+    window.applyTheme('default');
+  }
+}
+
 
 
 // ── Palette colour helpers ───────────────────────────────────────────────────
@@ -270,12 +288,28 @@ function _derivePalette(hex){
   };
 }
 
+function _sanitizeCustomFontFamily(value) {
+  var raw = String(value || '');
+  var found = CUSTOM_FONT_OPTIONS.find(function(opt) { return opt.value === raw; });
+  return found ? found.value : '';
+}
+
+function _sanitizeCustomPercent(value, fallback) {
+  var num = Number(value);
+  if (!isFinite(num)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(num)));
+}
+
 function applyCustomization(cfg) {
 
-  ['custom-char', 'custom-corner', 'custom-bg-layer'].forEach(function(id) {
+  ['custom-char', 'custom-corner', 'custom-bg-layer', 'custom-header-layer'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) { if (el._obs) el._obs.disconnect(); el.remove(); }
   });
+
+  // Reset topbar inline styles set by a previous header image
+  var _topbar = document.querySelector('.topbar');
+  if (_topbar) { _topbar.style.minHeight = ''; _topbar.style.position = ''; _topbar.style.overflow = ''; }
 
   var styleEl = document.getElementById('custom-live-style');
   if (!styleEl) {
@@ -298,16 +332,35 @@ function applyCustomization(cfg) {
   var headerUrl  = cfg.headerUrl  || '';
   var headerDim  = cfg.headerDim  != null ? cfg.headerDim  : 0;
   var headerOpac = cfg.headerOpac != null ? cfg.headerOpac : 0;
+  var headerPosX = _sanitizeCustomPercent(cfg.headerPosX, 50);
+  var headerPosY = _sanitizeCustomPercent(cfg.headerPosY, 50);
   var charUrl    = cfg.charUrl    || '';
   var charDim    = cfg.charDim    != null ? cfg.charDim    : 0;
   var charDark   = cfg.charDark   != null ? cfg.charDark   : 0;
   var cornerUrl  = cfg.cornerUrl  || '';
   var cornerDim  = cfg.cornerDim  != null ? cfg.cornerDim  : 0;
   var cornerDark = cfg.cornerDark != null ? cfg.cornerDark : 0;
+  var fontFamily = _sanitizeCustomFontFamily(cfg.fontFamily);
 
   var css = '';
-  if (headerUrl) css += ".topbar { background: linear-gradient(rgba(0,0,0," + (headerDim/100) + "),rgba(0,0,0," + (headerDim/100) + ")), url('" + headerUrl + "') center/cover !important; opacity:" + ((100-headerOpac)/100) + " !important; }\n";
+  if (fontFamily) {
+    css += "body, .sidebar-brand-text, .brand, .section-title, h1, h2, h3, h4, h5, h6 { font-family:" + fontFamily + " !important; }\n";
+  }
   styleEl.textContent = css;
+
+  if (headerUrl) {
+    var hdrLayer = document.createElement('div');
+    hdrLayer.id = 'custom-header-layer';
+    hdrLayer.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;' +
+        "background:linear-gradient(rgba(0,0,0," + (headerDim/100) + "),rgba(0,0,0," + (headerDim/100) + ")),url('" + headerUrl + "') " + headerPosX + "% " + headerPosY + "%/cover no-repeat;" +
+      'opacity:' + ((100 - headerOpac) / 100);
+    var topbarEl = document.querySelector('.topbar');
+    if (topbarEl) {
+      topbarEl.style.position = 'relative';
+      topbarEl.style.overflow = 'hidden';
+      topbarEl.appendChild(hdrLayer);
+    }
+  }
 
   if (bgUrl) {
     var bgLayer = document.createElement('div');
@@ -360,6 +413,7 @@ function applyCustomization(cfg) {
   // Apply custom palette colours directly on the root element as inline style —
   // inline styles have higher priority than any stylesheet rule (including active themes).
   var paletteColor = cfg.paletteColor || '';
+  var buttonColor  = cfg.buttonColor  || '';
   if (paletteColor && /^#[0-9a-f]{6}$/i.test(paletteColor)) {
     var pal = _derivePalette(paletteColor);
     document.documentElement.style.setProperty('--primary',       pal.primary);
@@ -370,15 +424,21 @@ function applyCustomization(cfg) {
     document.documentElement.style.removeProperty('--primary-dark');
     document.documentElement.style.removeProperty('--primary-light');
   }
-  palStyleEl.textContent = '';
+  if (buttonColor && /^#[0-9a-f]{6}$/i.test(buttonColor)) {
+    palStyleEl.textContent = '.btn { --btn-color: ' + buttonColor + ' !important; } .btn:hover:not(:disabled) { background: color-mix(in srgb, ' + buttonColor + ' 80%, white) !important; }';
+  } else {
+    palStyleEl.textContent = '';
+  }
 
 }
 
 
 
 function renderCustomizeView() {
+  var tr = function(key) { return t(key); };
 
   var presets = getCustomPresets();
+  var presetThemeIds = new Set(typeof getThemePresetIds === 'function' ? getThemePresetIds() : []);
 
   var active  = getActiveCustom() || {};
 
@@ -387,6 +447,7 @@ function renderCustomizeView() {
   var presetsHtml = presets.length
 
     ? presets.map(function(p) {
+        var inThemes = presetThemeIds.has(p.id);
 
         return '<div class="custom-preset-card" id="preset-card-' + p.id + '">' +
 
@@ -394,21 +455,23 @@ function renderCustomizeView() {
 
           '<div class="custom-preset-actions">' +
 
-            '<button class="btn secondary" onclick="applyCustomPreset(\'' + p.id + '\')">Apply</button>' +
+            '<button id="preset-theme-btn-' + p.id + '" class="btn secondary ' + (inThemes ? 'is-added-theme' : '') + '" onclick="togglePresetInThemes(\'' + p.id + '\')">' + escapeHtml(inThemes ? tr('action.addedToThemes') : tr('action.addToThemes')) + '</button>' +
 
-            '<button class="btn secondary" onclick="editCustomPreset(\'' + p.id + '\')">&#9998; Edit</button>' +
+            '<button class="btn secondary" onclick="applyCustomPreset(\'' + p.id + '\')">' + escapeHtml(tr('action.apply')) + '</button>' +
 
-            '<button class="btn danger" onclick="deleteCustomPreset(\'' + p.id + '\')">Remove</button>' +
+            '<button class="btn secondary" onclick="editCustomPreset(\'' + p.id + '\')">' + escapeHtml(tr('action.edit')) + '</button>' +
+
+            '<button class="btn danger" onclick="deleteCustomPreset(\'' + p.id + '\')">' + escapeHtml(tr('action.remove')) + '</button>' +
 
           '</div></div>';
 
       }).join('')
 
-    : '<p class="muted" style="text-align:center;padding:1rem">No saved presets yet</p>';
+    : '<p class="muted" style="text-align:center;padding:1rem">' + escapeHtml(tr('customization.noSavedPresets')) + '</p>';
 
 
 
-  var bgu = escapeHtml(active.bgUrl     || '');
+  var bgu = escapeHtml(active.bgUrl || '');
 
   var bd  = active.bgDim     || 0;
 
@@ -419,6 +482,10 @@ function renderCustomizeView() {
   var hu  = escapeHtml(active.headerUrl || '');
 
   var hd  = active.headerDim || 0;
+
+  var hpx = _sanitizeCustomPercent(active.headerPosX, 50);
+
+  var hpy = _sanitizeCustomPercent(active.headerPosY, 50);
 
   var cou = escapeHtml(active.cornerUrl || '');
 
@@ -438,9 +505,14 @@ function renderCustomizeView() {
 
   var prevCh  = cu  ? "background:url('" + cu + "') center top/contain no-repeat" : '';
 
-  var prevHdr = hu  ? "background:linear-gradient(rgba(0,0,0," + (hd/100) + "),rgba(0,0,0," + (hd/100) + ")),url('" + hu + "') center/cover" : '';
+  var prevHdr = hu  ? "background:linear-gradient(rgba(0,0,0," + (hd/100) + "),rgba(0,0,0," + (hd/100) + ")),url('" + hu + "') " + hpx + "% " + hpy + "%/cover no-repeat" : '';
 
   var prevCor = cou ? "background:url('" + cou + "') center/cover no-repeat" : '';
+  var activeFont = _sanitizeCustomFontFamily(active.fontFamily);
+  var fontOptionsHtml = CUSTOM_FONT_OPTIONS.map(function(opt) {
+    var selected = opt.value === activeFont ? ' selected' : '';
+    return '<option value="' + escapeHtml(opt.value) + '"' + selected + '>' + escapeHtml(opt.label) + '</option>';
+  }).join('');
 
 
 
@@ -452,130 +524,128 @@ function renderCustomizeView() {
 
         '<div>' +
 
-          '<h2 class="ach-page-title">&#127912; Customization</h2>' +
+          '<h2 class="ach-page-title">' + escapeHtml(tr('nav.customize')) + '</h2>' +
 
-          '<p class="ach-page-subtitle">Personalise your interface with custom images</p>' +
+          '<p class="ach-page-subtitle">' + escapeHtml(tr('customization.subtitle')) + '</p>' +
 
         '</div>' +
 
-        '<button class="btn secondary" id="customResetBtn">&#10006; Reset All</button>' +
+        '<button class="btn secondary" id="customResetBtn">' + escapeHtml(tr('action.resetAll')) + '</button>' +
 
       '</div>' +
 
       '<div class="customize-grid">' +
 
         '<div class="customize-card">' +
-          '<div class="customize-card-icon">&#128444;</div>' +
-          '<h3 class="customize-card-title">Background</h3>' +
-          '<p class="customize-card-desc">Full-page wallpaper</p>' +
-          '<label class="customize-label">Image URL</label>' +
+          '<h3 class="customize-card-title">' + escapeHtml(tr('customization.background.title')) + '</h3>' +
+          '<p class="customize-card-desc">' + escapeHtml(tr('customization.background.desc')) + '</p>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.imageUrl')) + '</label>' +
           '<input id="customBgUrl" class="input customize-input" type="url" placeholder="https://..." value="' + bgu + '">' +
           '<div class="customize-preview-wrap"><div class="customize-preview" id="previewBg" style="' + prevBg + '"></div></div>' +
-          '<label class="customize-label">Darkness: <span id="customBgDimVal">' + bd + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.darkness')) + ': <span id="customBgDimVal">' + bd + '</span>%</label>' +
           '<input id="customBgDim" class="customize-slider" type="range" min="0" max="95" value="' + bd + '">' +
-          '<label class="customize-label">Transparency: <span id="customBgOpacVal">' + bgo + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.transparency')) + ': <span id="customBgOpacVal">' + bgo + '</span>%</label>' +
           '<input id="customBgOpac" class="customize-slider" type="range" min="0" max="95" value="' + bgo + '">' +
         '</div>' +
 
         '<div class="customize-card">' +
-          '<div class="customize-card-icon">&#9612;</div>' +
-          '<h3 class="customize-card-title">Left Column</h3>' +
-          '<p class="customize-card-desc">Character art along the left sidebar</p>' +
-          '<label class="customize-label">Image URL</label>' +
+          '<h3 class="customize-card-title">' + escapeHtml(tr('customization.leftColumn.title')) + '</h3>' +
+          '<p class="customize-card-desc">' + escapeHtml(tr('customization.leftColumn.desc')) + '</p>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.imageUrl')) + '</label>' +
           '<input id="customCharUrl" class="input customize-input" type="url" placeholder="https://..." value="' + cu + '">' +
           '<div class="customize-preview-wrap"><div class="customize-preview" id="previewChar" style="' + prevCh + '"></div></div>' +
-          '<label class="customize-label">Darkness: <span id="customCharDarkVal">' + chd + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.darkness')) + ': <span id="customCharDarkVal">' + chd + '</span>%</label>' +
           '<input id="customCharDark" class="customize-slider" type="range" min="0" max="95" value="' + chd + '">' +
-          '<label class="customize-label">Transparency: <span id="customCharDimVal">' + cd + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.transparency')) + ': <span id="customCharDimVal">' + cd + '</span>%</label>' +
           '<input id="customCharDim" class="customize-slider" type="range" min="0" max="95" value="' + cd + '">' +
         '</div>' +
 
         '<div class="customize-card">' +
-          '<div class="customize-card-icon">&#9644;</div>' +
-          '<h3 class="customize-card-title">Header</h3>' +
-          '<p class="customize-card-desc">Image in the top bar</p>' +
-          '<label class="customize-label">Image URL</label>' +
+          '<h3 class="customize-card-title">' + escapeHtml(tr('customization.header.title')) + '</h3>' +
+          '<p class="customize-card-desc">' + escapeHtml(tr('customization.header.desc')) + '</p>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.imageUrl')) + '</label>' +
           '<input id="customHeaderUrl" class="input customize-input" type="url" placeholder="https://..." value="' + hu + '">' +
           '<div class="customize-preview-wrap"><div class="customize-preview" id="previewHeader" style="' + prevHdr + '"></div></div>' +
-          '<label class="customize-label">Darkness: <span id="customHeaderDimVal">' + hd + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.darkness')) + ': <span id="customHeaderDimVal">' + hd + '</span>%</label>' +
           '<input id="customHeaderDim" class="customize-slider" type="range" min="0" max="95" value="' + hd + '">' +
-          '<label class="customize-label">Transparency: <span id="customHeaderOpacVal">' + ho + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.transparency')) + ': <span id="customHeaderOpacVal">' + ho + '</span>%</label>' +
           '<input id="customHeaderOpac" class="customize-slider" type="range" min="0" max="95" value="' + ho + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.header.focusX')) + ': <span id="customHeaderPosXVal">' + hpx + '</span>%</label>' +
+          '<input id="customHeaderPosX" class="customize-slider" type="range" min="0" max="100" value="' + hpx + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.header.focusY')) + ': <span id="customHeaderPosYVal">' + hpy + '</span>%</label>' +
+          '<input id="customHeaderPosY" class="customize-slider" type="range" min="0" max="100" value="' + hpy + '">' +
         '</div>' +
 
         '<div class="customize-card">' +
-          '<div class="customize-card-icon">&#9724;</div>' +
-          '<h3 class="customize-card-title">Corner Card</h3>' +
-          '<p class="customize-card-desc">Small card at bottom-left corner</p>' +
-          '<label class="customize-label">Image URL</label>' +
+          '<h3 class="customize-card-title">' + escapeHtml(tr('customization.corner.title')) + '</h3>' +
+          '<p class="customize-card-desc">' + escapeHtml(tr('customization.corner.desc')) + '</p>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.imageUrl')) + '</label>' +
           '<input id="customCornerUrl" class="input customize-input" type="url" placeholder="https://..." value="' + cou + '">' +
           '<div class="customize-preview-wrap"><div class="customize-preview" id="previewCorner" style="' + prevCor + ';border-radius:8px"></div></div>' +
-          '<label class="customize-label">Darkness: <span id="customCornerDarkVal">' + cod2 + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.darkness')) + ': <span id="customCornerDarkVal">' + cod2 + '</span>%</label>' +
           '<input id="customCornerDark" class="customize-slider" type="range" min="0" max="95" value="' + cod2 + '">' +
-          '<label class="customize-label">Transparency: <span id="customCornerDimVal">' + cod + '</span>%</label>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.transparency')) + ': <span id="customCornerDimVal">' + cod + '</span>%</label>' +
           '<input id="customCornerDim" class="customize-slider" type="range" min="0" max="95" value="' + cod + '">' +
         '</div>' +
 
         '<div class="customize-card palette-card">' +
           '<div class="cp-card-header">' +
-            '<div class="customize-card-icon">&#127912;</div>' +
-            '<h3 class="customize-card-title">Colour Palette</h3>' +
-            '<button class="btn cp-toggle-btn" id="cpToggleBtn" title="Toggle colour picker">&#9650;</button>' +
+            '<h3 class="customize-card-title">' + escapeHtml(tr('customization.palette.title')) + '</h3>' +
           '</div>' +
           '<div class="cp-collapsible" id="cpCollapsible">' +
-            '<p class="customize-card-desc">Accent colours used across the interface</p>' +
+            '<p class="customize-card-desc">' + escapeHtml(tr('customization.palette.desc')) + '</p>' +
             '<canvas id="cpSB" class="cp-sb" width="260" height="130"></canvas>' +
             '<canvas id="cpHue" class="cp-hue" width="260" height="14"></canvas>' +
             '<div class="cp-swatches">' +
-              '<div class="cp-swatch-group"><div id="cpSwPrimary" class="cp-swatch"></div><span class="customize-label">Primary</span></div>' +
-              '<div class="cp-swatch-group"><div id="cpSwDark" class="cp-swatch"></div><span class="customize-label">Dark</span></div>' +
-              '<div class="cp-swatch-group"><div id="cpSwLight" class="cp-swatch"></div><span class="customize-label">Light</span></div>' +
+              '<div class="cp-swatch-group"><div id="cpSwPrimary" class="cp-swatch"></div><span class="customize-label">' + escapeHtml(tr('customization.primary')) + '</span></div>' +
+              '<div class="cp-swatch-group"><div id="cpSwDark" class="cp-swatch"></div><span class="customize-label">' + escapeHtml(tr('customization.dark')) + '</span></div>' +
+              '<div class="cp-swatch-group"><div id="cpSwLight" class="cp-swatch"></div><span class="customize-label">' + escapeHtml(tr('customization.light')) + '</span></div>' +
             '</div>' +
-            '<label class="customize-label">Hex</label>' +
-            '<input id="cpHexInput" class="input customize-input" type="text" placeholder="#913FE2" maxlength="7" value="' + escapeHtml(active.paletteColor||'') + '">' +
+            '<div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem">' +
+              '<label class="customize-label" style="flex:0 0 auto">' + escapeHtml(tr('customization.hex')) + '</label>' +
+              '<input id="cpHexInput" class="input customize-input" type="text" placeholder="#913FE2" maxlength="7" value="' + escapeHtml(active.paletteColor||'') + '" style="flex:1">' +
+              ('EyeDropper' in window ? '<button class="btn secondary cp-eyedropper" id="cpEyedropper" title="Pipeta" style="padding:0.4rem 0.6rem;font-size:1rem;line-height:1">&#x1F489;</button>' : '') +
+            '</div>' +
           '</div>' +
         '</div>' +
 
-        '<div class="customize-card icp-card">' +
-          '<div class="customize-card-icon">&#128065;</div>' +
-          '<h3 class="customize-card-title">Image Colour Sampler</h3>' +
-          '<p class="customize-card-desc">Load an image, hover to preview, click to pick a colour into the palette</p>' +
-          '<div class="icp-load-row">' +
-            '<input id="icpUrlInput" class="input customize-input" type="url" placeholder="Paste image URL and press Enter...">' +
-            '<button class="btn secondary icp-load-btn" id="icpLoadBtn">Load</button>' +
+        '<div class="customize-card">' +
+          '<h3 class="customize-card-title">' + escapeHtml(tr('customization.font.title')) + '</h3>' +
+          '<p class="customize-card-desc">' + escapeHtml(tr('customization.font.desc')) + '</p>' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.font.familyLabel')) + '</label>' +
+          '<select id="customFontFamily" class="input customize-input">' + fontOptionsHtml + '</select>' +
+        '</div>' +
+
+        '<div class="customize-card">' +
+          '<h3 class="customize-card-title">' + escapeHtml(tr('customization.button.title')) + '</h3>' +
+          '<p class="customize-card-desc">' + escapeHtml(tr('customization.button.desc')) + '</p>' +
+          '<canvas id="btnCpSB" class="cp-sb" width="260" height="130"></canvas>' +
+          '<canvas id="btnCpHue" class="cp-hue" width="260" height="14"></canvas>' +
+          '<div class="cp-swatches" style="margin-top:0.5rem">' +
+            '<div class="cp-swatch-group"><div id="btnCpSwatch" class="cp-swatch" style="background:' + escapeHtml(active.buttonColor || '#913fe2') + '"></div><span class="customize-label">' + escapeHtml(tr('customization.button.previewPrimary')) + '</span></div>' +
           '</div>' +
-          '<label class="customize-label">or upload a file</label>' +
-          '<input id="icpFileInput" type="file" accept="image/*" class="icp-file-input">' +
-          '<div class="icp-canvas-wrap" id="icpCanvasWrap">' +
-            '<canvas id="icpCanvas"></canvas>' +
-            '<div class="icp-placeholder" id="icpPlaceholder">&#128444; No image loaded</div>' +
-            '<div class="icp-mag-wrap" id="icpMagWrap">' +
-              '<canvas id="icpMagnifier"></canvas>' +
-              '<span class="icp-mag-hex" id="icpMagHex"></span>' +
-            '</div>' +
-          '</div>' +
-          '<div class="icp-recent-row">' +
-            '<span class="customize-label">Recent picks</span>' +
-            '<div class="icp-recent" id="icpRecent"></div>' +
+          '<div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem">' +
+            '<label class="customize-label" style="flex:0 0 auto">' + escapeHtml(tr('customization.hex')) + '</label>' +
+            '<input id="btnCpHexInput" class="input customize-input" type="text" placeholder="#913FE2" maxlength="7" value="' + escapeHtml(active.buttonColor || '') + '" style="flex:1">' +
+            ('EyeDropper' in window ? '<button class="btn secondary cp-eyedropper" id="btnCpEyedropper" title="Pipeta" style="padding:0.4rem 0.6rem;font-size:1rem;line-height:1">&#x1F489;</button>' : '') +
+            '<button class="btn secondary" id="customBtnColorClear" style="padding:0.4rem 0.75rem;font-size:0.8rem">' + escapeHtml(tr('action.reset')) + '</button>' +
           '</div>' +
         '</div>' +
 
       '</div>' +
       '<div class="customize-save-bar">' +
 
-        '<input id="customPresetName" class="input" style="flex:1;min-width:160px" placeholder="Preset name..." maxlength="40">' +
+        '<input id="customPresetName" class="input" style="flex:1;min-width:160px" placeholder="' + escapeHtml(tr('customization.presetNamePlaceholder')) + '" maxlength="40">' +
 
-        '<button class="btn primary" id="customSaveBtn">&#128190; Save Preset</button>' +
+        '<button class="btn primary" id="customSaveBtn">' + escapeHtml(tr('action.savePreset')) + '</button>' +
 
-        '<button class="btn secondary" id="customApplyBtn">&#9654; Apply Now</button>' +
-
-        '<button class="btn secondary" id="customEditPresetsBtn">&#9998; Edit Presets</button>' +
+        '<button class="btn secondary" id="customEditPresetsBtn">' + escapeHtml(tr('action.editPresets')) + '</button>' +
 
       '</div>' +
 
       '<div class="customize-presets-section">' +
 
-        '<h3 class="section-title">Saved Presets</h3>' +
+        '<h3 class="section-title">' + escapeHtml(tr('customization.savedPresets')) + '</h3>' +
 
         '<div id="customPresetsList">' + presetsHtml + '</div>' +
 
@@ -595,10 +665,15 @@ function renderCustomizeView() {
     var headerUrl  = document.getElementById('customHeaderUrl').value.trim();
     var headerDim  = +document.getElementById('customHeaderDim').value;
     var headerOpac = +document.getElementById('customHeaderOpac').value;
+    var headerPosX = _sanitizeCustomPercent(document.getElementById('customHeaderPosX').value, 50);
+    var headerPosY = _sanitizeCustomPercent(document.getElementById('customHeaderPosY').value, 50);
     var cornerUrl  = document.getElementById('customCornerUrl').value.trim();
     var cornerDark = +document.getElementById('customCornerDark').value;
     var cornerDim  = +document.getElementById('customCornerDim').value;
     var paletteColor = (document.getElementById('cpHexInput') ? document.getElementById('cpHexInput').value.trim() : '') || '';
+    var fontFamily = _sanitizeCustomFontFamily(document.getElementById('customFontFamily').value);
+    var btnHexEl   = document.getElementById('btnCpHexInput');
+    var buttonColor = (btnHexEl ? btnHexEl.value.trim() : '') || '';
 
     document.getElementById('customBgDimVal').textContent      = bgDim;
     document.getElementById('customBgOpacVal').textContent     = bgOpac;
@@ -606,11 +681,13 @@ function renderCustomizeView() {
     document.getElementById('customCharDimVal').textContent    = charDim;
     document.getElementById('customHeaderDimVal').textContent  = headerDim;
     document.getElementById('customHeaderOpacVal').textContent = headerOpac;
+    document.getElementById('customHeaderPosXVal').textContent = headerPosX;
+    document.getElementById('customHeaderPosYVal').textContent = headerPosY;
     document.getElementById('customCornerDarkVal').textContent = cornerDark;
     document.getElementById('customCornerDimVal').textContent  = cornerDim;
 
     var p = function(n) { return document.getElementById(n); };
-    p('previewBg').style.background     = bgUrl     ? "linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') center/cover" : '';
+    p('previewBg').style.background     = bgUrl ? "linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') center/cover" : '';
 
     // Left Column — apply darkness (brightness filter) and transparency (opacity)
     var charPrev = p('previewChar');
@@ -618,7 +695,7 @@ function renderCustomizeView() {
     charPrev.style.opacity    = charUrl ? String((100 - charDim)  / 100) : '';
     charPrev.style.filter     = charUrl ? 'brightness(' + (1 - charDark / 100) + ')' : '';
 
-    p('previewHeader').style.background = headerUrl ? "linear-gradient(rgba(0,0,0," + (headerDim/100) + "),rgba(0,0,0," + (headerDim/100) + ")),url('" + headerUrl + "') center/cover" : '';
+    p('previewHeader').style.background = headerUrl ? "linear-gradient(rgba(0,0,0," + (headerDim/100) + "),rgba(0,0,0," + (headerDim/100) + ")),url('" + headerUrl + "') " + headerPosX + "% " + headerPosY + "%/cover no-repeat" : '';
 
     // Corner Card — apply darkness (brightness filter) and transparency (opacity)
     var cornerPrev = p('previewCorner');
@@ -626,7 +703,13 @@ function renderCustomizeView() {
     cornerPrev.style.opacity    = cornerUrl ? String((100 - cornerDim)  / 100) : '';
     cornerPrev.style.filter     = cornerUrl ? 'brightness(' + (1 - cornerDark / 100) + ')' : '';
 
-    return { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, paletteColor: paletteColor };
+    var cfg = { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, headerPosX: headerPosX, headerPosY: headerPosY, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, paletteColor: paletteColor, fontFamily: fontFamily, buttonColor: buttonColor };
+
+    // Auto-apply every change from customization controls.
+    setActiveCustom(cfg);
+    applyCustomization(cfg);
+
+    return cfg;
   }
 
   // Register live-preview callback so initColorPicker can trigger it
@@ -635,28 +718,48 @@ function renderCustomizeView() {
 
 
 
-  ['customBgUrl','customBgDim','customBgOpac','customCharUrl','customCharDark','customCharDim','customHeaderUrl','customHeaderDim','customHeaderOpac','customCornerUrl','customCornerDark','customCornerDim'].forEach(function(id) {
+  ['customBgUrl','customBgDim','customBgOpac','customCharUrl','customCharDark','customCharDim','customHeaderUrl','customHeaderDim','customHeaderOpac','customHeaderPosX','customHeaderPosY','customCornerUrl','customCornerDark','customCornerDim','customFontFamily','btnCpHexInput'].forEach(function(id) {
 
     var el = document.getElementById(id);
 
-    if (el) el.addEventListener('input', livePreview);
+    if (el) {
+      var evtName = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(evtName, livePreview);
+    }
 
   });
 
+  // Button colour clear button
+  var btnClear = document.getElementById('customBtnColorClear');
+  if (btnClear) {
+    btnClear.addEventListener('click', function() {
+      var hexEl = document.getElementById('btnCpHexInput');
+      if (hexEl) { hexEl.value = ''; }
+      var swatch = document.getElementById('btnCpSwatch');
+      if (swatch) swatch.style.background = 'transparent';
+      livePreview();
+    });
+  }
+
   initColorPicker();
-  initImageColorSampler();
+  initBtnColorPicker();
 
-  document.getElementById('customApplyBtn').onclick = function() {
-
-    var cfg = livePreview();
-
-    setActiveCustom(cfg);
-
-    applyCustomization(cfg);
-
-    showToast('Customization applied', '', 'success');
-
-  };
+  // Eyedropper buttons (only present if browser supports EyeDropper API)
+  function _attachEyedropper(btnId, hexInputId) {
+    var btn = document.getElementById(btnId);
+    if (!btn || !('EyeDropper' in window)) return;
+    btn.addEventListener('click', function() {
+      new window.EyeDropper().open().then(function(result) {
+        var hexEl = document.getElementById(hexInputId);
+        if (hexEl) {
+          hexEl.value = result.sRGBHex;
+          hexEl.dispatchEvent(new Event('input'));
+        }
+      }).catch(function() {}); // user cancelled
+    });
+  }
+  _attachEyedropper('cpEyedropper',    'cpHexInput');
+  _attachEyedropper('btnCpEyedropper', 'btnCpHexInput');
 
 
 
@@ -664,7 +767,7 @@ function renderCustomizeView() {
 
     var cfg = livePreview();
 
-    var name = document.getElementById('customPresetName').value.trim() || 'My Preset';
+    var name = document.getElementById('customPresetName').value.trim() || t('customization.defaultPresetName');
 
     var list = getCustomPresets();
 
@@ -680,11 +783,7 @@ function renderCustomizeView() {
 
     saveCustomPresets(list);
 
-    setActiveCustom(cfg);
-
-    applyCustomization(cfg);
-
-    showToast('Preset saved!', name, 'success');
+    showToast(t('customization.toastPresetSaved'), name, 'success');
 
     renderCustomizeView();
 
@@ -695,15 +794,13 @@ function renderCustomizeView() {
     if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-
-
   document.getElementById('customResetBtn').onclick = function() {
 
     setActiveCustom(null);
 
     applyCustomization(null);
 
-    showToast('Customization reset', '', 'info');
+    showToast(t('customization.toastReset'), '', 'info');
 
     renderCustomizeView();
 
@@ -714,26 +811,22 @@ function renderCustomizeView() {
 
 
 // ── Canvas colour picker ─────────────────────────────────────────────────────
-function initColorPicker() {
-  var sbCv  = document.getElementById('cpSB');
-  var hueCv = document.getElementById('cpHue');
-  var hexIn = document.getElementById('cpHexInput');
+// Generic canvas picker. Pass {sbId, hueId, hexId, defaultHex, onCommit}.
+function _initCanvasPicker(opts) {
+  var sbCv  = document.getElementById(opts.sbId);
+  var hueCv = document.getElementById(opts.hueId);
+  var hexIn = document.getElementById(opts.hexId);
   if (!sbCv || !hueCv || !hexIn) return;
 
-  // Fit canvases to actual rendered width
   var W = sbCv.parentElement.clientWidth - 2;
   if (W > 40) { sbCv.width = W; hueCv.width = W; }
 
   var sbCtx  = sbCv.getContext('2d');
   var hueCtx = hueCv.getContext('2d');
-  var S = { h: 270, s: 0.68, v: 0.88 }; // default purple
-
-  // Load saved colour
-  var saved = hexIn.value.trim();
-  if (/^#[0-9a-f]{6}$/i.test(saved)) {
-    var hsv = _hexToHsv(saved);
-    S.h = hsv.h; S.s = hsv.s; S.v = hsv.v;
-  }
+  var def    = opts.defaultHex || '#913fe2';
+  var saved  = hexIn.value.trim();
+  var initHsv = _hexToHsv(/^#[0-9a-f]{6}$/i.test(saved) ? saved : def);
+  var S = { h: initHsv.h, s: initHsv.s, v: initHsv.v };
 
   function drawHue() {
     var g = hueCtx.createLinearGradient(0,0,hueCv.width,0);
@@ -765,27 +858,11 @@ function initColorPicker() {
   function commit() {
     var hex = _hsvToHex(S.h, S.s, S.v);
     hexIn.value = hex;
-    var pal = _derivePalette(hex);
-    var ps=document.getElementById('cpSwPrimary'), pd=document.getElementById('cpSwDark'), pl=document.getElementById('cpSwLight');
-    if(ps) ps.style.background=pal.primary;
-    if(pd) pd.style.background=pal.dark;
-    if(pl) pl.style.background=pal.light;
-    // Apply inline CSS vars directly on <html> — overrides any stylesheet/theme.
-    document.documentElement.style.setProperty('--primary',       pal.primary);
-    document.documentElement.style.setProperty('--primary-dark',  pal.dark);
-    document.documentElement.style.setProperty('--primary-light', pal.light);
-    // Persist palette colour into the active customisation immediately so
-    // a page reload restores the chosen colour even without clicking Apply.
-    var _cur = getActiveCustom() || {};
-    _cur.paletteColor = hex;
-    setActiveCustom(_cur);
-    // Sync the rest of the live preview (sliders, other cards)
-    if (typeof _cpLivePreviewCb === 'function') _cpLivePreviewCb();
+    if (opts.onCommit) opts.onCommit(hex);
   }
 
   function clamp(x,lo,hi){return Math.max(lo,Math.min(hi,x));}
 
-  // Hue slider
   var hDrag=false;
   function onHue(e){
     e.preventDefault();
@@ -800,7 +877,6 @@ function initColorPicker() {
   hueCv.addEventListener('touchstart',onHue,{passive:false});
   hueCv.addEventListener('touchmove',onHue,{passive:false});
 
-  // SB square
   var sbDrag=false;
   function onSB(e){
     e.preventDefault();
@@ -817,7 +893,6 @@ function initColorPicker() {
   sbCv.addEventListener('touchstart',onSB,{passive:false});
   sbCv.addEventListener('touchmove',onSB,{passive:false});
 
-  // Hex input
   hexIn.addEventListener('input',function(){
     var v=hexIn.value.trim();
     if(/^#[0-9a-f]{6}$/i.test(v)){
@@ -827,183 +902,46 @@ function initColorPicker() {
   });
 
   drawHue(); drawSB(); commit();
-
-  // Toggle button
-  var toggleBtn  = document.getElementById('cpToggleBtn');
-  var collapsible = document.getElementById('cpCollapsible');
-  if (toggleBtn && collapsible) {
-    toggleBtn.addEventListener('click', function() {
-      var collapsed = collapsible.classList.toggle('cp-collapsed');
-      toggleBtn.innerHTML = collapsed ? '&#9660;' : '&#9650;';
-    });
-  }
 }
 
-// ── Image Colour Sampler ─────────────────────────────────────────────────────
-function initImageColorSampler() {
-  var canvas     = document.getElementById('icpCanvas');
-  var magCanvas  = document.getElementById('icpMagnifier');
-  var magWrap    = document.getElementById('icpMagWrap');
-  var magHex     = document.getElementById('icpMagHex');
-  var placeholder = document.getElementById('icpPlaceholder');
-  var urlInput   = document.getElementById('icpUrlInput');
-  var loadBtn    = document.getElementById('icpLoadBtn');
-  var fileInput  = document.getElementById('icpFileInput');
-  var recentRow  = document.getElementById('icpRecent');
-  if (!canvas || !magCanvas) return;
-
-  var ctx    = canvas.getContext('2d');
-  var magCtx = magCanvas.getContext('2d');
-  var imgLoaded = false;
-  var recentColors = [];
-  var MAG_SIZE  = 88;   // magnifier canvas px
-  var MAG_ZOOM  = 9;    // pixels zoomed per canvas pixel
-  var MAG_HALF  = Math.floor(MAG_SIZE / MAG_ZOOM / 2);
-  magCanvas.width  = MAG_SIZE;
-  magCanvas.height = MAG_SIZE;
-
-  function rgbToHex(r, g, b) {
-    return '#' + [r, g, b].map(function(v) {
-      return ('0' + v.toString(16)).slice(-2);
-    }).join('');
-  }
-
-  function loadSrc(src) {
-    var img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = function() {
-      imgLoaded = true;
-      var wrap   = document.getElementById('icpCanvasWrap');
-      var maxW   = (wrap ? wrap.clientWidth : 400) - 4;
-      var maxH   = 340;
-      var ratio  = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
-      canvas.width  = Math.round(img.naturalWidth  * ratio);
-      canvas.height = Math.round(img.naturalHeight * ratio);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.style.display  = 'block';
-      canvas.style.cursor   = 'crosshair';
-      if (placeholder) placeholder.style.display = 'none';
-    };
-    img.onerror = function() {
-      showToast('Sampler', 'Could not load image (check URL / CORS)', 'warning');
-    };
-    img.src = src;
-  }
-
-  function drawMagnifier(x, y) {
-    if (!imgLoaded || !magWrap) return;
-    var sx = Math.max(0, Math.min(canvas.width  - 1, x - MAG_HALF));
-    var sy = Math.max(0, Math.min(canvas.height - 1, y - MAG_HALF));
-    var sw = Math.min(MAG_HALF * 2 + 1, canvas.width  - sx);
-    var sh = Math.min(MAG_HALF * 2 + 1, canvas.height - sy);
-    magCtx.clearRect(0, 0, MAG_SIZE, MAG_SIZE);
-    magCtx.imageSmoothingEnabled = false;
-    magCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, MAG_SIZE, MAG_SIZE);
-    // Crosshair
-    var cx = MAG_SIZE / 2;
-    magCtx.strokeStyle = 'rgba(255,255,255,0.9)';
-    magCtx.lineWidth = 1.5;
-    magCtx.beginPath(); magCtx.moveTo(cx - 8, cx); magCtx.lineTo(cx + 8, cx); magCtx.stroke();
-    magCtx.beginPath(); magCtx.moveTo(cx, cx - 8); magCtx.lineTo(cx, cx + 8); magCtx.stroke();
-    // Border ring with current color
-    var px = ctx.getImageData(Math.min(x, canvas.width - 1), Math.min(y, canvas.height - 1), 1, 1).data;
-    var hex = rgbToHex(px[0], px[1], px[2]);
-    magCtx.strokeStyle = hex;
-    magCtx.lineWidth = 4;
-    magCtx.beginPath();
-    magCtx.arc(MAG_SIZE/2, MAG_SIZE/2, MAG_SIZE/2 - 2, 0, Math.PI * 2);
-    magCtx.stroke();
-    if (magHex) magHex.textContent = hex;
-    magWrap.style.display = 'flex';
-    return hex;
-  }
-
-  function pushRecent(hex) {
-    recentColors = recentColors.filter(function(c) { return c !== hex; });
-    recentColors.unshift(hex);
-    if (recentColors.length > 12) recentColors.length = 12;
-    if (!recentRow) return;
-    recentRow.innerHTML = recentColors.map(function(c) {
-      return '<div class="icp-recent-swatch" title="' + c + '" style="background:' + c + '"' +
-        ' onclick="(function(){var h=document.getElementById(\'cpHexInput\');if(h){h.value=\'' + c + '\';h.dispatchEvent(new Event(\'input\'));}})()">' +
-        '</div>';
-    }).join('');
-  }
-
-  function sendToColorPicker(hex) {
-    var hexIn = document.getElementById('cpHexInput');
-    if (hexIn) {
-      hexIn.value = hex;
-      hexIn.dispatchEvent(new Event('input'));
+function initColorPicker() {
+  _initCanvasPicker({
+    sbId:  'cpSB',
+    hueId: 'cpHue',
+    hexId: 'cpHexInput',
+    defaultHex: '#913fe2',
+    onCommit: function(hex) {
+      var pal = _derivePalette(hex);
+      var ps=document.getElementById('cpSwPrimary'), pd=document.getElementById('cpSwDark'), pl=document.getElementById('cpSwLight');
+      if(ps) ps.style.background=pal.primary;
+      if(pd) pd.style.background=pal.dark;
+      if(pl) pl.style.background=pal.light;
+      document.documentElement.style.setProperty('--primary',       pal.primary);
+      document.documentElement.style.setProperty('--primary-dark',  pal.dark);
+      document.documentElement.style.setProperty('--primary-light', pal.light);
+      var _cur = getActiveCustom() || {};
+      _cur.paletteColor = hex;
+      setActiveCustom(_cur);
+      if (typeof _cpLivePreviewCb === 'function') _cpLivePreviewCb();
     }
-    pushRecent(hex);
-    showToast('Colour picked', hex, 'info');
-  }
-
-  canvas.addEventListener('mousemove', function(e) {
-    if (!imgLoaded) return;
-    var rect = canvas.getBoundingClientRect();
-    drawMagnifier(Math.round(e.clientX - rect.left), Math.round(e.clientY - rect.top));
   });
+}
 
-  canvas.addEventListener('mouseleave', function() {
-    if (magWrap) magWrap.style.display = 'none';
+function initBtnColorPicker() {
+  _initCanvasPicker({
+    sbId:  'btnCpSB',
+    hueId: 'btnCpHue',
+    hexId: 'btnCpHexInput',
+    defaultHex: '#913fe2',
+    onCommit: function(hex) {
+      var swatch = document.getElementById('btnCpSwatch');
+      if (swatch) swatch.style.background = hex;
+      var _cur = getActiveCustom() || {};
+      _cur.buttonColor = hex;
+      setActiveCustom(_cur);
+      if (typeof _cpLivePreviewCb === 'function') _cpLivePreviewCb();
+    }
   });
-
-  canvas.addEventListener('click', function(e) {
-    if (!imgLoaded) return;
-    var rect = canvas.getBoundingClientRect();
-    var x = Math.min(Math.round(e.clientX - rect.left), canvas.width  - 1);
-    var y = Math.min(Math.round(e.clientY - rect.top),  canvas.height - 1);
-    var px = ctx.getImageData(x, y, 1, 1).data;
-    sendToColorPicker(rgbToHex(px[0], px[1], px[2]));
-  });
-
-  // Touch support
-  canvas.addEventListener('touchmove', function(e) {
-    if (!imgLoaded) return;
-    e.preventDefault();
-    var rect = canvas.getBoundingClientRect();
-    var t = e.touches[0];
-    drawMagnifier(Math.round(t.clientX - rect.left), Math.round(t.clientY - rect.top));
-  }, { passive: false });
-
-  canvas.addEventListener('touchend', function(e) {
-    if (!imgLoaded) return;
-    var rect = canvas.getBoundingClientRect();
-    var t = e.changedTouches[0];
-    var x = Math.min(Math.round(t.clientX - rect.left), canvas.width  - 1);
-    var y = Math.min(Math.round(t.clientY - rect.top),  canvas.height - 1);
-    var px = ctx.getImageData(x, y, 1, 1).data;
-    sendToColorPicker(rgbToHex(px[0], px[1], px[2]));
-    if (magWrap) magWrap.style.display = 'none';
-  });
-
-  if (loadBtn) {
-    loadBtn.onclick = function() {
-      var url = urlInput ? urlInput.value.trim() : '';
-      if (url) loadSrc(url);
-    };
-  }
-
-  if (urlInput) {
-    urlInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        var url = urlInput.value.trim();
-        if (url) loadSrc(url);
-      }
-    });
-  }
-
-  if (fileInput) {
-    fileInput.addEventListener('change', function() {
-      var file = fileInput.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function(ev) { loadSrc(ev.target.result); };
-      reader.readAsDataURL(file);
-    });
-  }
 }
 
 function applyCustomPreset(id) {
@@ -1012,11 +950,20 @@ function applyCustomPreset(id) {
 
   if (!p) return;
 
+  // Clean up any community theme's injected images (char, banner) without
+  // changing CSS vars or localStorage — so the shop still shows the correct
+  // base theme and its colour palette stays active unless overridden by preset.
+  var _prevThemeId = document.documentElement.getAttribute('data-color-theme') || '';
+  if (_prevThemeId) {
+    var _prevTheme = (window.COMMUNITY_THEMES || []).find(function(t) { return t.id === _prevThemeId; });
+    if (_prevTheme && _prevTheme.onRemove) _prevTheme.onRemove();
+  }
+
   setActiveCustom(p);
 
   applyCustomization(p);
 
-  showToast('Preset applied', p.name, 'success');
+  showToast(t('customization.toastPresetApplied'), p.name, 'success');
 
 }
 
@@ -1038,41 +985,22 @@ function editCustomPreset(id) {
 
   if (!preset) return;
 
+  setActiveCustom(preset);
+  renderCustomizeView();
   _editingPresetId = id;
 
-  function set(elId, val) { var el = document.getElementById(elId); if (el) el.value = (val != null ? val : ''); }
+  var nameInput = document.getElementById('customPresetName');
+  if (nameInput) nameInput.value = preset.name || '';
 
-  set('customBgUrl',      preset.bgUrl      || '');
-  set('customBgDim',      preset.bgDim      != null ? preset.bgDim      : 0);
-  set('customBgOpac',     preset.bgOpac     != null ? preset.bgOpac     : 0);
-  set('customCharUrl',    preset.charUrl    || '');
-  set('customCharDark',   preset.charDark   != null ? preset.charDark   : 0);
-  set('customCharDim',    preset.charDim    != null ? preset.charDim    : 0);
-  set('customHeaderUrl',  preset.headerUrl  || '');
-  set('customHeaderDim',  preset.headerDim  != null ? preset.headerDim  : 0);
-  set('customHeaderOpac', preset.headerOpac != null ? preset.headerOpac : 0);
-  set('customCornerUrl',  preset.cornerUrl  || '');
-  set('customCornerDark', preset.cornerDark != null ? preset.cornerDark : 0);
-  set('customCornerDim',  preset.cornerDim  != null ? preset.cornerDim  : 0);
-  set('customPresetName', preset.name       || '');
-
-  // Restore palette colour into the canvas picker
-  var hexEl = document.getElementById('cpHexInput');
-  if (hexEl && preset.paletteColor) {
-    hexEl.value = preset.paletteColor;
-    hexEl.dispatchEvent(new Event('input'));
-  }
-
-  // Trigger full live preview to refresh all sliders and miniatures
-  if (typeof _cpLivePreviewCb === 'function') _cpLivePreviewCb();
-
-  // Indicate editing state on the Save button
   var saveBtn = document.getElementById('customSaveBtn');
-  if (saveBtn) saveBtn.innerHTML = '&#9998; Update Preset';
+  if (saveBtn) saveBtn.textContent = t('customization.updatePreset');
+
+  var editPresetsBtn = document.getElementById('customEditPresetsBtn');
+  if (editPresetsBtn) editPresetsBtn.style.display = 'none';
 
   document.getElementById('view-customize').scrollIntoView({ behavior: 'smooth' });
 
-  showToast('Loaded for editing', preset.name, 'info');
+  showToast(t('customization.toastLoadedEditing'), preset.name, 'info');
 
 }
 

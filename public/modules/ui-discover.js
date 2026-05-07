@@ -154,6 +154,8 @@ async function continueReading(mangaId, sourceId) {
       body: JSON.stringify({ mangaId })
     });
     state.allChapters = cr.chapters || [];
+    state.chapterCountCache[mangaId] = state.allChapters.length;
+    saveSettings();
     const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
     if (idx >= 0) {
       const ch = state.allChapters[idx];

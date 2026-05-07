@@ -14,6 +14,8 @@ async function loadChapters() {
       body: JSON.stringify({ mangaId: state.currentManga.id })
     });
     state.allChapters = result.chapters || [];
+    state.chapterCountCache[state.currentManga.id] = state.allChapters.length;
+    saveSettings();
     state.chaptersReversed = false;
     renderChaptersList();
   } catch (e) {

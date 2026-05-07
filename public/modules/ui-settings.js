@@ -24,6 +24,8 @@ function loadSettings() {
       state.lastReadChapter = {};
       state.highestReadChapter = {};
     }
+    const chCounts = localStorage.getItem("scrollscapeChapterCounts");
+    if (chCounts) state.chapterCountCache = JSON.parse(chCounts);
   } catch (e) {
     dbg.warn(dbg.ERR_SETTINGS, 'Failed to load settings', e);
     state.lastReadPages = {};
@@ -34,6 +36,7 @@ function loadSettings() {
 
 function saveSettings() {
   localStorage.setItem("scrollscapeSettings", JSON.stringify(state.settings));
+  localStorage.setItem("scrollscapeChapterCounts", JSON.stringify(state.chapterCountCache));
   localStorage.setItem("scrollscapeReadChapters", JSON.stringify([...state.readChapters]));
   localStorage.setItem("scrollscapeFlaggedChapters", JSON.stringify([...state.flaggedChapters]));
   localStorage.setItem("scrollscapeReadingProgress", JSON.stringify({

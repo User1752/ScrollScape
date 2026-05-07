@@ -6,7 +6,7 @@ function setView(view, context = {}, replace = false) {
   // Update navigation manager
   navigationManager.navigateTo(view, context, replace);
 
-  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history", "achievements", "shop", "customize", "calendar"];
+  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history", "achievements", "themes", "shop", "customize", "calendar"];
   for (const v of ALL_VIEWS) {
     const el = $(`view-${v}`);
     if (el) el.classList.toggle("hidden", v !== view);
@@ -42,6 +42,8 @@ function setView(view, context = {}, replace = false) {
     renderHistoryView();
   } else if (view === "achievements") {
     renderAchievementsView();
+  } else if (view === "themes") {
+    renderThemesView();
   } else if (view === "shop") {
     renderShopView();
   } else if (view === "customize") {

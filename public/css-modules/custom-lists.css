@@ -2,6 +2,139 @@
    CUSTOM LISTS
    ============================================================================ */
 
+/* ── Assign Categories modal ─────────────────────────────────────────────── */
+.cat-modal-panel {
+  max-width: 420px;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card, #1a1a2e);
+  box-shadow: 0 24px 60px rgba(0,0,0,.6);
+}
+
+.cat-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+
+.cat-modal-header__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cat-modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+  line-height: 1.2;
+}
+
+.cat-modal-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #aaa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-modal-close {
+  flex-shrink: 0;
+  background: rgba(255,255,255,.07);
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary, #aaa);
+  width: 32px;
+  height: 32px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cat-modal-close:hover {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+}
+
+.cat-modal-body {
+  padding: 0.75rem 1.25rem;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 340px;
+}
+
+.cat-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cat-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s;
+  border: 1px solid transparent;
+}
+.cat-modal-row:hover {
+  background: rgba(255,255,255,.05);
+}
+.cat-modal-row--checked {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.cat-modal-row input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.cat-modal-row__name {
+  flex: 1;
+  font-size: 0.92rem;
+  color: var(--text-primary, #fff);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-modal-row__count {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #aaa);
+  background: rgba(255,255,255,.07);
+  border-radius: 20px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+.cat-modal-footer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem 1.1rem;
+  border-top: 1px solid rgba(255,255,255,.07);
+  flex-wrap: wrap;
+}
+
+.cat-modal-footer .btn {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
 /* ── Category chips on library cards ─────────────────────────────────────── */
 .category-chips {
   display: flex;

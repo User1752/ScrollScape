@@ -288,6 +288,14 @@ function renderLibrary() {
     const sourceLabel = state.settings.showLibrarySourceBadge !== false
       ? `<span class="library-source-badge">${escapeHtml(sourceNameFor(manga.sourceId))}</span>`
       : '';
+    const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 0;
+    const readCount = cachedChapterTotal
+      ? [...state.readChapters].filter(key => key.startsWith(`${manga.id}:`)).length
+      : 0;
+    const chaptersLeft = cachedChapterTotal ? Math.max(0, cachedChapterTotal - readCount) : null;
+    const chaptersLeftBadge = state.settings.showChaptersLeft && chaptersLeft !== null
+      ? `<div class="library-card-chapters-count ${chaptersLeft === 0 ? 'library-card-chapters-count--done' : ''}" aria-label="${chaptersLeft} chapters left">${chaptersLeft}</div>`
+      : '';
 
     // Category chips
     const primaryKey = `${manga.id}:${manga.sourceId || ''}`;
@@ -310,6 +318,7 @@ function renderLibrary() {
         <div class="library-card-cover">
           ${manga.cover && !manga.cover.endsWith('.pdf') ? `<img src="${escapeHtml(manga.cover)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
           ${statusBadge}
+          ${chaptersLeftBadge}
           ${sourceLabel}
           <div class="library-card-overlay">
             <button class="btn-read">${btnLabel}</button>
@@ -418,6 +427,8 @@ function renderLibrary() {
             body: JSON.stringify({ mangaId })
           });
           state.allChapters = cr.chapters || [];
+          state.chapterCountCache[mangaId] = state.allChapters.length;
+          saveSettings();
           const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
           if (idx >= 0) {
             const ch = state.allChapters[idx];
@@ -459,6 +470,8 @@ function renderLibrary() {
             body: JSON.stringify({ mangaId })
           });
           state.allChapters = cr.chapters || [];
+          state.chapterCountCache[mangaId] = state.allChapters.length;
+          saveSettings();
           const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
           if (idx >= 0) {
             const ch = state.allChapters[idx];

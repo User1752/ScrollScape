@@ -23,7 +23,14 @@ function addPurchasedTheme(id) {
   if (!p.includes(id)) { p.push(id); localStorage.setItem('scrollscape_purchased_themes', JSON.stringify(p)); }
 }
 function getActiveTheme() { return localStorage.getItem('scrollscape_active_theme') || 'default'; }
-function setActiveTheme(id) { localStorage.setItem('scrollscape_active_theme', id); applyTheme(id); }
+function setActiveTheme(id) {
+  localStorage.setItem('scrollscape_active_theme', id);
+  applyTheme(id);
+
+  // Activating a base/community theme must clear custom overlay/theme tweaks.
+  if (typeof window.setActiveCustom === 'function') window.setActiveCustom(null);
+  if (typeof window.applyCustomization === 'function') window.applyCustomization(null);
+}
 function applyTheme(id) {
   // Call onRemove for the previously active community theme
   const prevId = document.documentElement.getAttribute('data-color-theme') || '';

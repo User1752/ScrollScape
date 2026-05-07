@@ -77,9 +77,39 @@
 .shop-btn-afford { background: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
 .shop-btn-owned  { background: var(--bg-tertiary); color: var(--text-secondary); cursor: default; }
 .shop-btn-active { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; cursor: default; }
+.shop-btn-remove { background: rgba(255, 51, 85, 0.16); color: #ffd7df; border: 1px solid rgba(255, 51, 85, 0.35); }
 .shop-active-badge {
   font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
   color: var(--primary-light); letter-spacing: 0.06em;
+}
+
+.themes-page {
+  max-width: 1120px;
+}
+
+.themes-header-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.themes-section-block {
+  margin-top: 1.2rem;
+}
+
+.theme-hub-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.theme-empty {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 1rem;
+  grid-column: 1 / -1;
 }
 
 /* ============================================================
@@ -538,13 +568,6 @@ img.db-sprite {
   display: flex; align-items: center; gap: .5rem;
 }
 .cp-card-header .customize-card-title { flex: 1; }
-.cp-toggle-btn {
-  padding: .2rem .55rem;
-  font-size: .75rem;
-  line-height: 1;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
 
 .cp-collapsible {
   display: flex; flex-direction: column; gap: .75rem;
@@ -673,9 +696,17 @@ img.db-sprite {
 
 .customize-label { font-size: .82rem; color: var(--text-secondary); font-weight: 600; }
 .customize-input { width: 100%; box-sizing: border-box; font-size: .82rem; }
+.customize-inline-row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+.customize-inline-row .customize-input {
+  flex: 1;
+}
 
 .customize-preview-wrap {
-  width: 100%; height: 90px;
+  width: 100%; aspect-ratio: 3 / 1;
   border-radius: 8px; overflow: hidden;
   border: 1px solid var(--border-color);
   background: var(--bg-tertiary);
@@ -718,6 +749,10 @@ img.db-sprite {
 .custom-preset-card:hover { border-color: var(--primary); }
 .custom-preset-name { font-weight: 600; color: var(--text-primary); }
 .custom-preset-actions { display: flex; gap: .5rem; }
+.custom-preset-actions .is-added-theme {
+  border: 1px solid var(--primary);
+  color: var(--primary-light);
+}
 
 .btn.danger {
   background: var(--danger, #FF3355);

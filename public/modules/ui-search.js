@@ -331,6 +331,8 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
             body: JSON.stringify({ mangaId: result.id })
           });
           state.allChapters = cr.chapters || [];
+          state.chapterCountCache[result.id] = state.allChapters.length;
+          saveSettings();
           const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
           if (idx >= 0) {
             const ch = state.allChapters[idx];
