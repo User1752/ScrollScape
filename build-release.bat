@@ -54,9 +54,13 @@ copy /y "%~dp0scrollscape.sh"   "%STAGEDIR%\" >nul
 copy /y "%~dp0README.md"        "%STAGEDIR%\" >nul
 copy /y "%~dp0.gitignore"       "%STAGEDIR%\" >nul
 
-:: ── Remove GIF wallpapers from public (personal files) ──────
-del /q "%STAGEDIR%\public\*.gif"  2>nul
-del /q "%STAGEDIR%\public\*.webp" 2>nul
+:: Standalone executable (if already built)
+if exist "%~dp0dist\ScrollScape.exe" (
+    copy /y "%~dp0dist\ScrollScape.exe" "%STAGEDIR%\" >nul
+    echo  [OK]  ScrollScape.exe included.
+) else (
+    echo  [WARN] dist\ScrollScape.exe not found - run build-exe.bat first to include it.
+)
 
 :: ── Create ZIP using PowerShell ─────────────────────────────
 if exist "%ZIPPATH%" del /f /q "%ZIPPATH%"
