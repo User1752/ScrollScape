@@ -156,11 +156,18 @@ async function ensureDirs() {
  */
 function openBrowser(url) {
   const { exec } = require('child_process');
-  switch (process.platform) {
-    case 'win32':  exec(`start ${url}`);    break;
-    case 'darwin': exec(`open ${url}`);     break;
-    default:       exec(`xdg-open ${url}`); break; // Linux & Android (Termux)
-  }
+  const command = process.platform === 'win32' 
+    ? `start ${url}`
+    : process.platform === 'darwin' 
+    ? `open ${url}`
+    : `xdg-open ${url}`; // Linux & Android (Termux)
+  
+  exec(command, (err) => {
+    if (err) {
+      // Gracefully handle failures — not critical to operation
+      console.log(`  (Auto-open failed; navigate manually to ${url})`);
+    }
+  });
 }
 
 // ── Bootstrap sequence ────────────────────────────────────────────────────────
@@ -171,32 +178,33 @@ ensureDirs()
     // Standalone exe: bind only to loopback — never reachable from outside.
     // Docker / Termux / server: bind to all interfaces for port-mapping.
     const host = IS_PKG ? '127.0.0.1' : '0.0.0.0';
+    const maxPortAttempts = 20;
 
-    function tryListen(port) {
+    function startServer(port, attempt = 0) {
       const server = app.listen(port, host, () => {
         console.log(`🎌 ScrollScape running on http://localhost:${port}`);
         console.log(`📚 Sources auto-installed!`);
         if (IS_PKG) openBrowser(`http://localhost:${port}`);
       });
-      server.on('error', e => {
-        if (e.code === 'EADDRINUSE') {
-          const next = port + 1;
-          if (next > PORT + 20) {
-            console.error(`Could not find a free port in range ${PORT}–${PORT + 20}.`);
-            process.exit(1);
-          }
-          console.log(`Port ${port} in use, trying ${next}...`);
-          tryListen(next);
+
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE' && attempt < maxPortAttempts) {
+          const nextPort = port + 1;
+          console.log(`Port ${port} in use, trying ${nextPort}...`);
+          startServer(nextPort, attempt + 1);
         } else {
-          console.error('Server error:', e);
+          const msg = err.code === 'EADDRINUSE'
+            ? `Could not find a free port in range ${PORT}–${PORT + maxPortAttempts}.`
+            : `Server error: ${err.message}`;
+          console.error(msg);
           process.exit(1);
         }
       });
     }
 
-    tryListen(Number(PORT));
+    startServer(Number(PORT));
   })
   .catch(e => {
-    console.error('Fatal startup error:', e);
+    console.error('Fatal startup error:', e.message);
     process.exit(1);
   });

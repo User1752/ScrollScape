@@ -4,8 +4,9 @@
 
 ![Node.js](https://img.shields.io/badge/Node.js-20-brightgreen?logo=node.js)
 ![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)
+![Express](https://img.shields.io/badge/Express-4.19-black?logo=express)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Version](https://img.shields.io/badge/version-1.3.0-purple)
+![Version](https://img.shields.io/badge/version-1.3.1-purple)
 
 ---
 
@@ -107,7 +108,15 @@ docker/
 
 ---
 
-## Adding a Source
+## Code Cleanup & Optimizations (v1.3.1)
+
+Recent updates include:
+- **Removed obsolete files**: Cleaned up legacy `server.legacy.js`, test scripts, and temporary files
+- **Improved error handling**: Enhanced `openBrowser()` with graceful fallback for cross-platform browser launching
+- **Optimized server startup**: Refactored port-binding logic for better readability and error reporting
+- **Code quality**: Reduced technical debt and improved maintainability across core server modules
+
+---
 
 Drop a `.js` file into `data/sources/` — it is picked up automatically on the next start.
 
