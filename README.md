@@ -13,7 +13,7 @@
 
 | | |
 |---|---|
-| **Multiple sources** | MangaDex, AllManga, MangaPill — add your own in `data/sources/` |
+| **Multiple sources** | MangaDex, AllManga, MangaKatana, MangaPill — add your own in `data/sources/` |
 | **Local files** | Import CBZ, CBR and PDF files through the same reader |
 | **Reading progress** | Per-chapter markers, continue-reading, full history |
 | **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold) |
@@ -168,6 +168,7 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 |------|--------------|
 | State | `GET /api/state` |
 | Sources | `POST /api/sources/install` · `POST /api/source/:id/:method` · `GET /api/popular-all` |
+| Repos | `POST /api/repos` · `DELETE /api/repos` |
 | Library | `GET /api/library` · `POST /api/favorites/toggle` · `POST /api/history` · `POST /api/library/migrate` |
 | Status & ratings | `GET/POST /api/user/status` · `GET/POST /api/reviews` · `POST /api/ratings/clear` |
 | Downloads | `POST /api/download/chapter` · `POST /api/download/bulk` |
