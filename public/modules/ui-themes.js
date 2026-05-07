@@ -50,12 +50,23 @@ function applyTheme(id) {
 }
 function updateApBadge() {
   const ap = getAvailableAP();
+  
+  // Update sidebar badge (always present)
   const badge = document.getElementById('sidebarApBadge');
   if (badge) badge.textContent = `${ap} AP`;
-  const achEl  = document.getElementById('achPageApBalance');
+  
+  // Update achievements page balance
+  const achEl = document.getElementById('achPageApBalance');
+  if (achEl) achEl.textContent = ap;
+  
+  // Update shop page balance
   const shopEl = document.getElementById('shopApBalance');
-  if (achEl)  achEl.textContent  = ap;
   if (shopEl) shopEl.textContent = ap;
+  
+  // Update any other AP displays in the current view
+  document.querySelectorAll('[data-ap-balance]').forEach(el => {
+    el.textContent = ap;
+  });
 }
 
 // ============================================================================

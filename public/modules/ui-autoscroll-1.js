@@ -8,6 +8,57 @@ const READER_PREFETCH_AHEAD = 6;
 const READER_PREFETCH_BEHIND = 1;
 const READER_PREFETCH_MAX_CACHE = 36;
 const _readerPrefetchCache = new Map();
+const WEBTOON_AUTO_NEXT_THRESHOLD = 120;
+
+let _webtoonAutoNextHandler = null;
+let _webtoonAutoNextLoading = false;
+let _webtoonAutoNextLastFromIndex = -1;
+let _webtoonAutoNextCooldownUntil = 0;
+
+function _unbindWebtoonAutoNext() {
+  const wrap = $("pageWrap");
+  if (wrap && _webtoonAutoNextHandler) {
+    wrap.removeEventListener("scroll", _webtoonAutoNextHandler);
+  }
+  _webtoonAutoNextHandler = null;
+  _webtoonAutoNextLoading = false;
+}
+
+function _bindWebtoonAutoNext() {
+  const wrap = $("pageWrap");
+  if (!wrap) return;
+
+  _unbindWebtoonAutoNext();
+
+  _webtoonAutoNextHandler = () => {
+    if (state.settings.autoLoadNextChapter !== true) return;
+    if (_webtoonAutoNextLoading) return;
+    if (Date.now() < _webtoonAutoNextCooldownUntil) return;
+
+    const nearBottom = (wrap.scrollTop + wrap.clientHeight) >= (wrap.scrollHeight - WEBTOON_AUTO_NEXT_THRESHOLD);
+    if (!nearBottom) return;
+
+    // Prevent duplicate triggers from the same source chapter when scroll fires rapidly.
+    if (state.currentChapterIndex === _webtoonAutoNextLastFromIndex) return;
+
+    const nextIdx = getNextChapterIndex(state.currentChapterIndex);
+    const total = state.allChapters?.length || 0;
+    if (nextIdx < 0 || nextIdx >= total) return;
+
+    const fromIndex = state.currentChapterIndex;
+    _webtoonAutoNextLastFromIndex = fromIndex;
+    _webtoonAutoNextLoading = true;
+    Promise.resolve(goToNextChapter()).finally(() => {
+      _webtoonAutoNextLoading = false;
+      _webtoonAutoNextCooldownUntil = Date.now() + 1200;
+      if (state.currentChapterIndex === fromIndex) {
+        _webtoonAutoNextLastFromIndex = -1;
+      }
+    });
+  };
+
+  wrap.addEventListener("scroll", _webtoonAutoNextHandler, { passive: true });
+}
 
 function _prefetchReaderImage(src) {
   if (!src || _readerPrefetchCache.has(src)) return;
@@ -90,6 +141,10 @@ function renderPage() {
   const idx     = state.currentPageIndex;
   const mode    = state.settings.readingMode;
 
+  if (typeof applyReaderTurnButtonLayout === "function") {
+    applyReaderTurnButtonLayout(mode);
+  }
+
   // Reset zoom on new chapter
   const zoomStyle = state.zoomLevel !== 1.0 ? `style="transform:scale(${state.zoomLevel});transform-origin:top center;"` : "";
 
@@ -110,17 +165,23 @@ function renderPage() {
              <button class="btn chapter-next-btn" onclick="goToNextChapter()">Read Next →</button>`
           : `<p class="chapter-end-label">You've reached the last chapter!</p>`}
       </div>`;
+    // Important: always reset scroll on chapter load to avoid auto-next double-trigger.
+    pageWrap.scrollTop = 0;
     $("pageCounter").textContent = `Webtoon Mode — ${validPages.length} pages`;
     $("prevPage").style.display = "none";
     $("nextPage").style.display = "none";
+    _bindWebtoonAutoNext();
     updateReadingProgress(state.currentManga?.id, state.currentChapter?.id, 0);
   } else if (mode === "rtl") {
+    _unbindWebtoonAutoNext();
     renderBookSpread();
     return;
   } else if (mode === "ltr") {
+    _unbindWebtoonAutoNext();
     renderLTRSpread();
     return;
   } else {
+    _unbindWebtoonAutoNext();
     pageWrap.className = "reader-content";
     if (idx < 0 || idx >= pages.length) return;
     prefetchReaderPages(pages, idx);

@@ -6,7 +6,7 @@
 ![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)
 ![Express](https://img.shields.io/badge/Express-4.19-black?logo=express)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Version](https://img.shields.io/badge/version-1.3.1-purple)
+![Version](https://img.shields.io/badge/version-1.4.0-purple)
 
 ---
 
@@ -18,15 +18,17 @@
 | **Local files** | Import CBZ, CBR and PDF files through the same reader |
 | **Reading progress** | Per-chapter markers, continue-reading, full history |
 | **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold) |
-| **Library migration**| Migrate manga between sources while preserving custom lists and reading status |
+| **Library migration** | Migrate manga between sources while preserving custom lists and reading status |
 | **AniList Tracker** | OAuth login, search & link manga, sync chapter progress / score / status / dates automatically |
 | **Release calendar** | Monthly calendar with confirmed releases and predicted chapter dates; confidence indicators (high/medium/low); chapter-offset correction for licensed manga |
 | **Achievements** | Unlock achievements and spend AP on community themes |
-| **Analytics** | Daily streaks, time spent, chapter counts |
+| **Analytics** | Daily streaks, time spent, chapter counts, genre overview with % bars (most/least read) |
 | **Recommendations** | Genre-based suggestions from your library |
 | **Bulk download** | Download entire series as CBZ archives |
+| **Animated wallpaper** | Reader background: generated film-grain (canvas) or your own GIF/WebP files |
+| **Immersive reader** | Scrollbars hidden during reading; auto-advance to next chapter; chapter prefetch; corner tap zones for chapter navigation |
+| **Custom themes** | Dark / light mode + community themes (Initial D, Dragon Ball Z, One Piece…) + save your own presets |
 | **i18n** | English & Portuguese; add more in `public/modules/i18n.js` |
-| **Theming** | Dark / light mode + community themes (Initial D, Dragon Ball Z, One Piece…) |
 | **Debug panel** | `Ctrl+Shift+D` — in-app error log with categorised codes, copy-as-JSON, persistent mode |
 
 ---
@@ -84,6 +86,7 @@ server/
     achievements.js           Achievement unlock / query
     mangaupdates.js           MangaUpdates metadata lookup
     calendar.js               Release calendar with interval prediction
+    theme-presets.js          Custom theme preset persistence
 public/
   modules/
     debug.js                  Structured error logging + in-app debug panel
@@ -93,14 +96,19 @@ public/
     navigation.js             NavigationManager + AchievementManager
     utils.js                  $(), escapeHtml(), showToast(), theme helpers
     anilist.js                AniList OAuth, GraphQL, tracker modal
+    ui-reader-noise.js        Animated reader wallpaper (canvas grain + GIF/WebP)
+    ui-reader-page-rendering.js  Reader show/hide, page rendering, chapter navigation
+    ui-autoscroll-1.js        Webtoon autoscroll, auto-next chapter, chapter prefetch
+    ui-analytics-view.js      Analytics dashboard rendering
     ui-migrate.js             Library migration modal UI
+    ui-settings-modal.js      Settings UI (Reading Mode + Reader Appearance cards)
   app.js                      Main UI logic
   index.html                  Single-page HTML shell
   styles.css                  All application styles
 data/
   store.json                  User data (auto-created, git-ignored)
   achievements.json           Achievement definitions
-  sources/                    Source plugin files (git-ignored)
+  sources/                    Source plugin files
 docker/
   Dockerfile
   docker-compose.yml
@@ -108,15 +116,20 @@ docker/
 
 ---
 
-## Code Cleanup & Optimizations (v1.3.1)
+## Animated Wallpaper
 
-Recent updates include:
-- **Removed obsolete files**: Cleaned up legacy `server.legacy.js`, test scripts, and temporary files
-- **Improved error handling**: Enhanced `openBrowser()` with graceful fallback for cross-platform browser launching
-- **Optimized server startup**: Refactored port-binding logic for better readability and error reporting
-- **Code quality**: Reduced technical debt and improved maintainability across core server modules
+During reading, open **Settings → Reader Appearance** and enable **Animated Wallpaper**.
+
+| Option | Description |
+|--------|-------------|
+| **Generated (film grain)** | Canvas-rendered TV-static noise at 24 fps |
+| **GIF / WebP file** | Drop a `.gif` or `.webp` into the `public/` folder; it appears in the file picker automatically |
+
+The reader background becomes transparent when the wallpaper is active so pages float over it. Intensity is stored as opacity (0–100 %) and is configurable in the source settings.
 
 ---
+
+## Adding a Source
 
 Drop a `.js` file into `data/sources/` — it is picked up automatically on the next start.
 
@@ -134,7 +147,7 @@ exports.chapters     = async ({ mangaId })            => ([ /* Chapter[] */ ]);
 exports.pages        = async ({ mangaId, chapterId }) => ({ pages: [ /* url strings */ ] });
 ```
 
-All four exports are required. Source calls have a **30 s hard timeout**.
+All four exports are required. Source calls have a **30 s hard timeout**. Manga with zero chapters across all sources are automatically hidden from search results.
 
 ---
 
@@ -186,6 +199,8 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 | Analytics | `GET /api/analytics` · `POST /api/analytics/session` |
 | Achievements | `GET /api/achievements` · `POST /api/achievements/unlock` |
 | Calendar | `GET /api/calendar?year=&month=` |
+| Theme presets | `GET/PUT /api/theme-presets` |
+| Reader wallpapers | `GET /api/reader-wallpapers` |
 | Utilities | `GET /api/proxy-image` · `POST /api/mangaupdates/search` · `POST /api/anilist` |
 
 ---
@@ -248,6 +263,6 @@ cd docker && docker compose up -d --build
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | HTTP listen port |
-| `NODE_ENV` | `development` | Set to `production` for long-lived static caching |
 
-User data is stored in `data/store.json`. Back up this file to preserve your library, history and achievements.
+---
+

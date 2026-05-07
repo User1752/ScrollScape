@@ -18,7 +18,7 @@ async function searchByAuthor(author) {
       method: "POST",
       body: JSON.stringify({ authorName: author })
     });
-    const results = result.results || [];
+    const results = await _filterMangaWithoutChapters(result.results || [], state.currentSourceId);
     if (!results.length) {
       if (resultsDiv) resultsDiv.innerHTML = `<div class="muted">No results found for author "${escapeHtml(author)}"</div>`;
       if (statusEl) statusEl.textContent = `0 result(s) for author "${author}"`;

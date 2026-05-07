@@ -546,6 +546,8 @@
            MANGA READER (fixed overlay)
       ================================================================== -->
       <div id="reader" class="reader hidden">
+        <canvas id="readerNoiseCanvas" class="reader-noise-canvas" aria-hidden="true"></canvas>
+        <img id="readerNoiseGif" class="reader-noise-gif" aria-hidden="true" alt="">
         <div class="reader-topbar">
           <div id="readerTitle" class="reader-title"></div>
         </div>
@@ -555,6 +557,16 @@
         </button>
 
         <div class="reader-layout">
+          <button id="prevPageCorner" class="reader-corner-nav reader-corner-nav-left" aria-label="Previous page">
+            <span class="reader-corner-icon" aria-hidden="true">&#x25C0;</span>
+            <span class="reader-corner-label">Prev</span>
+          </button>
+
+          <button id="nextPageCorner" class="reader-corner-nav reader-corner-nav-right" aria-label="Next page">
+            <span class="reader-corner-label">Next</span>
+            <span class="reader-corner-icon" aria-hidden="true">&#x25B6;</span>
+          </button>
+
           <div id="pageWrap" class="reader-content"></div>
 
           <aside id="readerSidebar" class="reader-sidebar" aria-label="Reader controls">
@@ -692,6 +704,7 @@
   <script src="./modules/ui-offline-save.js" defer></script>
   <script src="./modules/ui-chapter-integrity-check.js" defer></script>
   <script src="./modules/ui-anime-film-adaptation-check-via-anilist-graphql.js" defer></script>
+  <script src="./modules/ui-reader-noise.js" defer></script>
   <script src="./modules/ui-reader-page-rendering.js?v=5" defer></script>
   <script src="./modules/ui-autoscroll-1.js?v=2" defer></script>
   <script src="./modules/ui-book-reader-rtl-double-page-spread-with-3d-page-flip.js?v=10" defer></script>
@@ -700,7 +713,6 @@
   <script src="./modules/ui-settings-modal.js?v=4" defer></script>
   <script src="./modules/ui-custom-lists-view.js?v=8" defer></script>
   <script src="./modules/ui-migrate.js" defer></script>
-  <script src="./modules/ui-custom-lists-view-removed.js" defer></script>
   <script src="./modules/ui-analytics-view.js" defer></script>
   <script src="./modules/ui-achievements.js" defer></script>
   <script src="./modules/ui-dragon-ball-easter-egg-helpers.js" defer></script>

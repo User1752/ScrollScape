@@ -61,6 +61,13 @@ const state = {
     autoWebtoonDetect: true,
     pageFlipAnimation: true,
     readerBackground: 'black',
+    webtoonTurnButtonsEnabled: true,
+    webtoonTurnButtonPlacement: 'corners',
+    autoLoadNextChapter: false,
+    readerNoiseEnabled: false,
+    readerNoiseIntensity: 50,
+    readerNoiseSource: 'generated',
+    readerNoiseGifFile: '',
   },
 
   // ── Reading status & analytics ────────────────────────────────────────────

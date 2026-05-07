@@ -74,9 +74,13 @@ function registerAnalyticsRoutes(router) {
   // ── POST /api/analytics/session ───────────────────────────────────────────
   // Called when a reading session ends; `duration` is in minutes.
   router.post('/api/analytics/session', asyncHandler(async (req, res) => {
-    const { mangaId, chapterId, duration } = req.body || {};
+    const { mangaId, mangaTitle, chapterId, chapterName, chapterNumber, chaptersRead, duration } = req.body || {};
     const safeMid = String(mangaId   ?? '').slice(0, 200);
+    const safeTitle = String(mangaTitle ?? '').slice(0, 300);
     const safeCid = String(chapterId ?? '').slice(0, 200);
+    const safeCName = String(chapterName ?? '').slice(0, 300);
+    const safeCNum = String(chapterNumber ?? '').slice(0, 60);
+    const safeReadCount = Math.max(1, Math.min(500, Number(chaptersRead) || 1));
 
     const store = await readStore();
     const a     = store.analytics;
@@ -100,7 +104,16 @@ function registerAnalyticsRoutes(router) {
     }
 
     a.readingSessions = a.readingSessions || [];
-    a.readingSessions.unshift({ mangaId: safeMid, chapterId: safeCid, duration: mins, date: new Date().toISOString() });
+    a.readingSessions.unshift({
+      mangaId: safeMid,
+      mangaTitle: safeTitle,
+      chapterId: safeCid,
+      chapterName: safeCName,
+      chapterNumber: safeCNum,
+      chaptersRead: safeReadCount,
+      duration: mins,
+      date: new Date().toISOString(),
+    });
     a.readingSessions = a.readingSessions.slice(0, 200);
 
     await writeStore(store);

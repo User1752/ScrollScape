@@ -74,10 +74,12 @@ function bindUI() {
   const closeReader = $("closeReader");
   const prevPage    = $("prevPage");
   const nextPage    = $("nextPage");
+  const prevPageCorner = $("prevPageCorner");
+  const nextPageCorner = $("nextPageCorner");
 
   if (closeReader) closeReader.onclick = () => hideReader();
 
-  if (prevPage) prevPage.onclick = () => {
+  const goPrevPage = () => {
     if (state.settings.readingMode === "rtl") { navigateBook("backward"); return; }
     if (state.settings.readingMode === "ltr") { navigateLTR("backward"); return; }
     if (state.currentPageIndex === 0) {
@@ -88,7 +90,7 @@ function bindUI() {
     }
   };
 
-  if (nextPage) nextPage.onclick = () => {
+  const goNextPage = () => {
     if (state.settings.readingMode === "rtl") { navigateBook("forward"); return; }
     if (state.settings.readingMode === "ltr") { navigateLTR("forward"); return; }
     if (state.currentPageIndex === (state.currentChapter?.pages?.length ?? 1) - 1) {
@@ -98,6 +100,11 @@ function bindUI() {
       renderPage();
     }
   };
+
+  if (prevPage) prevPage.onclick = goPrevPage;
+  if (nextPage) nextPage.onclick = goNextPage;
+  if (prevPageCorner) prevPageCorner.onclick = () => goToPrevChapter();
+  if (nextPageCorner) nextPageCorner.onclick = () => goToNextChapter();
 
   // Zoom controls
   const zoomIn    = $("zoomIn");
@@ -211,6 +218,7 @@ function bindUI() {
 const CUSTOM_PRESETS_KEY = 'scrollscape_custom_presets';
 
 const CUSTOM_ACTIVE_KEY  = 'scrollscape_active_custom';
+const CUSTOM_PRESETS_API = '/api/theme-presets';
 
 const CUSTOM_FONT_OPTIONS = [
   { value: '', label: 'System UI' },
@@ -225,6 +233,61 @@ const CUSTOM_FONT_OPTIONS = [
 var _cpLivePreviewCb = null;
 // Tracks whether we are currently editing an existing preset
 var _editingPresetId = null;
+var _customPresetSyncTimer = null;
+
+async function _fetchCustomPresetsFromDisk() {
+  try {
+    var res = await fetch(CUSTOM_PRESETS_API, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    return Array.isArray(data && data.presets) ? data.presets : [];
+  } catch (_) {
+    return null;
+  }
+}
+
+function _refreshPresetViewsIfVisible() {
+  var customizeView = document.getElementById('view-customize');
+  if (customizeView && !customizeView.classList.contains('hidden')) {
+    renderCustomizeView();
+  }
+  var themesView = document.getElementById('view-themes');
+  if (themesView && !themesView.classList.contains('hidden') && typeof renderThemesView === 'function') {
+    renderThemesView();
+  }
+}
+
+function _queueCustomPresetDiskSave(arr) {
+  if (_customPresetSyncTimer) clearTimeout(_customPresetSyncTimer);
+  _customPresetSyncTimer = setTimeout(async function() {
+    _customPresetSyncTimer = null;
+    try {
+      await fetch(CUSTOM_PRESETS_API, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presets: Array.isArray(arr) ? arr : [] }),
+      });
+    } catch (_) {
+      // Keep UX resilient when disk sync fails; localStorage remains source of truth.
+    }
+  }, 180);
+}
+
+async function syncCustomPresetsFromDisk() {
+  var local = getCustomPresets();
+  var remote = await _fetchCustomPresetsFromDisk();
+  if (remote === null) return;
+
+  if (remote.length > 0) {
+    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(remote));
+    _refreshPresetViewsIfVisible();
+    return;
+  }
+
+  if (local.length > 0) {
+    _queueCustomPresetDiskSave(local);
+  }
+}
 
 
 
@@ -237,6 +300,7 @@ function getCustomPresets() {
 function saveCustomPresets(arr) {
 
   localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(arr));
+  _queueCustomPresetDiskSave(arr);
 
 }
 
@@ -641,6 +705,12 @@ function renderCustomizeView() {
 
         '<button class="btn secondary" id="customEditPresetsBtn">' + escapeHtml(tr('action.editPresets')) + '</button>' +
 
+        '<button class="btn secondary" id="customExportPresetsBtn">Export Presets</button>' +
+
+        '<button class="btn secondary" id="customImportPresetsBtn">Import Presets</button>' +
+
+        '<input id="customImportPresetsInput" type="file" accept="application/json" style="display:none">' +
+
       '</div>' +
 
       '<div class="customize-presets-section">' +
@@ -793,6 +863,66 @@ function renderCustomizeView() {
     var section = document.querySelector('.customize-presets-section');
     if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  var exportBtn = document.getElementById('customExportPresetsBtn');
+  if (exportBtn) {
+    exportBtn.onclick = function() {
+      var presets = getCustomPresets();
+      var payload = {
+        app: 'ScrollScape',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        presets: presets,
+      };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'scrollscape-theme-presets.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Presets exported', presets.length + ' preset(s)', 'success');
+    };
+  }
+
+  var importBtn = document.getElementById('customImportPresetsBtn');
+  var importInput = document.getElementById('customImportPresetsInput');
+  if (importBtn && importInput) {
+    importBtn.onclick = function() { importInput.click(); };
+    importInput.onchange = function() {
+      var file = importInput.files && importInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function() {
+        try {
+          var parsed = JSON.parse(String(reader.result || '{}'));
+          var incoming = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.presets) ? parsed.presets : []);
+          if (!incoming.length) throw new Error('No presets found');
+
+          var current = getCustomPresets();
+          var byId = {};
+          current.forEach(function(p) { if (p && p.id) byId[p.id] = p; });
+          incoming.forEach(function(p) { if (p && p.id) byId[p.id] = p; });
+
+          var merged = Object.values(byId).slice(0, 200);
+          saveCustomPresets(merged);
+          renderCustomizeView();
+          if (typeof renderThemesView === 'function') {
+            var themesView = document.getElementById('view-themes');
+            if (themesView && !themesView.classList.contains('hidden')) renderThemesView();
+          }
+          showToast('Presets imported', incoming.length + ' preset(s)', 'success');
+        } catch (e) {
+          showToast('Import failed', e && e.message ? e.message : 'Invalid preset file', 'warning');
+        } finally {
+          importInput.value = '';
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    };
+  }
 
   document.getElementById('customResetBtn').onclick = function() {
 
@@ -1007,5 +1137,8 @@ function editCustomPreset(id) {
 window.editCustomPreset = editCustomPreset;
 
 window.deleteCustomPreset = deleteCustomPreset;
+
+// Load presets from disk folder on startup and keep localStorage mirrored.
+syncCustomPresetsFromDisk();
 
 

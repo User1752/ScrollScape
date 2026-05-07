@@ -3,6 +3,122 @@
 // ============================================================================
 
 let _liveSearchTimer = null;
+const _chapterAnyTitleCache = new Map();
+
+function _chapCacheKey(sourceId, mangaId) {
+  return `${sourceId || ''}:${mangaId || ''}`;
+}
+
+function _limitMapSize(map, maxSize = 600) {
+  if (!map || map.size <= maxSize) return;
+  const firstKey = map.keys().next().value;
+  if (firstKey !== undefined) map.delete(firstKey);
+}
+
+function _extractKnownChapterCount(manga) {
+  const candidates = [manga?.chapterCount, manga?.chaptersCount, manga?.latestChapter, manga?.lastChapter, manga?.chapters];
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(String(value).trim());
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+async function _fetchChapterCount(sourceId, mangaId) {
+  if (!sourceId || !mangaId) return 0;
+
+  const key = _chapCacheKey(sourceId, mangaId);
+  const cached = Number(state.chapterCountCache?.[key]);
+  if (Number.isFinite(cached) && cached >= 0) return cached;
+
+  try {
+    const result = await api(`/api/source/${sourceId}/chapters`, {
+      method: 'POST',
+      body: JSON.stringify({ mangaId }),
+    });
+    const count = Array.isArray(result?.chapters) ? result.chapters.length : 0;
+    state.chapterCountCache[key] = count;
+    return count;
+  } catch (_) {
+    return 0;
+  }
+}
+
+async function _findBestMangaIdByTitle(sourceId, title) {
+  if (!sourceId || !title) return '';
+  try {
+    const result = await api(`/api/source/${sourceId}/search`, {
+      method: 'POST',
+      body: JSON.stringify({ query: title, page: 1 }),
+    });
+    let best = null;
+    for (const candidate of (result?.results || []).slice(0, 10)) {
+      if (!candidate?.id) continue;
+      const sim = _titleScore(title, candidate.title || '');
+      if (sim < 0.7) continue;
+      if (!best || sim > best.sim) best = { id: candidate.id, sim };
+    }
+    return best?.id || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+async function _hasAnySourceChapters(manga, preferredSourceId) {
+  if (!manga?.id) return false;
+
+  const knownCount = _extractKnownChapterCount(manga);
+  if (Number.isFinite(knownCount) && knownCount > 0) return true;
+
+  const currentCount = await _fetchChapterCount(preferredSourceId, manga.id);
+  if (currentCount > 0) return true;
+
+  const titleKey = _normalizeLookupTitle(manga.title || manga.id);
+  if (titleKey && _chapterAnyTitleCache.has(titleKey)) return _chapterAnyTitleCache.get(titleKey) === true;
+
+  const sourceIds = Object.keys(state.installedSources || {}).filter(sid => sid !== 'local' && sid !== preferredSourceId);
+  for (const sid of sourceIds) {
+    const matchId = await _findBestMangaIdByTitle(sid, manga.title || '');
+    if (!matchId) continue;
+    const count = await _fetchChapterCount(sid, matchId);
+    if (count > 0) {
+      if (titleKey) {
+        _chapterAnyTitleCache.set(titleKey, true);
+        _limitMapSize(_chapterAnyTitleCache);
+      }
+      return true;
+    }
+  }
+
+  if (titleKey) {
+    _chapterAnyTitleCache.set(titleKey, false);
+    _limitMapSize(_chapterAnyTitleCache);
+  }
+  return false;
+}
+
+async function _filterMangaWithoutChapters(results, sourceId) {
+  const list = Array.isArray(results) ? results : [];
+  if (!list.length) return [];
+
+  const keep = new Array(list.length).fill(false);
+  const workers = Math.min(4, list.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < list.length) {
+      const idx = cursor++;
+      const manga = list[idx];
+      keep[idx] = await _hasAnySourceChapters(manga, sourceId);
+    }
+  };
+
+  await Promise.all(Array.from({ length: workers }, worker));
+  return list.filter((_, idx) => keep[idx]);
+}
 
 // ── Pagination helper ───────────────────────────────────────────────────────
 function renderPagination(containerId, currentPage, hasNextPage, callbackName) {
@@ -73,17 +189,18 @@ async function search(page = 1) {
     });
     const rawResults = result.results || [];
     const results = rawResults.filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
+    const chapterFiltered = await _filterMangaWithoutChapters(results, state.currentSourceId);
     const hasNextPage = result.hasNextPage || false;
     state.searchHasNextPage = hasNextPage;
     if (!dropdown) return;
-    if (!results.length) {
+    if (!chapterFiltered.length) {
       dropdown.innerHTML = `<div class="muted" style="padding:1rem">No results found for "${escapeHtml(query)}"</div>`;
       $("searchStatus").textContent = "0 result(s) found";
       renderPagination("searchPagination", page, false, "searchGoToPage");
     } else {
-      dropdown.innerHTML = results.map(m => mangaCardHTML(m)).join("");
+      dropdown.innerHTML = chapterFiltered.map(m => mangaCardHTML(m)).join("");
       bindMangaCards(dropdown);
-      $("searchStatus").textContent = `${results.length} result(s) found — Page ${page}`;
+      $("searchStatus").textContent = `${chapterFiltered.length} result(s) found — Page ${page}`;
       renderPagination("searchPagination", page, hasNextPage, "searchGoToPage");
     }
   } catch (e) {
@@ -126,7 +243,8 @@ async function switchToSourceSearch(sourceId, title) {
       body: JSON.stringify({ query: title, page: 1 })
     });
     const results = result.results || [];
-    if (results.length === 0) {
+    const chapterFiltered = await _filterMangaWithoutChapters(results, sourceId);
+    if (chapterFiltered.length === 0) {
       showToast("Not found", `"${title}" not found in ${state.installedSources[sourceId]?.name || sourceId}`, "info");
       return;
     }
@@ -134,7 +252,7 @@ async function switchToSourceSearch(sourceId, title) {
     state.currentSourceId = sourceId;
     const selectors = [$("sourceSelect"), $("advancedSourceSelect")];
     selectors.forEach(s => { if (s) s.value = sourceId; });
-    loadMangaDetails(results[0].id);
+    loadMangaDetails(chapterFiltered[0].id);
   } catch (e) {
     showToast("Error", e.message, "error");
   }

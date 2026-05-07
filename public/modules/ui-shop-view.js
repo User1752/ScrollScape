@@ -177,14 +177,14 @@ function renderShopView() {
 }
 
 function buyTheme(id) {
-  const t  = SHOP_THEMES.find(x => x.id === id);
-  if (!t) return;
+  const theme = SHOP_THEMES.find(x => x.id === id);
+  if (!theme) return;
   const ap = getAvailableAP();
-  if (ap < t.cost) { showToast(t('shop.toastNotEnoughAp'), `${t('shop.need')} ${t.cost} AP`, 'warning'); return; }
-  spendAP(t.cost);
+  if (ap < theme.cost) { showToast(t('shop.toastNotEnoughAp'), `${t('shop.need')} ${theme.cost} AP`, 'warning'); return; }
+  spendAP(theme.cost);
   addPurchasedTheme(id);
   setActiveTheme(id);
-  showToast(t('shop.toastThemeUnlocked'), t.name, 'success');
+  showToast(t('shop.toastThemeUnlocked'), theme.name, 'success');
   renderShopView();
   updateApBadge();
 }

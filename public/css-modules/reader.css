@@ -14,6 +14,75 @@
   display: none;
 }
 
+/* Hide page scrollbar while reader overlay is open */
+html.reader-open,
+body.reader-open {
+  overflow: hidden !important;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+html.reader-open::-webkit-scrollbar,
+body.reader-open::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Hide both internal reader scrollbars during reading (scroll still works) */
+.reader-content,
+.reader-sidebar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.reader-content::-webkit-scrollbar,
+.reader-sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Hard fallback: hide any scrollbar from any reader descendant */
+.reader,
+.reader * {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.reader *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+.reader *::-webkit-scrollbar-thumb,
+.reader *::-webkit-scrollbar-track,
+.reader *::-webkit-scrollbar-button,
+.reader *::-webkit-scrollbar-corner,
+.reader *::-webkit-resizer {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* ── Animated grain / noise overlay ──────────────────────────────────────── */
+.reader-noise-canvas,
+.reader-noise-gif {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.18;
+  image-rendering: pixelated;
+  display: none;
+}
+.reader-noise-gif {
+  object-fit: cover;
+  image-rendering: auto;
+}
+.reader.reader-noise-active .reader-noise-canvas,
+.reader.reader-noise-active .reader-noise-gif {
+  /* visibility controlled by JS per source mode */
+}
+
 .reader-topbar {
   position: absolute;
   top: 0.65rem;
@@ -62,6 +131,7 @@
   display: flex;
   min-height: 0;
   position: relative;
+  z-index: 1;
   justify-content: center;
   transition: padding-right 0.3s ease;
 }
@@ -215,6 +285,87 @@
   padding: 0;
 }
 
+/* When animated wallpaper is active, let the canvas/gif show through */
+.reader.reader-noise-active .reader-content,
+.reader.reader-noise-active .reader-content.reading-mode-ltr,
+.reader.reader-noise-active .reader-content.reading-mode-rtl,
+.reader.reader-noise-active .reader-content.reading-mode-webtoon {
+  background-color: transparent;
+}
+
+.reader-corner-nav {
+  position: absolute;
+  bottom: max(10px, min(20px, 2.2vh));
+  z-index: 11;
+  min-width: clamp(72px, 10vw, 104px);
+  height: clamp(36px, 5.2vh, 48px);
+  padding: 0 clamp(0.4rem, 1.3vw, 0.8rem);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(30, 34, 48, 0.9), rgba(16, 18, 28, 0.88));
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+  transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reader.reader-webtoon-nav-visible .reader-corner-nav {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reader-corner-nav:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, rgba(56, 71, 115, 0.92), rgba(22, 25, 38, 0.9));
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.48);
+}
+
+.reader-corner-nav:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.reader-corner-nav-left {
+  left: 18px;
+}
+
+.reader-corner-nav-right {
+  right: 18px;
+}
+
+.reader.reader-webtoon-nav-bottom .reader-corner-nav-left {
+  left: calc(50% - min(210px, 26vw));
+}
+
+.reader.reader-webtoon-nav-bottom .reader-corner-nav-right {
+  right: calc(50% - min(210px, 26vw));
+}
+
+.reader.reader-webtoon-nav-bottom .reader-corner-nav {
+  min-width: clamp(96px, 13vw, 132px);
+}
+
+.reader-corner-label {
+  font-size: clamp(0.64rem, 1.55vh, 0.84rem);
+  text-transform: uppercase;
+}
+
+.reader-corner-icon {
+  font-size: clamp(0.62rem, 1.5vh, 0.8rem);
+  opacity: 0.9;
+}
+
 .page-wrap {
   max-width: 100%;
   max-height: 100%;
@@ -366,6 +517,26 @@
 }
 
 @media (max-width: 900px) {
+  .reader-corner-nav {
+    min-width: 76px;
+    height: 40px;
+    bottom: 12px;
+    gap: 0.35rem;
+    font-weight: 600;
+  }
+
+  .reader-corner-nav-left {
+    left: 12px;
+  }
+
+  .reader-corner-nav-right {
+    right: 12px;
+  }
+
+  .reader-corner-label {
+    font-size: 0.76rem;
+  }
+
   .reader-sidebar {
     position: absolute;
     right: 0;
@@ -380,6 +551,33 @@
 
   .reader:not(.reader-sidebar-collapsed) .reader-sidebar-arrow {
     right: calc(min(88vw, 310px) + 8px);
+  }
+}
+
+@media (max-height: 760px) {
+  .reader-corner-nav {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+  }
+
+  .reader-corner-label {
+    display: none;
+  }
+
+  .reader-corner-icon {
+    font-size: 0.82rem;
+  }
+
+  .reader.reader-webtoon-nav-bottom .reader-corner-nav-left {
+    left: calc(50% - 58px);
+  }
+
+  .reader.reader-webtoon-nav-bottom .reader-corner-nav-right {
+    right: calc(50% - 58px);
   }
 }
 

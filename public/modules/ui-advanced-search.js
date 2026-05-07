@@ -105,7 +105,7 @@ async function advancedSearch(page = 1) {
           body: JSON.stringify({ query: query || "", page, orderBy, publicationStatus, format })
         });
       }
-      const results = result.results || [];
+      const results = await _filterMangaWithoutChapters(result.results || [], state.currentSourceId);
       const hasNextPage = result.hasNextPage || false;
       state.advSearchHasNextPage = hasNextPage;
       const resultsDiv = $("advancedResults");
@@ -156,7 +156,8 @@ async function advancedSearch(page = 1) {
         });
         acc.hasMore = result.hasNextPage || false;
       }
-      const batch = _applyAdvFilters(result.results || [], query, selectedGenres, publicationStatus, contentRating, format);
+      const filteredBatch = _applyAdvFilters(result.results || [], query, selectedGenres, publicationStatus, contentRating, format);
+      const batch = await _filterMangaWithoutChapters(filteredBatch, state.currentSourceId);
       acc.results.push(...batch);
     } catch (e) {
       fetchError = e;

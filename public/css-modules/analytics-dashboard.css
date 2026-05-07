@@ -165,40 +165,67 @@
   text-align: right;
 }
 
-/* ── Genre pills ─────────────────────────────────────────────────────────── */
+/* ── Genre bars ──────────────────────────────────────────────────────────── */
 .genre-overview {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.genre-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0.6rem 0 0.3rem;
+}
+
+.genre-section-title:first-child {
+  margin-top: 0;
+}
+
+.genre-section-title--least {
+  margin-top: 1rem;
+}
+
+.genre-bar-row {
+  display: flex;
+  align-items: center;
   gap: 0.6rem;
 }
 
-.genre-pill {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.45rem 1rem;
+.genre-bar-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 110px;
+  min-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.genre-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.07);
   border-radius: 999px;
-  min-width: 80px;
-  cursor: default;
-  transition: transform 0.15s ease, filter 0.15s ease;
+  overflow: hidden;
 }
 
-.genre-pill:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.15);
+.genre-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
 }
 
-.genre-pill-name {
-  font-size: 0.82rem;
+.genre-bar-pct {
+  font-size: 0.74rem;
   font-weight: 700;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.genre-pill-count {
-  font-size: 0.68rem;
-  color: rgba(255,255,255,0.75);
-  margin-top: 1px;
+  color: var(--text-secondary);
+  width: 38px;
+  text-align: right;
 }
 
 /* ── Recent sessions ─────────────────────────────────────────────────────── */
@@ -219,13 +246,28 @@
   font-size: 0.85rem;
 }
 
-.session-manga {
+.session-main {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.session-manga {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text-primary);
+}
+
+.session-chapter {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .session-duration {

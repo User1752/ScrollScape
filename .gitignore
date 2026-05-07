@@ -6,6 +6,7 @@ data/store.json
 data/local/
 data/cache/
 data/tmp/
+data/theme-presets/
 
 # Keep these data files tracked (app config, not user data)
 !data/achievements.json

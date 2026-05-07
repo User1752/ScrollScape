@@ -107,12 +107,17 @@ async function recordReadingSession() {
   if (!state.readerSessionStart) return;
   const duration = (Date.now() - state.readerSessionStart) / 60000; // convert to minutes
   state.readerSessionStart = null;
+  const chapterMeta = state.allChapters?.[state.currentChapterIndex] || null;
   try {
     await api("/api/analytics/session", {
       method: "POST",
       body: JSON.stringify({
         mangaId: state.currentManga?.id,
+        mangaTitle: state.currentManga?.title || '',
         chapterId: state.currentChapter?.id,
+        chapterName: state.currentChapter?.name || '',
+        chapterNumber: chapterMeta?.chapter || '',
+        chaptersRead: 1,
         duration: Math.round(duration * 10) / 10
       })
     });

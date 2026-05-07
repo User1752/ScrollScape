@@ -4,6 +4,39 @@
 // CHAPTERS MANAGEMENT
 // ============================================================================
 
+const _chapterPrefetchCache = new Map();
+const _chapterPrefetchInFlight = new Set();
+
+function prefetchNextReaderChapters(ahead = 2) {
+  const total = state.allChapters?.length || 0;
+  if (!total || !state.currentSourceId) return;
+
+  let idx = state.currentChapterIndex;
+  for (let i = 0; i < ahead; i++) {
+    idx = getNextChapterIndex(idx);
+    if (idx < 0 || idx >= total) break;
+    const ch = state.allChapters[idx];
+    if (!ch?.id) continue;
+    if (_chapterPrefetchCache.has(ch.id) || _chapterPrefetchInFlight.has(ch.id)) continue;
+
+    _chapterPrefetchInFlight.add(ch.id);
+    api(`/api/source/${state.currentSourceId}/pages`, {
+      method: "POST",
+      body: JSON.stringify({ chapterId: ch.id })
+    }).then((result) => {
+      if (result) _chapterPrefetchCache.set(ch.id, result);
+    }).catch(() => {
+      // Ignore prefetch errors; normal load path still works.
+    }).finally(() => {
+      _chapterPrefetchInFlight.delete(ch.id);
+      while (_chapterPrefetchCache.size > 6) {
+        const oldest = _chapterPrefetchCache.keys().next().value;
+        _chapterPrefetchCache.delete(oldest);
+      }
+    });
+  }
+}
+
 async function loadChapters() {
   if (!state.currentManga) return;
   const chapDiv = $("chapters");
@@ -131,10 +164,15 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
   _ltrFlipAnimating  = false;
   $("searchStatus").textContent = "Loading chapter...";
   try {
-    const result = await api(`/api/source/${state.currentSourceId}/pages`, {
-      method: "POST",
-      body: JSON.stringify({ chapterId })
-    });
+    let result = _chapterPrefetchCache.get(chapterId);
+    if (result) {
+      _chapterPrefetchCache.delete(chapterId);
+    } else {
+      result = await api(`/api/source/${state.currentSourceId}/pages`, {
+        method: "POST",
+        body: JSON.stringify({ chapterId })
+      });
+    }
     state.currentChapter      = result;
     state.currentChapter.name = chapterName;
     state.currentChapter.id   = chapterId;
@@ -211,6 +249,7 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
       }
     }
     renderPage();
+    prefetchNextReaderChapters(2);
     $("searchStatus").textContent = "";
     loadChapters();
   } catch (e) {

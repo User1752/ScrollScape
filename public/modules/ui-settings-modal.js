@@ -45,30 +45,35 @@ function showSettings() {
                 </select>
               </div>
               <div class="setting-group">
-                <label>Line Sharpness</label>
-                <select id="sharpnessSelect" class="input">
-                  <option value="0" ${(state.settings.lineSharpness||0) === 0 ? 'selected' : ''}>Off</option>
-                  <option value="1" ${(state.settings.lineSharpness||0) === 1 ? 'selected' : ''}>Subtle</option>
-                  <option value="2" ${(state.settings.lineSharpness||0) === 2 ? 'selected' : ''}>Strong</option>
-                  <option value="3" ${(state.settings.lineSharpness||0) === 3 ? 'selected' : ''}>Max</option>
-                </select>
-                <p class="setting-description">Increases contrast to make manga lines crisper</p>
-              </div>
-              <div class="setting-group">
-                <label class="toggle-label">
-                  <span class="toggle-text">Pan wide images</span>
-                  <input type="checkbox" id="panWideToggle" ${state.settings.panWideImages ? "checked" : ""}>
-                  <span class="toggle-slider"></span>
-                </label>
-                <p class="setting-description">Allows horizontal scrolling on double-page spreads</p>
-              </div>
-              <div class="setting-group">
                 <label class="toggle-label">
                   <span class="toggle-text">Auto-detect Manhwa / Manhua</span>
                   <input type="checkbox" id="autoWebtoonToggle" ${state.settings.autoWebtoonDetect !== false ? "checked" : ""}>
                   <span class="toggle-slider"></span>
                 </label>
-                <p class="setting-description">Automatically switches to Webtoon (vertical scroll) mode for Korean and Chinese comics</p>
+                <p class="setting-description">Automatically switches to Webtoon mode for Korean and Chinese comics.</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Auto-load next chapter (Webtoon)</span>
+                  <input type="checkbox" id="autoLoadNextChapterToggle" ${state.settings.autoLoadNextChapter ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Automatically opens the next chapter when you scroll to the end.</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Webtoon page-turn buttons</span>
+                  <input type="checkbox" id="webtoonTurnButtonsToggle" ${state.settings.webtoonTurnButtonsEnabled !== false ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="setting-group">
+                <label>Webtoon button placement</label>
+                <select id="webtoonTurnButtonPlacementSelect" class="input">
+                  <option value="bottom"  ${(state.settings.webtoonTurnButtonPlacement || 'corners') === 'bottom' ? 'selected' : ''}>Bottom center</option>
+                  <option value="corners" ${(state.settings.webtoonTurnButtonPlacement || 'corners') === 'corners' ? 'selected' : ''}>Bottom corners</option>
+                </select>
+                <p class="setting-description">Only applies to Webtoon mode.</p>
               </div>
               <div class="setting-group">
                 <label class="toggle-label">
@@ -76,10 +81,32 @@ function showSettings() {
                   <input type="checkbox" id="pageFlipAnimationToggle" ${state.settings.pageFlipAnimation !== false ? "checked" : ""}>
                   <span class="toggle-slider"></span>
                 </label>
-                <p class="setting-description">3D page-turn effect in Book (RTL/LTR) mode. Disable for instant page switching.</p>
+                <p class="setting-description">3D page-turn effect in Book (RTL/LTR) mode.</p>
               </div>
               <div class="setting-group">
-                <label>Reader background</label>
+                <label class="toggle-label">
+                  <span class="toggle-text">Pan wide images</span>
+                  <input type="checkbox" id="panWideToggle" ${state.settings.panWideImages ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Allows horizontal scrolling on double-page spreads.</p>
+              </div>
+              <div class="setting-group">
+                <label>Line Sharpness</label>
+                <select id="sharpnessSelect" class="input">
+                  <option value="0" ${(state.settings.lineSharpness||0) === 0 ? 'selected' : ''}>Off</option>
+                  <option value="1" ${(state.settings.lineSharpness||0) === 1 ? 'selected' : ''}>Subtle</option>
+                  <option value="2" ${(state.settings.lineSharpness||0) === 2 ? 'selected' : ''}>Strong</option>
+                  <option value="3" ${(state.settings.lineSharpness||0) === 3 ? 'selected' : ''}>Max</option>
+                </select>
+                <p class="setting-description">Increases contrast to make manga lines crisper.</p>
+              </div>
+            </div>
+
+            <div class="settings-section-card">
+              <p class="settings-section-title">Reader Appearance</p>
+              <div class="setting-group" id="readerBgColorGroup" style="${state.settings.readerNoiseEnabled ? 'display:none' : ''}">
+                <label>Background colour</label>
                 <select id="readerBgSelect" class="input">
                   <option value="black" ${(state.settings.readerBackground||'black') === 'black' ? 'selected' : ''}>Black</option>
                   <option value="dark"  ${(state.settings.readerBackground||'black') === 'dark'  ? 'selected' : ''}>Dark</option>
@@ -87,7 +114,31 @@ function showSettings() {
                   <option value="sepia" ${(state.settings.readerBackground||'black') === 'sepia' ? 'selected' : ''}>Sepia</option>
                   <option value="white" ${(state.settings.readerBackground||'black') === 'white' ? 'selected' : ''}>White</option>
                 </select>
-                <p class="setting-description">Background color shown behind pages while reading</p>
+                <p class="setting-description">Background colour shown behind pages while reading.</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Animated wallpaper</span>
+                  <input type="checkbox" id="readerNoiseToggle" ${state.settings.readerNoiseEnabled ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Replaces the background colour with an animated wallpaper.</p>
+              </div>
+              <div id="readerWallpaperOptions" style="${state.settings.readerNoiseEnabled ? '' : 'display:none'}">
+                <div class="setting-group">
+                  <label>Wallpaper type</label>
+                  <select id="readerNoiseSourceSelect" class="input">
+                    <option value="generated" ${(state.settings.readerNoiseSource||'generated')==='generated'?'selected':''}>Film grain (generated)</option>
+                    <option value="gif"        ${(state.settings.readerNoiseSource||'generated')==='gif'       ?'selected':''}>GIF / image file</option>
+                  </select>
+                </div>
+                <div class="setting-group" id="readerNoiseGifGroup" style="${(state.settings.readerNoiseSource||'generated')==='gif'?'':'display:none'}">
+                  <label>Wallpaper file</label>
+                  <select id="readerNoiseGifFileSelect" class="input">
+                    <option value="">— loading… —</option>
+                  </select>
+                  <p class="setting-description">Place GIF / WebP files in the <code>public/</code> folder.</p>
+                </div>
               </div>
             </div>
             <div class="settings-section-card">
@@ -293,6 +344,30 @@ function showSettings() {
     saveSettings();
     if (state.currentChapter) { showReader(); renderPage(); }
   };
+  const webtoonTurnBtnSelect = $("webtoonTurnButtonPlacementSelect");
+  if (webtoonTurnBtnSelect) {
+    webtoonTurnBtnSelect.onchange = (e) => {
+      state.settings.webtoonTurnButtonPlacement = e.target.value === 'bottom' ? 'bottom' : 'corners';
+      saveSettings();
+      if (state.currentChapter) { showReader(); renderPage(); }
+    };
+  }
+  const webtoonTurnButtonsToggle = $("webtoonTurnButtonsToggle");
+  if (webtoonTurnButtonsToggle) {
+    webtoonTurnButtonsToggle.onchange = (e) => {
+      state.settings.webtoonTurnButtonsEnabled = e.target.checked;
+      saveSettings();
+      if (state.currentChapter) { showReader(); renderPage(); }
+    };
+  }
+  const autoLoadNextChapterToggle = $("autoLoadNextChapterToggle");
+  if (autoLoadNextChapterToggle) {
+    autoLoadNextChapterToggle.onchange = (e) => {
+      state.settings.autoLoadNextChapter = e.target.checked;
+      saveSettings();
+      if (state.currentChapter) { showReader(); renderPage(); }
+    };
+  }
   $("sharpnessSelect").onchange = (e) => {
     state.settings.lineSharpness = parseInt(e.target.value, 10);
     saveSettings();
@@ -337,6 +412,57 @@ function showSettings() {
       applyReaderBackground();
     };
   }
+
+  const readerNoiseToggle = $('readerNoiseToggle');
+  if (readerNoiseToggle) {
+    readerNoiseToggle.onchange = (e) => {
+      state.settings.readerNoiseEnabled = e.target.checked;
+      saveSettings();
+      const bgGroup  = $('readerBgColorGroup');
+      const wpOpts   = $('readerWallpaperOptions');
+      if (bgGroup)  bgGroup.style.display  = e.target.checked ? 'none' : '';
+      if (wpOpts)   wpOpts.style.display   = e.target.checked ? '' : 'none';
+      if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  }
+
+  const readerNoiseSourceSelect = $('readerNoiseSourceSelect');
+  if (readerNoiseSourceSelect) {
+    readerNoiseSourceSelect.onchange = (e) => {
+      state.settings.readerNoiseSource = e.target.value;
+      saveSettings();
+      const gifGroup = $('readerNoiseGifGroup');
+      if (gifGroup) gifGroup.style.display = e.target.value === 'gif' ? '' : 'none';
+      if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  }
+
+  // Populate wallpaper file list
+  (async () => {
+    const fileSelect = $('readerNoiseGifFileSelect');
+    if (!fileSelect) return;
+    try {
+      const data = await fetch('/api/reader-wallpapers').then(r => r.json());
+      const files = data.files || [];
+      const current = state.settings.readerNoiseGifFile || '';
+      if (files.length === 0) {
+        fileSelect.innerHTML = '<option value="">— no GIF/WebP files found in public/ —</option>';
+      } else {
+        fileSelect.innerHTML = files.map(f =>
+          `<option value="${f}" ${f === current ? 'selected' : ''}>${f}</option>`
+        ).join('');
+        if (!current && files.length > 0) {
+          state.settings.readerNoiseGifFile = files[0];
+          saveSettings();
+        }
+      }
+    } catch { /* server may not be updated yet */ }
+    fileSelect.onchange = (e) => {
+      state.settings.readerNoiseGifFile = e.target.value;
+      saveSettings();
+      if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  })();
 
   const sourceBadgeToggle = $("showLibrarySourceToggle");
   if (sourceBadgeToggle) {

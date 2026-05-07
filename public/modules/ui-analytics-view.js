@@ -60,17 +60,36 @@ async function renderAnalyticsView() {
           if (g && typeof g === 'string') genreCount[g] = (genreCount[g] || 0) + 1;
         }
       }
-      const sorted = Object.entries(genreCount).sort((a, b) => b[1] - a[1]).slice(0, 15);
+      const sorted = Object.entries(genreCount).sort((a, b) => b[1] - a[1]);
       if (!sorted.length) {
         genreEl.innerHTML = `<p class="muted">No genre data yet.</p>`;
       } else {
-        genreEl.innerHTML = sorted.map(([genre, count], i) => {
-          const bg = GENRE_COLOURS[i % GENRE_COLOURS.length];
-          return `<div class="genre-pill" style="background:${bg}">
-            <span class="genre-pill-name">${escapeHtml(genre)}</span>
-            <span class="genre-pill-count">${count} ${count === 1 ? 'Entry' : 'Entries'}</span>
-          </div>`;
-        }).join("");
+        const total  = sorted.reduce((s, [, c]) => s + c, 0);
+        const maxCount = sorted[0][1];
+        const top    = sorted.slice(0, 8);
+        const bottom = sorted.length > 8 ? sorted.slice(-Math.min(4, sorted.length - 8)).reverse() : [];
+
+        const barRow = ([genre, count], i) => {
+          const pct  = (count / total * 100).toFixed(1);
+          const barW = (count / maxCount * 100).toFixed(1);
+          const colour = GENRE_COLOURS[i % GENRE_COLOURS.length];
+          return `
+            <div class="genre-bar-row">
+              <span class="genre-bar-label">${escapeHtml(genre)}</span>
+              <div class="genre-bar-track">
+                <div class="genre-bar-fill" style="width:${barW}%;background:${colour}"></div>
+              </div>
+              <span class="genre-bar-pct">${pct}%</span>
+            </div>`;
+        };
+
+        genreEl.innerHTML = `
+          <p class="genre-section-title">Most read</p>
+          ${top.map(barRow).join('')}
+          ${bottom.length ? `
+          <p class="genre-section-title genre-section-title--least">Least read</p>
+          ${bottom.map(barRow).join('')}` : ''}
+        `;
       }
     }
 
@@ -81,9 +100,21 @@ async function renderAnalyticsView() {
       if (!sessions.length) {
         sessionsEl.innerHTML = `<div class="muted">No reading sessions yet. Start reading!</div>`;
       } else {
+        const chapterText = (s) => {
+          const number = String(s.chapterNumber || '').trim();
+          const name = String(s.chapterName || '').trim();
+          if (number) return `Chapter ${escapeHtml(number)}`;
+          if (name) return escapeHtml(name);
+          if (s.chapterId) return escapeHtml(String(s.chapterId));
+          return 'Chapter unknown';
+        };
+
         sessionsEl.innerHTML = sessions.map(s => `
           <div class="session-item">
-            <span class="session-manga">${escapeHtml(s.mangaId || "Unknown")}</span>
+            <div class="session-main">
+              <span class="session-manga">${escapeHtml(s.mangaTitle || s.mangaId || "Unknown")}</span>
+              <span class="session-chapter">${chapterText(s)}</span>
+            </div>
             <span class="session-duration">${formatTime(s.duration || 0)}</span>
             <span class="session-date">${new Date(s.date).toLocaleDateString()}</span>
           </div>`).join("");

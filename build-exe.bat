@@ -36,6 +36,7 @@ set "PKG_CACHE_PATH=%~dp0tools\pkg-cache"
 :: ============================================================================
 set "NODE_EXE="
 set "NPM_CMD="
+set "NPM_FLAGS=--cache %~dp0tools\npm-cache --prefer-offline --no-audit --no-fund --loglevel=error"
 
 echo   !BCYN!  [ .. ]!R!  Checking for Node.js...
 node --version >nul 2>&1
@@ -73,9 +74,19 @@ goto :build_docker
 :: If using a local node, add it to PATH so pkg.cmd can find node at compile time
 if not "!NODE_EXE!"=="node" set "PATH=%~dp0tools\node;!PATH!"
 
+:: Keep npm output focused on actionable failures.
+set "NPM_CONFIG_UPDATE_NOTIFIER=false"
+set "NPM_CONFIG_AUDIT=false"
+set "NPM_CONFIG_FUND=false"
+set "NPM_CONFIG_LOGLEVEL=error"
+
 :: Install / refresh dependencies (including devDeps for pkg)
 echo   !BCYN!  [ .. ]!R!  Installing dependencies...
-call "!NPM_CMD!" install --cache "%~dp0tools\npm-cache" --prefer-offline 2>&1
+if exist "package-lock.json" (
+    call "!NPM_CMD!" ci !NPM_FLAGS! 2>&1
+) else (
+    call "!NPM_CMD!" install !NPM_FLAGS! 2>&1
+)
 if %errorlevel% neq 0 (
     call :err "npm install failed" "See output above."
     goto :end
@@ -86,7 +97,7 @@ echo.
 :: Compile via pkg
 echo   !BCYN!  [ .. ]!R!  Compiling !BOLD!ScrollScape.exe!R! !DIM!(may take 1-3 min on first run)!R!...
 echo.
-call "!NPM_CMD!" run build:exe 2>&1
+call "%~dp0node_modules\.bin\pkg.cmd" . --targets node20-win-x64 --output dist/ScrollScape-win.exe --compress GZip 2>&1
 if %errorlevel% neq 0 (
     call :err "pkg compilation failed" "See output above."
     goto :end

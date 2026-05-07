@@ -40,25 +40,42 @@ function applyReaderBackground() {
   $('reader').style.backgroundColor = bg;
 }
 
+function applyReaderTurnButtonLayout(mode = state.settings.readingMode) {
+  const readerEl = $("reader");
+  if (!readerEl) return;
+  const isWebtoon = mode === "webtoon";
+  const buttonsEnabled = state.settings.webtoonTurnButtonsEnabled !== false;
+  const showButtons = isWebtoon && buttonsEnabled;
+  const placement = (state.settings.webtoonTurnButtonPlacement === "bottom") ? "bottom" : "corners";
+  readerEl.classList.toggle("reader-webtoon-nav-visible", showButtons);
+  readerEl.classList.toggle("reader-webtoon-nav-bottom", showButtons && placement === "bottom");
+  readerEl.classList.toggle("reader-webtoon-nav-corners", showButtons && placement === "corners");
+}
+
 function showReader() {
   const readerEl = $("reader");
   readerEl.classList.remove("hidden");
+  document.documentElement.classList.add("reader-open");
+  document.body.classList.add("reader-open");
   applyReaderBackground();
+  if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
   const mode = state.settings.readingMode;
-  if ((mode === "ltr" || mode === "rtl") && state.zoomLevel === 1.0) {
-    state.zoomLevel = 1.2;
-  }
+  // Reading defaults: manga spreads at 120%, webtoon/manhwa/manhua at 100%.
+  state.zoomLevel = (mode === "ltr" || mode === "rtl") ? 1.2 : 1.0;
   const chapterMeta = state.allChapters?.[state.currentChapterIndex];
   const chapterNumber = chapterMeta?.chapter;
   const chapterName = state.currentChapter?.name || "";
   const chapterLabel = chapterNumber ? `Chapter ${chapterNumber}` : (chapterName || "Chapter");
   $("readerTitle").textContent = `${state.currentManga?.title || ""} - ${chapterLabel}`;
   updateZoomUI();
+  applyReaderTurnButtonLayout(mode);
   _bindReaderArrowProximity(readerEl);
 }
 
 async function hideReader() {
+  if (typeof stopReaderNoise === 'function') stopReaderNoise();
   stopAutoScroll();
+  if (typeof _unbindWebtoonAutoNext === "function") _unbindWebtoonAutoNext();
   await recordReadingSession();
   // Restore reading mode if it was auto-overridden by webtoon detection
   if (state._preAutoReadingMode != null) {
@@ -67,6 +84,8 @@ async function hideReader() {
   }
   const readerEl = $("reader");
   readerEl.classList.add("hidden");
+  document.documentElement.classList.remove("reader-open");
+  document.body.classList.remove("reader-open");
   readerEl.classList.remove("reader-sidebar-collapsed", "reader-arrow-visible");
   _unbindReaderArrowProximity(readerEl);
 }

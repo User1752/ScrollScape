@@ -54,6 +54,7 @@ const STORE_PATH       = path.join(DATA_DIR, 'store.json');
 const CACHE_DIR        = path.join(DATA_DIR, 'cache');
 const LOCAL_DIR        = path.join(DATA_DIR, 'local');
 const TMP_DIR          = path.join(DATA_DIR, 'tmp');
+const THEME_PRESETS_DIR = path.join(DATA_DIR, 'theme-presets');
 const PORT             = process.env.PORT || 3000;
 
 // ── Configure submodules ─────────────────────────────────────────────────────
@@ -68,6 +69,9 @@ sourceLoader.configure({ sourcesDir: SOURCES_DIR, snapSourcesDir: SNAP_SOURCES_D
 const localRoutes = require('./server/routes/local');
 const upload = multer({ dest: TMP_DIR, limits: { fileSize: 500 * 1024 * 1024 } });
 localRoutes.configure({ localDir: LOCAL_DIR, upload });
+
+const themePresetRoutes = require('./server/routes/theme-presets');
+themePresetRoutes.configure({ presetsDir: THEME_PRESETS_DIR });
 
 // ── Express application ──────────────────────────────────────────────────────
 const app = express();
@@ -99,6 +103,7 @@ const { registerAnalyticsRoutes }    = require('./server/routes/analytics');
 const { registerAchievementRoutes }  = require('./server/routes/achievements');
 const { registerMangaUpdatesRoutes } = require('./server/routes/mangaupdates');
 const { registerCalendarRoutes }     = require('./server/routes/calendar');
+const { registerThemePresetRoutes }  = require('./server/routes/theme-presets');
 
 registerProxyRoutes(app);
 registerRepoRoutes(app);
@@ -112,6 +117,20 @@ registerAnalyticsRoutes(app);
 registerAchievementRoutes(app);
 registerMangaUpdatesRoutes(app);
 registerCalendarRoutes(app);
+registerThemePresetRoutes(app);
+
+// ── Reader wallpapers: list GIF/WebP files from public/ ──────────────────────
+app.get('/api/reader-wallpapers', (_req, res) => {
+  const publicDir = path.join(__dirname, 'public');
+  try {
+    const files = require('fs').readdirSync(publicDir)
+      .filter(f => /\.(gif|webp|mp4)$/i.test(f))
+      .sort();
+    res.json({ files });
+  } catch {
+    res.json({ files: [] });
+  }
+});
 
 // ── Static file serving ───────────────────────────────────────────────────────
 // Suppress 404 for favicon.ico — the app has no favicon file.
@@ -135,7 +154,7 @@ app.use('/', express.static(path.join(__dirname, 'public'), {
  * Creates required directories and initialises a blank store.json if absent.
  */
 async function ensureDirs() {
-  for (const dir of [DATA_DIR, SOURCES_DIR, CACHE_DIR, LOCAL_DIR, TMP_DIR]) {
+  for (const dir of [DATA_DIR, SOURCES_DIR, CACHE_DIR, LOCAL_DIR, TMP_DIR, THEME_PRESETS_DIR]) {
     await fsp.mkdir(dir, { recursive: true });
   }
   // Bundled sources are loaded directly from the pkg snapshot; no seeding needed.
