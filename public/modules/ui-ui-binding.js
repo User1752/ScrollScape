@@ -315,7 +315,11 @@ function getActiveCustom() {
 
 function setActiveCustom(cfg) {
 
-  if (cfg) localStorage.setItem(CUSTOM_ACTIVE_KEY, JSON.stringify(cfg));
+  if (cfg) {
+    localStorage.setItem(CUSTOM_ACTIVE_KEY, JSON.stringify(cfg));
+    // Keep theme activation exclusive: custom presets disable shop/community themes.
+    resetBaseThemeForCustomActivation();
+  }
 
   else     localStorage.removeItem(CUSTOM_ACTIVE_KEY);
 
@@ -324,7 +328,8 @@ function setActiveCustom(cfg) {
 function resetBaseThemeForCustomActivation() {
   if (typeof window.getActiveTheme !== 'function' || typeof window.applyTheme !== 'function') return;
   var current = window.getActiveTheme();
-  if (current && current !== 'default') {
+  var appliedThemeId = document.documentElement.getAttribute('data-color-theme') || '';
+  if ((current && current !== 'default') || appliedThemeId) {
     localStorage.setItem('scrollscape_active_theme', 'default');
     window.applyTheme('default');
   }
@@ -496,10 +501,6 @@ function applyCustomization(cfg) {
     document.documentElement.style.setProperty('--primary',       pal.primary);
     document.documentElement.style.setProperty('--primary-dark',  pal.dark);
     document.documentElement.style.setProperty('--primary-light', pal.light);
-  } else {
-    document.documentElement.style.removeProperty('--primary');
-    document.documentElement.style.removeProperty('--primary-dark');
-    document.documentElement.style.removeProperty('--primary-light');
   }
   if (buttonColor && /^#[0-9a-f]{6}$/i.test(buttonColor)) {
     var btnPal = _derivePalette(buttonColor);
@@ -825,7 +826,8 @@ function renderCustomizeView() {
     cornerPrev.style.opacity    = cornerUrl ? String((100 - cornerDim)  / 100) : '';
     cornerPrev.style.filter     = cornerUrl ? 'brightness(' + (1 - cornerDark / 100) + ')' : '';
 
-    var cfg = { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, headerPosX: headerPosX, headerPosY: headerPosY, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, paletteColor: paletteColor, fontFamily: fontFamily, buttonColor: buttonColor, accentColor: accentColor };
+    var currentCustom = getActiveCustom() || {};
+    var cfg = Object.assign({}, currentCustom, { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, headerPosX: headerPosX, headerPosY: headerPosY, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, paletteColor: paletteColor, fontFamily: fontFamily, buttonColor: buttonColor, accentColor: accentColor });
 
     // Auto-apply every change from customization controls.
     setActiveCustom(cfg);
@@ -1154,15 +1156,6 @@ function applyCustomPreset(id) {
   var p = getCustomPresets().find(function(x) { return x.id === id; });
 
   if (!p) return;
-
-  // Clean up any community theme's injected images (char, banner) without
-  // changing CSS vars or localStorage — so the shop still shows the correct
-  // base theme and its colour palette stays active unless overridden by preset.
-  var _prevThemeId = document.documentElement.getAttribute('data-color-theme') || '';
-  if (_prevThemeId) {
-    var _prevTheme = (window.COMMUNITY_THEMES || []).find(function(t) { return t.id === _prevThemeId; });
-    if (_prevTheme && _prevTheme.onRemove) _prevTheme.onRemove();
-  }
 
   setActiveCustom(p);
 

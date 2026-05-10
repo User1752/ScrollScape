@@ -67,9 +67,9 @@
 }
 
 .btn-chapter-bulk-save {
-  border-color: rgba(14, 165, 233, 0.45);
-  background: rgba(14, 165, 233, 0.12);
-  color: #0ea5e9;
+  border-color: color-mix(in srgb, var(--blue-status) 45%, transparent);
+  background: color-mix(in srgb, var(--blue-status) 12%, transparent);
+  color: var(--blue-status);
 }
 
 .chapter-selected-count {
@@ -114,10 +114,10 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1.2rem;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
-  border: 2px solid rgba(14, 165, 233, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue-status) 20%, transparent) 0%, color-mix(in srgb, var(--blue-status) 12%, transparent) 100%);
+  border: 2px solid color-mix(in srgb, var(--blue-status) 40%, transparent);
   border-radius: 8px;
-  color: #0EA5E9;
+  color: var(--blue-status);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -125,10 +125,10 @@
 }
 
 .btn-check-integrity:hover {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%);
-  border-color: #0EA5E9;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue-status) 30%, transparent) 0%, color-mix(in srgb, var(--blue-status) 18%, transparent) 100%);
+  border-color: var(--blue-status);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--blue-status) 40%, transparent);
 }
 
 .btn-download-bulk {
@@ -222,12 +222,12 @@
 }
 
 .chapter-item.chapter-selected {
-  outline: 1px solid rgba(14, 165, 233, 0.45);
-  background: rgba(14, 165, 233, 0.08);
+  outline: 1px solid color-mix(in srgb, var(--blue-status) 45%, transparent);
+  background: color-mix(in srgb, var(--blue-status) 8%, transparent);
 }
 
 .chapter-item.chapter-current-progress {
-  border-left: 3px solid rgba(56, 189, 248, 0.8);
+  border-left: 3px solid var(--blue-status);
   padding-left: calc(1.5rem - 3px);
 }
 
@@ -260,7 +260,7 @@
 .chapter-progress-page {
   margin-top: 0.25rem;
   font-size: 0.78rem;
-  color: #38bdf8;
+  color: var(--blue-status);
   font-weight: 600;
 }
 
@@ -286,9 +286,9 @@
 }
 
 .btn-open-chapter:hover {
-  border-color: rgba(14, 165, 233, 0.5);
-  background: rgba(14, 165, 233, 0.16);
-  color: #0ea5e9;
+  border-color: color-mix(in srgb, var(--blue-status) 50%, transparent);
+  background: color-mix(in srgb, var(--blue-status) 16%, transparent);
+  color: var(--blue-status);
 }
 
 .read-badge {

@@ -103,25 +103,28 @@ function _renderGenreOverview() {
   const bottom = sorted.length > 8 ? sorted.slice(-Math.min(4, sorted.length - 8)).reverse() : [];
 
   const barRow = ([genre, count], i) => {
-    const pct = (count / total * 100).toFixed(1);
     const barW = (count / maxCount * 100).toFixed(1);
     const colour = GENRE_COLOURS[i % GENRE_COLOURS.length];
+    const rank = i + 1;
     return `
       <div class="genre-bar-row">
-        <span class="genre-bar-label">${escapeHtml(genre)}</span>
-        <div class="genre-bar-track">
-          <div class="genre-bar-fill" style="width:${barW}%;background:${colour}"></div>
+        <div class="genre-bar-meta">
+          <span class="genre-rank">#${rank}</span>
+          <span class="genre-bar-label">${escapeHtml(genre)}</span>
+          <span class="genre-bar-count">${count}</span>
         </div>
-        <span class="genre-bar-pct">${pct}%</span>
+        <div class="genre-bar-track">
+          <div class="genre-bar-fill" style="width:${barW}%;--genre-colour:${colour}"></div>
+        </div>
       </div>`;
   };
 
   genreEl.innerHTML = `
     <p class="genre-section-title">Most read</p>
-    ${top.map(barRow).join('')}
+    ${top.map((entry, i) => barRow(entry, i)).join('')}
     ${bottom.length ? `
     <p class="genre-section-title genre-section-title--least">Least read</p>
-    ${bottom.map(barRow).join('')}` : ''}
+    ${bottom.map((entry, i) => barRow(entry, i + top.length)).join('')}` : ''}
   `;
 }
 

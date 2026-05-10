@@ -28,7 +28,7 @@
   font-weight: 600;
 }
 
-.status-badge-reading     { background: rgba(14,165,233,0.15); border:1px solid #0EA5E9; color:#0EA5E9; }
+.status-badge-reading     { background: color-mix(in srgb, var(--primary) 15%, transparent); border:1px solid var(--primary); color:var(--primary); }
 .status-badge-completed   { background: rgba(0,208,132,0.15);  border:1px solid var(--success); color:var(--success); }
 .status-badge-on_hold     { background: rgba(255,165,0,0.15);  border:1px solid var(--warning); color:var(--warning); }
 .status-badge-plan_to_read{ background: color-mix(in srgb, var(--primary) 15%, transparent); border:1px solid var(--primary); color:var(--primary); }

@@ -17,7 +17,7 @@
   --success: #00D084;
   --warning: #FFA500;
   --danger: #EF4444;
-  --blue-status: #0EA5E9;
+  --blue-status: var(--primary);
 }
 
 html {

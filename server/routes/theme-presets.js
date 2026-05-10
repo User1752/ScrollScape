@@ -34,6 +34,8 @@ function sanitizePreset(input) {
   if (!input || typeof input !== 'object') return null;
   const id = _safeStr(input.id, 120).trim();
   if (!id) return null;
+  const hasAccent = Object.prototype.hasOwnProperty.call(input, 'accentColor');
+  const accentSource = hasAccent ? input.accentColor : input.paletteColor;
   return {
     id,
     name: _safeStr(input.name, 80).trim() || 'My Preset',
@@ -53,6 +55,7 @@ function sanitizePreset(input) {
     cornerDark: _safeNum(input.cornerDark, 0),
     paletteColor: _safeStr(input.paletteColor, 20),
     buttonColor: _safeStr(input.buttonColor, 20),
+    accentColor: _safeStr(accentSource, 20),
     fontFamily: _safeStr(input.fontFamily, 200),
   };
 }

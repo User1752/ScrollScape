@@ -142,9 +142,10 @@ function renderShopView() {
   const ap        = getAvailableAP();
   const purchased = getPurchasedThemes();
   const active    = getActiveTheme();
+  const activeCustom = (typeof getActiveCustom === 'function' ? getActiveCustom() : null) || {};
   grid.innerHTML = SHOP_THEMES.map(t => {
     const owned    = purchased.includes(t.id);
-    const isActive = active === t.id;
+    const isActive = !activeCustom?.id && active === t.id;
     const canAfford = ap >= t.cost;
     let btn, badge = '';
     if (isActive) {

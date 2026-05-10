@@ -259,7 +259,7 @@ img.db-sprite {
   gap: 0.5rem;
   background: linear-gradient(135deg, #17142280 0%, #1e1a3080 100%);
   color: #cfc8e8;
-  border: 1.5px solid rgba(124, 58, 237, 0.5);
+  border: 1.5px solid color-mix(in srgb, var(--primary) 55%, transparent);
   border-radius: 10px;
   padding: 0.65rem 0.85rem 0.65rem 1rem;
   font-size: 0.92rem;
@@ -306,7 +306,7 @@ img.db-sprite {
 }
 
 .cs-wrapper > .cs-trigger.cs-open .cs-arrow {
-  color: #c084fc;
+  color: var(--primary-light);
   transform: rotate(180deg);
 }
 
@@ -315,7 +315,7 @@ img.db-sprite {
   z-index: 9999;
   min-width: 100%;
   background: linear-gradient(160deg, #17132a 0%, #1c1830 100%);
-  border: 1.5px solid rgba(124, 58, 237, 0.5);
+  border: 1.5px solid color-mix(in srgb, var(--primary) 55%, transparent);
   border-top: 2.5px solid color-mix(in srgb, var(--primary-light) 80%, transparent);
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.75), 0 0 0 1px color-mix(in srgb, var(--primary-light) 8%, transparent), 0 4px 16px color-mix(in srgb, var(--primary) 20%, transparent);
@@ -324,7 +324,7 @@ img.db-sprite {
   overflow-y: auto;
   animation: csOpen 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 0.35rem 0;
-  scrollbar-color: #5b3fa0 transparent;
+  scrollbar-color: color-mix(in srgb, var(--primary) 60%, transparent) transparent;
   scrollbar-width: thin;
 }
 
@@ -344,7 +344,7 @@ img.db-sprite {
   background: transparent;
 }
 .cs-list::-webkit-scrollbar-thumb {
-  background: #5b3fa0;
+  background: color-mix(in srgb, var(--primary) 60%, transparent);
   border-radius: 4px;
 }
 
@@ -372,14 +372,14 @@ img.db-sprite {
 }
 
 .cs-option.cs-selected {
-  background: linear-gradient(90deg, rgba(109,40,217,0.55) 0%, rgba(124,58,237,0.35) 100%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 55%, transparent) 0%, color-mix(in srgb, var(--primary-light) 35%, transparent) 100%);
   color: #e9d5ff;
   font-weight: 700;
   border-left-color: var(--primary-light);
 }
 
 .cs-option.cs-selected:hover {
-  background: linear-gradient(90deg, rgba(109,40,217,0.7) 0%, rgba(124,58,237,0.5) 100%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 70%, transparent) 0%, color-mix(in srgb, var(--primary-light) 50%, transparent) 100%);
   color: #f3e8ff;
   padding-left: 1.3rem;
 }
@@ -403,7 +403,7 @@ img.db-sprite {
 }
 .cs-check {
   flex-shrink: 0;
-  color: #c084fc;
+  color: var(--primary-light);
   transition: color 0.12s;
 }
 .cs-option.cs-selected:hover .cs-check { color: #f3e8ff; }
@@ -495,13 +495,13 @@ img.db-sprite {
   border-left-color: color-mix(in srgb, var(--primary) 40%, transparent);
 }
 [data-theme="light"] .cs-option.cs-selected {
-  background: linear-gradient(90deg, rgba(109,40,217,0.15) 0%, rgba(124,58,237,0.08) 100%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 15%, transparent) 0%, color-mix(in srgb, var(--primary-light) 8%, transparent) 100%);
   color: #5b21b6;
   font-weight: 700;
   border-left-color: var(--primary);
 }
 [data-theme="light"] .cs-list {
-  border-top-color: #9333ea;
+  border-top-color: var(--primary-light);
 }
 [data-theme="light"] .cs-check {
   color: var(--primary);
