@@ -106,7 +106,7 @@
 }
 
 .integrity-mangaupdates {
-  background: rgba(145, 63, 226, 0.08);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
   padding: 1rem;
   border-radius: 8px;
   border-left: 3px solid var(--primary);

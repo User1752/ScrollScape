@@ -36,7 +36,6 @@ function renderReadingStatusSection(mangaId, sourceId) {
         <option value="plan_to_read" ${current === "plan_to_read"  ? "selected" : ""}>Plan to Read</option>
         <option value="dropped"      ${current === "dropped"       ? "selected" : ""}>Dropped</option>
       </select>
-      ${current ? `<span class="status-badge status-badge-${current}">${statusLabel(current)}</span>` : ""}
     </div>
   `;
   $("mangaStatusSelect").onchange = async (e) => {

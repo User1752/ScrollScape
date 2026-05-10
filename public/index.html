@@ -71,7 +71,7 @@
     /* Achievement rarity colors */
     .rarity-common { color: #9ca3af; }
     .rarity-rare { color: #3b82f6; }
-    .rarity-epic { color: #a855f7; }
+    .rarity-epic { color: var(--primary-light); }
     .rarity-legendary { color: #f59e0b; }
     
     /* Icon inline display */
@@ -172,7 +172,7 @@
         <section id="view-discover" class="view">
 
           <!-- Search -->
-          <div class="search-section">
+          <div class="search-section" id="homeSearchSection">
             <div class="search-container">
               <h2 data-i18n="home.search">Search Manga</h2>
               <div class="search-form">
@@ -193,12 +193,6 @@
               <span class="recommended-genres-label muted" style="font-size:0.8rem;margin-left:0.6rem;"></span>
             </div>
             <div id="recommendedRow" class="popular-row"></div>
-          </div>
-
-          <!-- All-Time Popular (all sources) -->
-          <div class="popular-section" id="allTimePopularSection">
-            <div class="popular-header"><h3 data-i18n="home.allTimePopular">Most Popular of All Time</h3></div>
-            <div id="allTimePopularRow" class="popular-row"></div>
           </div>
 
           <!-- Popular Today -->
@@ -308,6 +302,16 @@
                 <div class="analytics-icon"><i data-feather="book"></i></div>
                 <div class="analytics-value" id="anaLibrary">0</div>
                 <div class="analytics-label">In Library</div>
+              </div>
+              <div class="analytics-card">
+                <div class="analytics-icon"><i data-feather="check-circle"></i></div>
+                <div class="analytics-value" id="anaCompletionRate">0%</div>
+                <div class="analytics-label">Completion Rate</div>
+              </div>
+              <div class="analytics-card">
+                <div class="analytics-icon"><i data-feather="x-circle"></i></div>
+                <div class="analytics-value" id="anaDropoffRate">0%</div>
+                <div class="analytics-label">Drop-off Rate</div>
               </div>
             </div>
 

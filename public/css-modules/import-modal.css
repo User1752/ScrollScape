@@ -79,7 +79,7 @@
 .import-drop-zone:hover,
 .import-drop-zone.drop-active {
   border-color: var(--primary);
-  background: rgba(145, 63, 226, 0.06);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
 }
 .import-drop-icon {
   font-size: 2.5rem;
@@ -160,7 +160,7 @@
   width: 22px;
   height: 22px;
   border-radius: 7px;
-  border: 2px solid rgba(130, 80, 255, 0.35);
+  border: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
   background: var(--surface2);
   cursor: pointer;
   flex-shrink: 0;
@@ -169,13 +169,13 @@
 }
 .migrate-chk:hover {
   border-color: var(--primary-light);
-  background: rgba(130, 80, 255, 0.1);
-  box-shadow: 0 0 0 3px rgba(130, 80, 255, 0.12);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 .migrate-chk:checked {
   background: var(--primary);
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(145, 63, 226, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 .migrate-chk:checked::after {
   content: '';
@@ -190,7 +190,7 @@
   transform: rotate(45deg);
 }
 .migrate-chk:indeterminate {
-  background: rgba(130, 80, 255, 0.45);
+  background: color-mix(in srgb, var(--primary) 45%, transparent);
   border-color: var(--primary);
 }
 .migrate-chk:indeterminate::after {

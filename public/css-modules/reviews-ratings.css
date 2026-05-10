@@ -75,7 +75,7 @@
 
 .btn-submit-review:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(145,63,226,0.4);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
 .review-list {

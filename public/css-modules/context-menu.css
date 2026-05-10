@@ -4,7 +4,7 @@
 .context-menu {
   position: fixed;
   background-color: var(--bg-secondary);
-  border: 1px solid rgba(130, 80, 255, 0.25);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0,0,0,0.15);
   z-index: 2000;
@@ -36,7 +36,7 @@
 .context-item svg { flex-shrink: 0; opacity: 0.65; }
 
 .context-item:hover {
-  background-color: rgba(130, 80, 255, 0.12);
+  background-color: color-mix(in srgb, var(--primary) 12%, transparent);
   color: var(--primary);
 }
 
@@ -51,7 +51,7 @@
 
 .context-divider {
   height: 1px;
-  background: rgba(130, 80, 255, 0.15);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
   margin: 3px 0;
 }
 
@@ -85,7 +85,7 @@
 }
 
 .ctx-cat-label:hover {
-  background: rgba(130, 80, 255, 0.1);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--primary);
 }
 

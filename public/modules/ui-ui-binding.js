@@ -2,6 +2,9 @@
 // UI BINDING
 // ============================================================================
 
+const DEFAULT_CUSTOM_THEME_HEX = '#913fe2';
+const DEFAULT_CUSTOM_THEME_HEX_UPPER = DEFAULT_CUSTOM_THEME_HEX.toUpperCase();
+
 function bindUI() {
   initAdvancedFilters();
 
@@ -352,6 +355,15 @@ function _derivePalette(hex){
   };
 }
 
+function _hexToRgb(hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return null;
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16)
+  ];
+}
+
 function _sanitizeCustomFontFamily(value) {
   var raw = String(value || '');
   var found = CUSTOM_FONT_OPTIONS.find(function(opt) { return opt.value === raw; });
@@ -478,6 +490,7 @@ function applyCustomization(cfg) {
   // inline styles have higher priority than any stylesheet rule (including active themes).
   var paletteColor = cfg.paletteColor || '';
   var buttonColor  = cfg.buttonColor  || '';
+  var accentColor  = cfg.accentColor  || '';
   if (paletteColor && /^#[0-9a-f]{6}$/i.test(paletteColor)) {
     var pal = _derivePalette(paletteColor);
     document.documentElement.style.setProperty('--primary',       pal.primary);
@@ -489,8 +502,34 @@ function applyCustomization(cfg) {
     document.documentElement.style.removeProperty('--primary-light');
   }
   if (buttonColor && /^#[0-9a-f]{6}$/i.test(buttonColor)) {
-    palStyleEl.textContent = '.btn { --btn-color: ' + buttonColor + ' !important; } .btn:hover:not(:disabled) { background: color-mix(in srgb, ' + buttonColor + ' 80%, white) !important; }';
+    var btnPal = _derivePalette(buttonColor);
+    document.documentElement.style.setProperty('--btn-primary', btnPal.primary);
+    document.documentElement.style.setProperty('--btn-primary-dark', btnPal.dark);
+    document.documentElement.style.setProperty('--btn-primary-light', btnPal.light);
   } else {
+    document.documentElement.style.removeProperty('--btn-primary');
+    document.documentElement.style.removeProperty('--btn-primary-dark');
+    document.documentElement.style.removeProperty('--btn-primary-light');
+  }
+
+  if (accentColor && /^#[0-9a-f]{6}$/i.test(accentColor)) {
+    document.documentElement.style.setProperty('--legacy-accent', accentColor);
+    var rgb = _hexToRgb(accentColor);
+    if (rgb) {
+      var rgbText = rgb[0] + ',' + rgb[1] + ',' + rgb[2];
+      palStyleEl.textContent = '' +
+        '.sidebar .nav-link.active{background-color:rgba(' + rgbText + ',0.14)!important;}' +
+        '.manga-card-genre{background:rgba(' + rgbText + ',0.18)!important;}' +
+        '[data-theme="light"] .manga-card-genre{background:rgba(' + rgbText + ',0.12)!important;color:var(--primary)!important;}' +
+        '.library-card:hover{box-shadow:0 12px 30px rgba(' + rgbText + ',0.20)!important;}' +
+        '.library-card.library-card-bookshelf:hover{box-shadow:0 18px 38px rgba(28,18,10,0.34),0 8px 14px rgba(' + rgbText + ',0.20)!important;}' +
+        '.library-source-badge{border-color:rgba(' + rgbText + ',0.45)!important;color:color-mix(in srgb,' + accentColor + ' 40%,white 60%)!important;}' +
+        '.btn-read:hover{box-shadow:0 8px 20px rgba(' + rgbText + ',0.40)!important;}';
+    } else {
+      palStyleEl.textContent = '';
+    }
+  } else {
+    document.documentElement.style.removeProperty('--legacy-accent');
     palStyleEl.textContent = '';
   }
 
@@ -667,7 +706,7 @@ function renderCustomizeView() {
             '</div>' +
             '<div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem">' +
               '<label class="customize-label" style="flex:0 0 auto">' + escapeHtml(tr('customization.hex')) + '</label>' +
-              '<input id="cpHexInput" class="input customize-input" type="text" placeholder="#913FE2" maxlength="7" value="' + escapeHtml(active.paletteColor||'') + '" style="flex:1">' +
+              '<input id="cpHexInput" class="input customize-input" type="text" placeholder="' + DEFAULT_CUSTOM_THEME_HEX_UPPER + '" maxlength="7" value="' + escapeHtml(active.paletteColor||'') + '" style="flex:1">' +
               ('EyeDropper' in window ? '<button class="btn secondary cp-eyedropper" id="cpEyedropper" title="Pipeta" style="padding:0.4rem 0.6rem;font-size:1rem;line-height:1">&#x1F489;</button>' : '') +
             '</div>' +
           '</div>' +
@@ -686,13 +725,24 @@ function renderCustomizeView() {
           '<canvas id="btnCpSB" class="cp-sb" width="260" height="130"></canvas>' +
           '<canvas id="btnCpHue" class="cp-hue" width="260" height="14"></canvas>' +
           '<div class="cp-swatches" style="margin-top:0.5rem">' +
-            '<div class="cp-swatch-group"><div id="btnCpSwatch" class="cp-swatch" style="background:' + escapeHtml(active.buttonColor || '#913fe2') + '"></div><span class="customize-label">' + escapeHtml(tr('customization.button.previewPrimary')) + '</span></div>' +
+            '<div class="cp-swatch-group"><div id="btnCpSwatch" class="cp-swatch" style="background:' + escapeHtml(active.buttonColor || DEFAULT_CUSTOM_THEME_HEX) + '"></div><span class="customize-label">' + escapeHtml(tr('customization.button.previewPrimary')) + '</span></div>' +
           '</div>' +
           '<div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem">' +
             '<label class="customize-label" style="flex:0 0 auto">' + escapeHtml(tr('customization.hex')) + '</label>' +
-            '<input id="btnCpHexInput" class="input customize-input" type="text" placeholder="#913FE2" maxlength="7" value="' + escapeHtml(active.buttonColor || '') + '" style="flex:1">' +
+            '<input id="btnCpHexInput" class="input customize-input" type="text" placeholder="' + DEFAULT_CUSTOM_THEME_HEX_UPPER + '" maxlength="7" value="' + escapeHtml(active.buttonColor || '') + '" style="flex:1">' +
             ('EyeDropper' in window ? '<button class="btn secondary cp-eyedropper" id="btnCpEyedropper" title="Pipeta" style="padding:0.4rem 0.6rem;font-size:1rem;line-height:1">&#x1F489;</button>' : '') +
             '<button class="btn secondary" id="customBtnColorClear" style="padding:0.4rem 0.75rem;font-size:0.8rem">' + escapeHtml(tr('action.reset')) + '</button>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="customize-card">' +
+          '<h3 class="customize-card-title">Accent color</h3>' +
+          '<p class="customize-card-desc">Changes remaining legacy purple UI elements (active sidebar item, genre tags, card glow and source badges).</p>' +
+          '<label class="customize-label">Accent swatch</label>' +
+          '<div style="display:flex;gap:0.5rem;align-items:center">' +
+            '<input id="accentColorInput" type="color" value="' + escapeHtml(active.accentColor || DEFAULT_CUSTOM_THEME_HEX) + '" style="width:48px;height:34px;padding:0;border:none;background:transparent">' +
+            '<input id="accentHexInput" class="input customize-input" type="text" placeholder="' + DEFAULT_CUSTOM_THEME_HEX_UPPER + '" maxlength="7" value="' + escapeHtml(active.accentColor || '') + '" style="flex:1">' +
+            '<button class="btn secondary" id="accentColorClear" style="padding:0.4rem 0.75rem;font-size:0.8rem">' + escapeHtml(tr('action.reset')) + '</button>' +
           '</div>' +
         '</div>' +
 
@@ -744,6 +794,8 @@ function renderCustomizeView() {
     var fontFamily = _sanitizeCustomFontFamily(document.getElementById('customFontFamily').value);
     var btnHexEl   = document.getElementById('btnCpHexInput');
     var buttonColor = (btnHexEl ? btnHexEl.value.trim() : '') || '';
+    var accentHexEl = document.getElementById('accentHexInput');
+    var accentColor = (accentHexEl ? accentHexEl.value.trim() : '') || '';
 
     document.getElementById('customBgDimVal').textContent      = bgDim;
     document.getElementById('customBgOpacVal').textContent     = bgOpac;
@@ -773,7 +825,7 @@ function renderCustomizeView() {
     cornerPrev.style.opacity    = cornerUrl ? String((100 - cornerDim)  / 100) : '';
     cornerPrev.style.filter     = cornerUrl ? 'brightness(' + (1 - cornerDark / 100) + ')' : '';
 
-    var cfg = { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, headerPosX: headerPosX, headerPosY: headerPosY, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, paletteColor: paletteColor, fontFamily: fontFamily, buttonColor: buttonColor };
+    var cfg = { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, headerPosX: headerPosX, headerPosY: headerPosY, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, paletteColor: paletteColor, fontFamily: fontFamily, buttonColor: buttonColor, accentColor: accentColor };
 
     // Auto-apply every change from customization controls.
     setActiveCustom(cfg);
@@ -788,7 +840,7 @@ function renderCustomizeView() {
 
 
 
-  ['customBgUrl','customBgDim','customBgOpac','customCharUrl','customCharDark','customCharDim','customHeaderUrl','customHeaderDim','customHeaderOpac','customHeaderPosX','customHeaderPosY','customCornerUrl','customCornerDark','customCornerDim','customFontFamily','btnCpHexInput'].forEach(function(id) {
+  ['customBgUrl','customBgDim','customBgOpac','customCharUrl','customCharDark','customCharDim','customHeaderUrl','customHeaderDim','customHeaderOpac','customHeaderPosX','customHeaderPosY','customCornerUrl','customCornerDark','customCornerDim','customFontFamily','btnCpHexInput','accentHexInput','accentColorInput'].forEach(function(id) {
 
     var el = document.getElementById(id);
 
@@ -807,6 +859,29 @@ function renderCustomizeView() {
       if (hexEl) { hexEl.value = ''; }
       var swatch = document.getElementById('btnCpSwatch');
       if (swatch) swatch.style.background = 'transparent';
+      livePreview();
+    });
+  }
+
+  var accentHexInput = document.getElementById('accentHexInput');
+  var accentColorInput = document.getElementById('accentColorInput');
+  if (accentHexInput && accentColorInput) {
+    accentHexInput.addEventListener('input', function() {
+      var v = accentHexInput.value.trim();
+      if (/^#[0-9a-f]{6}$/i.test(v)) accentColorInput.value = v;
+      livePreview();
+    });
+    accentColorInput.addEventListener('input', function() {
+      accentHexInput.value = accentColorInput.value;
+      livePreview();
+    });
+  }
+
+  var accentColorClear = document.getElementById('accentColorClear');
+  if (accentColorClear) {
+    accentColorClear.addEventListener('click', function() {
+      if (accentHexInput) accentHexInput.value = '';
+      if (accentColorInput) accentColorInput.value = DEFAULT_CUSTOM_THEME_HEX;
       livePreview();
     });
   }
@@ -953,7 +1028,7 @@ function _initCanvasPicker(opts) {
 
   var sbCtx  = sbCv.getContext('2d');
   var hueCtx = hueCv.getContext('2d');
-  var def    = opts.defaultHex || '#913fe2';
+  var def    = opts.defaultHex || DEFAULT_CUSTOM_THEME_HEX;
   var saved  = hexIn.value.trim();
   var initHsv = _hexToHsv(/^#[0-9a-f]{6}$/i.test(saved) ? saved : def);
   var S = { h: initHsv.h, s: initHsv.s, v: initHsv.v };
@@ -1039,7 +1114,7 @@ function initColorPicker() {
     sbId:  'cpSB',
     hueId: 'cpHue',
     hexId: 'cpHexInput',
-    defaultHex: '#913fe2',
+    defaultHex: DEFAULT_CUSTOM_THEME_HEX,
     onCommit: function(hex) {
       var pal = _derivePalette(hex);
       var ps=document.getElementById('cpSwPrimary'), pd=document.getElementById('cpSwDark'), pl=document.getElementById('cpSwLight');
@@ -1062,7 +1137,7 @@ function initBtnColorPicker() {
     sbId:  'btnCpSB',
     hueId: 'btnCpHue',
     hexId: 'btnCpHexInput',
-    defaultHex: '#913fe2',
+    defaultHex: DEFAULT_CUSTOM_THEME_HEX,
     onCommit: function(hex) {
       var swatch = document.getElementById('btnCpSwatch');
       if (swatch) swatch.style.background = hex;

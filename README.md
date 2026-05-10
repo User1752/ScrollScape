@@ -19,6 +19,7 @@
 | **Reading progress** | Per-chapter markers, continue-reading, full history |
 | **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold) |
 | **Library migration** | Migrate manga between sources while preserving custom lists and reading status |
+| **Custom cover picker** | Change manga covers with a visual picker (AniList + installed sources), custom URL input, and Google Images shortcut. In Library: right-click card -> Change Cover. In manga details: click the cover. |
 | **AniList Tracker** | OAuth login, search & link manga, sync chapter progress / score / status / dates automatically |
 | **Release calendar** | Monthly calendar with confirmed releases and predicted chapter dates; confidence indicators (high/medium/low); chapter-offset correction for licensed manga |
 | **Achievements** | Unlock achievements and spend AP on community themes |
@@ -162,6 +163,20 @@ To set up an OAuth client: create an API client at `https://anilist.co/settings/
 
 ---
 
+## Custom Cover Picker
+
+You can override low-quality covers and keep the new image saved locally.
+
+1. Open a manga.
+2. Start the cover picker:
+  - **Library:** right-click the manga card and choose **Change Cover**.
+  - **Manga details:** click the manga cover.
+3. Pick a cover from the visual grid (AniList + installed sources), paste a custom image URL, or open Google Images from the picker.
+
+Custom covers are persisted in local library data and reused across library/history/detail views.
+
+---
+
 ## Debug Panel
 
 Press **Ctrl+Shift+D** at any time to open the debug panel.
@@ -191,7 +206,7 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 | State | `GET /api/state` |
 | Sources | `POST /api/sources/install` · `POST /api/source/:id/:method` · `GET /api/popular-all` |
 | Repos | `POST /api/repos` · `DELETE /api/repos` |
-| Library | `GET /api/library` · `POST /api/favorites/toggle` · `POST /api/history` · `POST /api/library/migrate` |
+| Library | `GET /api/library` · `POST /api/favorites/toggle` · `POST /api/history/add` · `POST /api/library/cover` · `POST /api/library/migrate` |
 | Status & ratings | `GET/POST /api/user/status` · `GET/POST /api/reviews` · `POST /api/ratings/clear` |
 | Downloads | `POST /api/download/chapter` · `POST /api/download/bulk` |
 | Local files | `POST /api/local/import` · `GET /api/local/list` |

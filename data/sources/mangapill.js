@@ -19,6 +19,11 @@ function normCover(raw) {
   return proxyImg(raw.startsWith('http') ? raw : BASE + raw);
 }
 
+function extractMangaId(href = '') {
+  const m = String(href).match(/^\/manga\/([^\/?#]+)/i);
+  return m ? m[1] : '';
+}
+
 async function getHtml(url) {
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) throw new Error(`MangaPill fetch error: ${res.status} ${url}`);
@@ -36,7 +41,8 @@ function parseSearchCards($) {
     const titleEl = $(el).find('a').last().find('div').first();
     const href  = a.attr('href') || '';
     if (!href.startsWith('/manga/')) return;
-    const id    = href.replace('/manga/', '').split('?')[0];
+    const id    = extractMangaId(href);
+    if (!id) return;
     const raw   = img.attr('data-src') || img.attr('src') || '';
     const title = titleEl.text().trim() || $(el).find('a').last().text().trim();
 
@@ -61,7 +67,8 @@ function parseChapterCards($) {
     const titleEl = $(el).find('a:not(:first-child) > div').first();
     const href    = mangaA.attr('href') || '';
     if (!href) return;
-    const id    = href.replace('/manga/', '').split('?')[0];
+    const id    = extractMangaId(href);
+    if (!id) return;
     const raw   = imgEl.attr('data-src') || imgEl.attr('src') || '';
     const title = titleEl.text().trim() || mangaA.text().trim();
     results.push({ id, title, cover: normCover(raw), url: BASE + href, genres: [], status: 'unknown', author: '' });
@@ -79,6 +86,63 @@ async function getFromChaptersPage(limit = 20) {
     .slice(0, limit);
 }
 
+function parseHomeTrendingCards($, limit = 20) {
+  const heading = $('h4').filter((_, el) => /trending mangas/i.test($(el).text().trim())).first();
+  if (!heading.length) return [];
+
+  const grid = heading.closest('div').nextAll('div.grid').first();
+  if (!grid.length) return [];
+
+  const results = [];
+  const seen = new Set();
+
+  grid.children('div').each((_, card) => {
+    const mangaA = $(card).find('a[href^="/manga/"]').first();
+    const href = mangaA.attr('href') || '';
+    if (!href.startsWith('/manga/')) return;
+
+    const id = extractMangaId(href);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+
+    const raw = $(card).find('img').first().attr('data-src') || $(card).find('img').first().attr('src') || '';
+    const title = $(card).find('div.font-black').first().text().trim() || mangaA.text().trim();
+    const badges = $(card).find('div.text-xs.leading-5').map((__, b) => $(b).text().trim()).get();
+    const status = (badges[2] || 'unknown').toLowerCase();
+
+    results.push({
+      id,
+      title,
+      cover: normCover(raw),
+      url: BASE + href,
+      genres: [],
+      status,
+      author: ''
+    });
+  });
+
+  return results.slice(0, limit);
+}
+
+async function getTrendingFromHome(limit = 20) {
+  const html = await getHtml(BASE);
+  const $ = cheerio.load(html);
+  return parseHomeTrendingCards($, limit);
+}
+
+async function getRecentlyAddedFromNewPage(limit = 20) {
+  const html = await getHtml(`${BASE}/mangas/new`);
+  const $ = cheerio.load(html);
+  const seen = new Set();
+  return parseSearchCards($)
+    .filter(r => {
+      if (!r.id || seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    })
+    .slice(0, limit);
+}
+
 // ── Genre enrichment ─────────────────────────────────────────────────────────
 
 // MangaPill search cards contain no genre data — fetch detail pages in parallel
@@ -86,6 +150,24 @@ async function getFromChaptersPage(limit = 20) {
 async function enrichGenres(results, concurrency = 5) {
   const out = results.map(r => ({ ...r }));
   let i = 0;
+  const inferFormat = (genres) => {
+    const set = new Set((genres || []).map(g => String(g).toLowerCase()));
+    if (set.has('manhwa') || set.has('webtoons') || set.has('webtoon')) return 'manhwa';
+    if (set.has('manhua')) return 'manhua';
+    if (set.has('doujinshi')) return 'doujinshi';
+    if (set.has('one-shot') || set.has('oneshot') || set.has('one shot')) return 'oneshot';
+    return 'manga';
+  };
+
+  const normalizeStatus = (statusText) => {
+    const s = String(statusText || '').toLowerCase();
+    if (s.includes('ongoing') || s.includes('publishing') || s.includes('releasing')) return 'ongoing';
+    if (s.includes('complet') || s.includes('finished')) return 'completed';
+    if (s.includes('hiatus')) return 'hiatus';
+    if (s.includes('cancel')) return 'cancelled';
+    return 'unknown';
+  };
+
   async function worker() {
     while (i < out.length) {
       const idx = i++;
@@ -97,6 +179,11 @@ async function enrichGenres(results, concurrency = 5) {
         const genres = [];
         $('a[href*="/search?genre"]').each((_, el) => genres.push($(el).text().trim()));
         item.genres = genres;
+        const statusText = $('div.container label')
+          .filter((_, el) => $(el).text().trim() === 'Status')
+          .next('div').text().trim();
+        item.status = normalizeStatus(statusText || item.status);
+        item.format = inferFormat(genres);
       } catch (_) { /* leave genres empty on error */ }
     }
   }
@@ -145,7 +232,9 @@ module.exports = {
     id: 'mangapill',
     name: 'MangaPill',
     version: '1.1.0',
-    author: 'scraper'
+    author: 'scraper',
+    supportsTrending: false,
+    supportsPopularAllTime: true
   },
 
   async search(query, page = 1, orderBy = '', filters = {}) {
@@ -161,9 +250,25 @@ module.exports = {
     return { results, hasNextPage: !!$('a.btn.btn-sm').length };
   },
 
-  async trending()      { return { results: await getFromChaptersPage() }; },
-  async recentlyAdded() { return { results: await getFromChaptersPage() }; },
-  async latestUpdates() { return { results: await getFromChaptersPage() }; },
+  async trending() {
+    const base = await getTrendingFromHome(20);
+    return { results: await enrichGenres(base) };
+  },
+
+  async popularAllTime() {
+    const base = await getTrendingFromHome(20);
+    return { results: await enrichGenres(base) };
+  },
+
+  async recentlyAdded() {
+    const base = await getRecentlyAddedFromNewPage(26);
+    return { results: await enrichGenres(base) };
+  },
+
+  async latestUpdates() {
+    const base = await getFromChaptersPage(26);
+    return { results: await enrichGenres(base) };
+  },
 
   async byGenres(genres, orderBy = '', filters = {}, page = 1) {
     if (!genres?.length && !filters.publicationStatus && !filters.format) return this.trending();

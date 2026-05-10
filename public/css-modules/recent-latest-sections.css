@@ -11,7 +11,7 @@
 .popular-header {
   margin-bottom: 1.5rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid rgba(145, 63, 226, 0.2);
+  border-bottom: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
   position: relative;
 }
 

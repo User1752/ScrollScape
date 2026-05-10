@@ -26,6 +26,8 @@ const state = {
   favorites: [],
   /** @type {object[]} */
   history: [],
+  /** @type {Record<string, string>} key "mangaId:sourceId" -> custom cover URL */
+  coverOverrides: {},
   /** @type {Set<string>} Keys of the form "mangaId:chapterId" */
   readChapters: new Set(),
   /** @type {Set<string>} Flagged chapters (same key format) */
@@ -52,6 +54,9 @@ const state = {
     panWideImages: false,
     lineSharpness: 0,
     hideNsfw: false,
+    showHomeSearch: true,
+    homeSourceMode: 'all',
+    homeSelectedSourceIds: [],
     showLibrarySourceBadge: true,
     showChaptersLeft: false,
     statusBadgeLocation: 'cover',
@@ -117,6 +122,10 @@ const state = {
   // ── AniList progress tracking ─────────────────────────────────────────────
   /** @type {Record<string, number>} mangaId → highest chapter number read */
   highestReadChapter: {},
+
+  // ── Chapter page progress cache ───────────────────────────────────────────
+  /** @type {Record<string, number>} key "mangaId:chapterId" → total pages known for that chapter */
+  lastReadPageTotals: {},
 
   // ── Chapter count cache ───────────────────────────────────────────────────
   /** @type {Record<string, number>} mangaId → total number of chapters (cached from last fetch) */

@@ -21,7 +21,7 @@
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
               border-color 0.2s ease;
-  border: 2px solid rgba(145, 63, 226, 0.1);
+  border: 2px solid color-mix(in srgb, var(--primary) 10%, transparent);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -38,7 +38,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(145, 63, 226, 0.1) 0%, transparent 50%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 50%);
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: 1;
@@ -51,8 +51,8 @@
 
 .manga-card:hover {
   transform: translateY(-10px) scale(1.02);
-  border-color: rgba(145, 63, 226, 0.5);
-  box-shadow: 0 16px 40px rgba(145, 63, 226, 0.3), 0 8px 16px rgba(0, 0, 0, 0.3);
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--primary) 30%, transparent), 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .all-pop-source-badge {
@@ -127,6 +127,15 @@
   flex-grow: 1;
 }
 
+.manga-card-source {
+  font-size: 0.72rem;
+  color: var(--primary-light);
+  font-weight: 600;
+  margin: 0.15rem 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .btn-start-reading {
   display: block;
   width: 100%;
@@ -149,17 +158,20 @@
 }
 
 .btn-start-reading-detail {
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
   color: #fff;
   border: none;
   font-weight: 600;
-  padding: 0.6rem 1.2rem;
+  padding: 0.75rem 1.25rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
 }
 
 .btn-start-reading-detail:hover {
-  opacity: 0.85;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 40%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 80%, black 20%) 0%, var(--primary-dark) 100%);
 }
 

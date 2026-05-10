@@ -139,7 +139,7 @@ const dbg = (() => {
       .dbg-badge.error { background: #7f1d1d; color: #fca5a5; }
       .dbg-badge.warn  { background: #78350f; color: #fcd34d; }
       .dbg-badge.info  { background: #1e3a5f; color: #93c5fd; }
-      .dbg-code  { color: #7c3aed; font-size: 10px; margin-right: 3px; }
+      .dbg-code  { color: var(--primary-light); font-size: 10px; margin-right: 3px; }
       .dbg-msg   { color: #c9d1d9; line-height: 1.5; word-break: break-word; }
       .dbg-extra {
         grid-column: 1 / -1; margin-top: 4px; padding: 6px 10px;

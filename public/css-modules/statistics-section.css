@@ -20,7 +20,7 @@
 .stat-card:hover {
   border-color: var(--primary);
   transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(145, 63, 226, 0.2);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .stat-number {

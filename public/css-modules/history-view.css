@@ -13,7 +13,7 @@
   align-items: stretch;
   gap: 0;
   background: var(--bg-secondary);
-  border: 1px solid rgba(130, 80, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, transparent);
   border-radius: 14px;
   overflow: hidden;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
@@ -23,7 +23,7 @@
 
 .history-item:hover {
   border-color: var(--primary);
-  box-shadow: 0 6px 28px rgba(130,80,255,0.18);
+  box-shadow: 0 6px 28px color-mix(in srgb, var(--primary) 18%, transparent);
   transform: translateY(-2px);
 }
 
@@ -99,6 +99,13 @@
   opacity: 0.75;
 }
 
+.history-last-chapter {
+  font-size: 0.82rem;
+  color: #38bdf8;
+  margin: 0.1rem 0 0;
+  font-weight: 600;
+}
+
 /* Actions column */
 .history-actions {
   flex-shrink: 0;
@@ -123,7 +130,7 @@
 
 .history-delete-btn {
   background: transparent;
-  border: 1px solid rgba(130,80,255,0.2);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
   color: var(--text-secondary);
   font-size: 0.72rem;
   padding: 0.22rem 0.55rem;

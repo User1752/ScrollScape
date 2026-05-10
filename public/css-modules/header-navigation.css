@@ -7,7 +7,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4px 20px rgba(145, 63, 226, 0.15);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 15%, transparent);
   overflow: hidden;
 }
 

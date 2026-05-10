@@ -14,6 +14,7 @@ async function refreshState() {
 
     state.favorites     = libData.favorites || [];
     state.history       = libData.history   || [];
+    state.coverOverrides = libData.coverOverrides || {};
     state.readingStatus = statusData.readingStatus || {};
 
     // Load custom lists (categories) and AniList sync metadata
@@ -40,8 +41,8 @@ async function refreshState() {
     } catch (_) { state.ratings = {}; }
 
     renderSourceSelect();
+    if (typeof applyHomeSearchVisibility === 'function') applyHomeSearchVisibility();
     await Promise.all([
-      loadAllTimePopular(),
       loadPopularToday(),
       loadRecentlyAdded(),
       loadLatestUpdates()
@@ -80,6 +81,9 @@ function renderSourceSelect() {
     sel.onchange = () => { 
       state.currentSourceId = sel.value;
       state._advAcc = null; // invalidate filter accumulator on source change
+      if (typeof updateAdvancedSearchFilterVisibility === 'function') {
+        updateAdvancedSearchFilterVisibility(sel.value);
+      }
       // Keep both selectors in sync
       for (const other of selectors) { if (other && other !== sel) other.value = sel.value; }
       if (state.currentView !== 'advanced-search') {
@@ -90,6 +94,10 @@ function renderSourceSelect() {
       }
       // In advanced-search: user changes source manually and clicks search themselves
     };
+  }
+
+  if (typeof updateAdvancedSearchFilterVisibility === 'function') {
+    updateAdvancedSearchFilterVisibility(state.currentSourceId);
   }
 }
 

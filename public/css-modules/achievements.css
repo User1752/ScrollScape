@@ -28,8 +28,8 @@
 }
 
 .achievement-item.earned {
-  background: rgba(145,63,226,0.08);
-  border-color: rgba(145,63,226,0.3);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .achievement-item.locked {

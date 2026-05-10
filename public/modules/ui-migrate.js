@@ -189,6 +189,54 @@ async function _chapCount(sourceId, title) {
 let _migrateSelectedMangas  = []; // { id, sourceId, title, cover }
 let _migrateFromSourceId    = null;
 
+function showMigrateModalForManga(manga) {
+  if (!manga || !manga.id) {
+    showToast('Migration', 'Invalid manga selection.', 'warning');
+    return;
+  }
+
+  const sourceId = _normSourceId(
+    manga.sourceId
+    || state.currentSourceId
+    || (state.favorites || []).find(f => String(f.id) === String(manga.id))?.sourceId
+    || ''
+  );
+
+  if (!sourceId) {
+    showToast('Migration', 'Could not resolve source for this manga.', 'warning');
+    return;
+  }
+
+  _migrateFromSourceId = sourceId;
+  _migrateSelectedMangas = [{
+    ...manga,
+    sourceId,
+    title: manga.title || manga.name || manga.id,
+    cover: manga.cover || '',
+  }];
+
+  document.getElementById('migrateModal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'migrateModal';
+  modal.className = 'settings-modal';
+  modal.innerHTML = `
+    <div class="settings-content" style="width:min(96vw,1080px);max-width:1080px;max-height:96vh;overflow:auto;border:1px solid color-mix(in srgb, var(--primary) 25%, transparent);box-shadow:0 16px 50px rgba(0,0,0,0.55)">
+      <div class="settings-header">
+        <h2>Migrate Manga</h2>
+        <button class="btn secondary" id="migrateBtnCloseSingle">&#x2715;</button>
+      </div>
+      <div class="settings-body" style="text-align:center;padding:2rem 1rem;color:var(--text-muted)">
+        Preparing migration options for <strong>${escapeHtml(manga.title || manga.name || manga.id)}</strong>…
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.getElementById('migrateBtnCloseSingle').onclick = () => modal.remove();
+
+  _migrateShowStep3(modal);
+}
+
 // ── Step 1 — Source overview ──────────────────────────────────────────────────
 
 function showMigrateModal() {
@@ -214,7 +262,7 @@ function showMigrateModal() {
   modal.id = 'migrateModal';
   modal.className = 'settings-modal';
   modal.innerHTML = `
-    <div class="settings-content" style="width:min(96vw,1080px);max-width:1080px;max-height:96vh;overflow:auto;border:1px solid rgba(130,80,255,0.25);box-shadow:0 16px 50px rgba(0,0,0,0.55)">
+    <div class="settings-content" style="width:min(96vw,1080px);max-width:1080px;max-height:96vh;overflow:auto;border:1px solid color-mix(in srgb, var(--primary) 25%, transparent);box-shadow:0 16px 50px rgba(0,0,0,0.55)">
       <div class="settings-header">
         <h2>Migrate Library</h2>
         <button class="btn secondary" id="migrateBtnClose">&#x2715;</button>
@@ -225,7 +273,7 @@ function showMigrateModal() {
         </p>
         <table style="width:100%;border-collapse:collapse">
           <thead>
-            <tr style="border-bottom:1px solid rgba(130,80,255,0.2)">
+            <tr style="border-bottom:1px solid color-mix(in srgb, var(--primary) 20%, transparent)">
               <th style="text-align:left;padding:0.4rem 0.8rem;font-size:0.78rem;color:var(--text-muted);font-weight:500">Source</th>
               <th style="text-align:right;padding:0.4rem 0.8rem;font-size:0.78rem;color:var(--text-muted);font-weight:500">Manga</th>
               <th></th>
@@ -241,7 +289,7 @@ function showMigrateModal() {
   document.getElementById('migrateBtnClose').onclick = () => modal.remove();
 
   modal.querySelectorAll('.migrate-source-row').forEach(row => {
-    row.onmouseenter = () => row.style.background = 'rgba(130,80,255,0.07)';
+    row.onmouseenter = () => row.style.background = 'color-mix(in srgb, var(--primary) 7%, transparent)';
     row.onmouseleave = () => row.style.background = '';
     row.onclick = () => {
       _migrateFromSourceId = row.dataset.sourceId;
@@ -264,7 +312,7 @@ function _migrateShowStep2(modal, group) {
     return `
       <label class="migrate-manga-row" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(currentSource)}" style="display:flex;align-items:center;gap:0.9rem;padding:0.65rem 0.75rem;border-radius:10px;cursor:pointer;transition:background-color .15s ease">
         <input type="checkbox" class="migrate-manga-chk migrate-chk" value="${escapeHtml(m.id)}">
-        ${m.cover ? `<img src="${escapeHtml(m.cover)}" style="width:56px;height:76px;object-fit:cover;border-radius:7px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">` : `<div style="width:56px;height:76px;background:rgba(130,80,255,0.12);border-radius:7px;flex-shrink:0"></div>`}
+        ${m.cover ? `<img src="${escapeHtml(m.cover)}" style="width:56px;height:76px;object-fit:cover;border-radius:7px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">` : `<div style="width:56px;height:76px;background:color-mix(in srgb, var(--primary) 12%, transparent);border-radius:7px;flex-shrink:0"></div>`}
         <div style="flex:1;min-width:0">
           <div style="font-size:1.05rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.title || m.id)}</div>
           ${badge}
@@ -289,7 +337,7 @@ function _migrateShowStep2(modal, group) {
       </div>
       <div id="migrateMangaList" style="max-height:74vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding-right:4px">${rows}</div>
     </div>
-    <div style="padding:0.75rem 1.2rem;border-top:1px solid rgba(130,80,255,0.15);display:flex;justify-content:flex-end">
+    <div style="padding:0.75rem 1.2rem;border-top:1px solid color-mix(in srgb, var(--primary) 15%, transparent);display:flex;justify-content:flex-end">
       <button class="btn primary" id="migrateBtnNext" disabled>Next →</button>
     </div>`;
 
@@ -313,7 +361,7 @@ function _migrateShowStep2(modal, group) {
 
   // Row hover
   modal.querySelectorAll('.migrate-manga-row').forEach(row => {
-    row.onmouseenter = () => row.style.background = 'rgba(130,80,255,0.07)';
+    row.onmouseenter = () => row.style.background = 'color-mix(in srgb, var(--primary) 7%, transparent)';
     row.onmouseleave = () => row.style.background = '';
   });
 
@@ -408,7 +456,7 @@ async function _migrateShowStep3(modal) {
         <button class="btn secondary" id="migrateBtnCloseNone">&#x2715;</button>
       </div>
       <div class="settings-body" style="padding:2rem 1.2rem">
-        <div style="border:1px solid rgba(130,80,255,0.2);background:rgba(130,80,255,0.08);padding:1rem;border-radius:10px;color:var(--text-muted)">
+        <div style="border:1px solid color-mix(in srgb, var(--primary) 20%, transparent);background:color-mix(in srgb, var(--primary) 8%, transparent);padding:1rem;border-radius:10px;color:var(--text-muted)">
           None of the selected manga has a valid match in installed target sources.
         </div>
       </div>`;
@@ -439,7 +487,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
         <button class="btn secondary" id="migrateBtnCloseNoSources">&#x2715;</button>
       </div>
       <div class="settings-body" style="padding:2rem 1.2rem">
-        <div style="border:1px solid rgba(130,80,255,0.2);background:rgba(130,80,255,0.08);padding:1rem;border-radius:10px;color:var(--text-muted)">
+        <div style="border:1px solid color-mix(in srgb, var(--primary) 20%, transparent);background:color-mix(in srgb, var(--primary) 8%, transparent);padding:1rem;border-radius:10px;color:var(--text-muted)">
           No target sources available. Install at least one source different from <strong>${escapeHtml(_srcName(_migrateFromSourceId))}</strong>.
         </div>
       </div>`;
@@ -498,7 +546,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
     }).join('');
 
     return `
-      <tr data-row-key="${escapeHtml(rowKey)}" style="border-bottom:1px solid rgba(130,80,255,0.08)">
+      <tr data-row-key="${escapeHtml(rowKey)}" style="border-bottom:1px solid color-mix(in srgb, var(--primary) 8%, transparent)">
         <td style="padding:0.5rem 0.75rem;max-width:220px">
           <div style="display:flex;align-items:center;gap:0.6rem">
             ${manga.cover ? `<img src="${escapeHtml(manga.cover)}" style="width:44px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">` : ''}
@@ -523,10 +571,10 @@ function _migrateShowStep3Table(modal, results, allSources) {
         <span style="color:#7cfc88">Green / 👑</span> = most chapters.
         Current source highlighted in <span style="color:var(--primary)">purple</span>. Only one checkbox per manga row.
       </p>
-      <div style="overflow-x:auto;max-height:78vh;overflow-y:auto;border:1px solid rgba(130,80,255,0.16);border-radius:10px">
+      <div style="overflow-x:auto;max-height:78vh;overflow-y:auto;border:1px solid color-mix(in srgb, var(--primary) 16%, transparent);border-radius:10px">
         <table style="width:100%;border-collapse:collapse;min-width:900px">
           <thead style="position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:1">
-            <tr style="border-bottom:1px solid rgba(130,80,255,0.2)">
+            <tr style="border-bottom:1px solid color-mix(in srgb, var(--primary) 20%, transparent)">
               <th style="text-align:left;padding:0.5rem 0.75rem;font-size:0.85rem;color:var(--text-muted);font-weight:600">Manga</th>
               ${colHeaders}
             </tr>
@@ -535,7 +583,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
         </table>
       </div>
     </div>
-    <div style="padding:0.75rem 1.2rem;border-top:1px solid rgba(130,80,255,0.15);display:flex;justify-content:space-between;align-items:center">
+    <div style="padding:0.75rem 1.2rem;border-top:1px solid color-mix(in srgb, var(--primary) 15%, transparent);display:flex;justify-content:space-between;align-items:center">
       <span id="migrateChoiceCount" style="font-size:0.9rem;color:var(--text-muted)">0 manga with target selected</span>
       <button class="btn primary" id="migrateBtnConfirm" disabled>Migrate Selected</button>
     </div>`;
@@ -653,13 +701,16 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
 
     // ── Remap localStorage data for migrated manga ────────────────────────
     if (Array.isArray(res.migrations) && res.migrations.length > 0) {
-      _migrateRemapLocalStorage(res.migrations);
+      const okKeys = new Set(res.migrations.map(x => `${x.fromMangaId}=>${x.toMangaId}`));
+      const successfulWithSources = migrations.filter(x => okKeys.has(`${x.fromMangaId}=>${x.toMangaId}`));
+      await _migrateRemapLocalStorage(successfulWithSources);
     }
 
     // Refresh state
     try {
       const libData = await fetch('/api/library').then(r => r.json());
       state.favorites = libData.favorites || state.favorites;
+      state.coverOverrides = libData.coverOverrides || state.coverOverrides;
       const statusData = await fetch('/api/user/status').then(r => r.json());
       state.readingStatus = statusData.readingStatus || state.readingStatus;
       const listsData = await api('/api/lists');
@@ -702,116 +753,232 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
 }
 
 /**
- * Remaps localStorage keys from old manga IDs to new manga IDs after a migration.
- * Handles: scrollscapeReadChapters, scrollscapeFlaggedChapters,
- *          scrollscapeReadingProgress, scrollscape_al_links (AniList tracker).
- * Keys are of the form "mangaId:chapterId" (for chapters) or "mangaId" (for progress).
+ * Remap local chapter-progress keys after source migration.
+ * Maps chapter progress by chapter ordering (oldest-first) between source A and B,
+ * because chapter IDs are source-specific and cannot be copied verbatim.
  *
- * @param {Array<{fromMangaId:string, toMangaId:string}>} migrationPairs
+ * @param {Array<{fromMangaId:string, fromSourceId:string, toMangaId:string, toSourceId:string}>} migrationPairs
  */
-function _migrateRemapLocalStorage(migrationPairs) {
+async function _migrateRemapLocalStorage(migrationPairs) {
+  const pairs = Array.isArray(migrationPairs) ? migrationPairs : [];
+  if (!pairs.length) return;
+
+  // Always remap tracker links first (independent of chapter/source remap).
   try {
-    // Build a fast lookup map
-    const idMap = new Map(migrationPairs.map(p => [p.fromMangaId, p.toMangaId]));
-
-    // ── readChapters ─────────────────────────────────────────────────────────
-    const readRaw = localStorage.getItem('scrollscapeReadChapters');
-    if (readRaw) {
-      try {
-        const arr = JSON.parse(readRaw);
-        const remapped = arr.map(key => {
-          const sep = key.indexOf(':');
-          if (sep < 0) return key;
-          const mid = key.slice(0, sep);
-          const rest = key.slice(sep); // includes the colon
-          const newMid = idMap.get(mid);
-          return newMid ? newMid + rest : key;
-        });
-        localStorage.setItem('scrollscapeReadChapters', JSON.stringify(remapped));
-        state.readChapters = new Set(remapped);
-      } catch (_) {}
-    }
-
-    // ── flaggedChapters ──────────────────────────────────────────────────────
-    const flagRaw = localStorage.getItem('scrollscapeFlaggedChapters');
-    if (flagRaw) {
-      try {
-        const arr = JSON.parse(flagRaw);
-        const remapped = arr.map(key => {
-          const sep = key.indexOf(':');
-          if (sep < 0) return key;
-          const mid = key.slice(0, sep);
-          const rest = key.slice(sep);
-          const newMid = idMap.get(mid);
-          return newMid ? newMid + rest : key;
-        });
-        localStorage.setItem('scrollscapeFlaggedChapters', JSON.stringify(remapped));
-        state.flaggedChapters = new Set(remapped);
-      } catch (_) {}
-    }
-
-    // ── readingProgress (pages, chapters, highestChapter) ────────────────────
-    const progRaw = localStorage.getItem('scrollscapeReadingProgress');
-    if (progRaw) {
-      try {
-        const prog = JSON.parse(progRaw);
-
-        // `pages` and `chapters` keys are "mangaId:chapterId"
-        const remapColonKeys = (obj) => {
-          if (!obj || typeof obj !== 'object') return obj;
-          const out = {};
-          for (const [key, val] of Object.entries(obj)) {
-            const sep = key.indexOf(':');
-            if (sep >= 0) {
-              const mid = key.slice(0, sep);
-              const rest = key.slice(sep);
-              const newMid = idMap.get(mid);
-              out[newMid ? newMid + rest : key] = val;
-            } else {
-              out[key] = val;
-            }
-          }
-          return out;
-        };
-
-        // `highestChapter` keys are plain mangaId
-        const remapPlainKeys = (obj) => {
-          if (!obj || typeof obj !== 'object') return obj;
-          const out = {};
-          for (const [key, val] of Object.entries(obj)) {
-            const newKey = idMap.get(key) || key;
-            out[newKey] = val;
-          }
-          return out;
-        };
-
-        prog.pages          = remapColonKeys(prog.pages);
-        prog.chapters       = remapColonKeys(prog.chapters);
-        prog.highestChapter = remapPlainKeys(prog.highestChapter);
-
-        localStorage.setItem('scrollscapeReadingProgress', JSON.stringify(prog));
-        // Sync in-memory state
-        state.lastReadPages       = prog.pages          || {};
-        state.lastReadChapter     = prog.chapters       || {};
-        state.highestReadChapter  = prog.highestChapter || {};
-      } catch (_) {}
-    }
-
-    // ── AniList tracker links (mangaId -> anilistId) ────────────────────────
+    const idMap = new Map(pairs.map(p => [String(p.fromMangaId || ''), String(p.toMangaId || '')]));
     const alLinksRaw = localStorage.getItem('scrollscape_al_links');
     if (alLinksRaw) {
-      try {
-        const links = JSON.parse(alLinksRaw);
-        if (links && typeof links === 'object') {
-          const remapped = {};
-          for (const [key, val] of Object.entries(links)) {
-            remapped[idMap.get(key) || key] = val;
-          }
-          localStorage.setItem('scrollscape_al_links', JSON.stringify(remapped));
-        }
-      } catch (_) {}
+      const links = JSON.parse(alLinksRaw);
+      if (links && typeof links === 'object') {
+        const remapped = {};
+        for (const [key, val] of Object.entries(links)) remapped[idMap.get(key) || key] = val;
+        localStorage.setItem('scrollscape_al_links', JSON.stringify(remapped));
+      }
     }
   } catch (_) {
-    // Non-fatal — localStorage remap failure should not block the rest of the flow.
+    // Non-fatal.
+  }
+
+  try {
+    if (!state.readChapters) state.readChapters = new Set();
+    if (!state.flaggedChapters) state.flaggedChapters = new Set();
+    if (!state.lastReadPages) state.lastReadPages = {};
+    if (!state.lastReadChapter) state.lastReadChapter = {};
+    if (!state.highestReadChapter) state.highestReadChapter = {};
+
+    const _parseNum = (ch) => {
+      const raw = String(ch?.chapter ?? ch?.name ?? '').trim();
+      if (!raw) return null;
+      const m = raw.match(/\d+(?:\.\d+)?/);
+      if (!m) return null;
+      const n = Number(m[0]);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const _oldestFirst = (chapters) => {
+      const list = Array.isArray(chapters) ? chapters.slice() : [];
+      if (list.length <= 1) return list;
+
+      const rows = list.map((c, i) => ({ c, i, n: _parseNum(c) }));
+      const numeric = rows.filter(r => r.n !== null).length;
+      const mostlyNumeric = numeric >= Math.max(2, Math.floor(list.length * 0.5));
+
+      if (mostlyNumeric) {
+        return rows
+          .sort((a, b) => (a.n - b.n) || (a.i - b.i))
+          .map(r => r.c);
+      }
+      // Most sources list newest-first in API output.
+      return list.reverse();
+    };
+
+    const _fetchChapters = async (sourceId, mangaId) => {
+      const r = await api(`/api/source/${encodeURIComponent(sourceId)}/chapters`, {
+        method: 'POST',
+        body: JSON.stringify({ mangaId })
+      });
+      return _oldestFirst((r?.chapters || []).filter(ch => ch?.id));
+    };
+
+    for (const p of pairs) {
+      const fromMangaId = String(p.fromMangaId || '');
+      const toMangaId = String(p.toMangaId || '');
+      const fromSourceId = String(p.fromSourceId || '');
+      const toSourceId = String(p.toSourceId || '');
+      if (!fromMangaId || !toMangaId || !fromSourceId || !toSourceId) continue;
+
+      let oldChapters = [];
+      let newChapters = [];
+      try {
+        [oldChapters, newChapters] = await Promise.all([
+          _fetchChapters(fromSourceId, fromMangaId),
+          _fetchChapters(toSourceId, toMangaId),
+        ]);
+      } catch (_) {
+        oldChapters = [];
+        newChapters = [];
+      }
+
+      const oldById = new Map(oldChapters.map((ch, idx) => [String(ch.id), { idx, num: _parseNum(ch) }]));
+      const newByIdx = newChapters;
+      const newByNum = new Map();
+      for (let i = 0; i < newByIdx.length; i++) {
+        const ch = newByIdx[i];
+        const n = _parseNum(ch);
+        if (n === null) continue;
+        const k = String(n);
+        if (!newByNum.has(k)) newByNum.set(k, { idx: i, ch });
+      }
+
+      const _mapOldChapterId = (oldChapterId) => {
+        const oldMeta = oldById.get(String(oldChapterId));
+        if (!oldMeta) return null;
+
+        if (oldMeta.num !== null) {
+          const direct = newByNum.get(String(oldMeta.num));
+          if (direct?.ch?.id) return { idx: direct.idx, id: direct.ch.id };
+        }
+
+        const fallback = newByIdx[oldMeta.idx];
+        if (fallback?.id) return { idx: oldMeta.idx, id: fallback.id };
+        return null;
+      };
+
+      const oldReadIds = [];
+      for (const key of state.readChapters) {
+        const k = String(key || '');
+        if (!k.startsWith(`${fromMangaId}:`)) continue;
+        oldReadIds.push(k.slice(fromMangaId.length + 1));
+      }
+
+      const mappedReadIds = new Set();
+      for (const oldId of oldReadIds) {
+        const mapped = _mapOldChapterId(oldId);
+        if (mapped?.id) mappedReadIds.add(String(mapped.id));
+      }
+
+      let oldReadCount = 0;
+      const oldReadIdxs = oldReadIds
+        .map(chId => oldById.get(String(chId))?.idx)
+        .filter(n => Number.isInteger(n));
+      if (oldReadIdxs.length > 0) oldReadCount = Math.max(...oldReadIdxs) + 1;
+      if (oldReadCount === 0) {
+        const highest = Number(state.highestReadChapter?.[fromMangaId] || 0);
+        if (Number.isFinite(highest) && highest > 0) oldReadCount = Math.floor(highest);
+      }
+
+      // Fallback: if old read set is empty, infer from highest chapter number first.
+      if (mappedReadIds.size === 0 && oldReadCount > 0) {
+        const byNum = newByIdx.filter(ch => {
+          const n = _parseNum(ch);
+          return n !== null && n <= oldReadCount;
+        });
+        if (byNum.length > 0) {
+          for (const ch of byNum) if (ch?.id) mappedReadIds.add(String(ch.id));
+        } else {
+          const mappedReadCount = Math.max(0, Math.min(oldReadCount, newByIdx.length));
+          for (let i = 0; i < mappedReadCount; i++) {
+            const ch = newByIdx[i];
+            if (ch?.id) mappedReadIds.add(String(ch.id));
+          }
+        }
+      }
+
+      for (const newId of mappedReadIds) {
+        state.readChapters.add(`${toMangaId}:${newId}`);
+      }
+
+      for (const key of [...state.readChapters]) {
+        if (String(key).startsWith(`${fromMangaId}:`)) state.readChapters.delete(key);
+      }
+
+      const oldLastId = state.lastReadChapter?.[fromMangaId];
+      let mappedLast = oldLastId ? _mapOldChapterId(oldLastId) : null;
+
+      // If we don't have an explicit last chapter id, infer from highest chapter number.
+      if (!mappedLast) {
+        const oldHighest = Number(state.highestReadChapter?.[fromMangaId] || 0);
+        if (Number.isFinite(oldHighest) && oldHighest > 0) {
+          const byNum = newByNum.get(String(oldHighest));
+          if (byNum?.ch?.id) {
+            mappedLast = { idx: byNum.idx, id: byNum.ch.id };
+          } else {
+            const fallbackIdx = Math.max(0, Math.min(Math.floor(oldHighest) - 1, newByIdx.length - 1));
+            const fallback = newByIdx[fallbackIdx];
+            if (fallback?.id) mappedLast = { idx: fallbackIdx, id: fallback.id };
+          }
+        }
+      }
+
+      if (mappedLast?.id) {
+        const oldPageKey = `${fromMangaId}:${oldLastId}`;
+        const newPageKey = `${toMangaId}:${mappedLast.id}`;
+        const oldPage = state.lastReadPages?.[oldPageKey] || 0;
+        state.lastReadChapter[toMangaId] = mappedLast.id;
+        state.lastReadPages[newPageKey] = oldPage;
+
+        // Ensure continuity: mark everything older than (and including) last read.
+        const upto = Math.max(0, Math.min(mappedLast.idx, newByIdx.length - 1));
+        for (let i = 0; i <= upto; i++) {
+          const ch = newByIdx[i];
+          if (ch?.id) mappedReadIds.add(String(ch.id));
+        }
+      }
+
+      delete state.lastReadChapter[fromMangaId];
+      for (const k of Object.keys(state.lastReadPages || {})) {
+        if (k.startsWith(`${fromMangaId}:`)) delete state.lastReadPages[k];
+      }
+
+      const oldFlagIds = [];
+      for (const key of state.flaggedChapters) {
+        const k = String(key || '');
+        if (!k.startsWith(`${fromMangaId}:`)) continue;
+        oldFlagIds.push(k.slice(fromMangaId.length + 1));
+      }
+      for (const oldId of oldFlagIds) {
+        const mapped = _mapOldChapterId(oldId);
+        if (mapped?.id) state.flaggedChapters.add(`${toMangaId}:${mapped.id}`);
+      }
+      for (const key of [...state.flaggedChapters]) {
+        if (String(key).startsWith(`${fromMangaId}:`)) state.flaggedChapters.delete(key);
+      }
+
+      const oldHighest = Number(state.highestReadChapter?.[fromMangaId] || 0);
+      if (oldHighest > 0) {
+        const maxNew = newByIdx.length || oldHighest;
+        state.highestReadChapter[toMangaId] = Math.max(
+          Number(state.highestReadChapter[toMangaId] || 0),
+          Math.min(oldHighest, maxNew)
+        );
+      }
+      delete state.highestReadChapter[fromMangaId];
+    }
+
+    // AniList links are already remapped above.
+
+    saveSettings();
+  } catch (_) {
+    // Non-fatal — remap failure should not block the rest of the flow.
   }
 }

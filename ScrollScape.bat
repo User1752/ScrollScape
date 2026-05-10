@@ -97,6 +97,7 @@ if not exist "%~dp0node_modules\express\package.json" (
 )
 echo.
 echo   !BCYN!  [ .. ]!R!  Reserving localhost network port...
+call :cleanup_scrollscape_port_3000
 call :find_port
 echo   !BGRN!  [ OK ]!R!  Port !SS_PORT! secured for server.
 echo   !BCYN!  [ .. ]!R!  Booting Node.js backend daemon...
@@ -129,6 +130,7 @@ taskkill /pid !NODE_PID! /f >nul 2>&1
 timeout /t 1 /nobreak >nul
 echo   !BGRN!  [ OK ]!R!  Process terminated.
 echo   !BCYN!  [ .. ]!R!  Reserving localhost network port...
+call :cleanup_scrollscape_port_3000
 call :find_port
 echo   !BGRN!  [ OK ]!R!  Port !SS_PORT! secured for new instance.
 echo   !BCYN!  [ .. ]!R!  Booting new Node.js daemon...
@@ -228,9 +230,19 @@ goto :eof
 :: Start node server in background, capture PID into NODE_PID
 :start_node
 set "NODE_PID="
-powershell -NoProfile -Command ^"$env:PORT='!SS_PORT!'; $p=Start-Process -FilePath '!NODE_EXE!' -ArgumentList 'server.js' -WorkingDirectory '!_root!' -WindowStyle Hidden -PassThru; $p.Id ^| Out-File ($env:TEMP + '\ss_pid.txt') -Encoding ASCII^" >nul 2>&1
+powershell -NoProfile -Command ^"$env:PORT='!SS_PORT!'; $serverPath=Join-Path '!_root!' 'server.js'; $p=Start-Process -FilePath '!NODE_EXE!' -ArgumentList $serverPath -WorkingDirectory '!_root!' -WindowStyle Hidden -PassThru; $p.Id ^| Out-File ($env:TEMP + '\ss_pid.txt') -Encoding ASCII^" >nul 2>&1
 set /p NODE_PID=<"%TEMP%\ss_pid.txt"
 del "%TEMP%\ss_pid.txt" >nul 2>&1
+goto :eof
+
+:: If port 3000 is held by an old ScrollScape node server, kill it so restart
+:: always reuses the canonical URL and doesn't silently drift to 3001+.
+:cleanup_scrollscape_port_3000
+set "_cs_rc="
+for /f %%R in ('powershell -NoProfile -Command "try { $c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if(-not $c){ Write-Output 0; exit 0 }; $op = $c.OwningProcess; $p = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $op); if([string]$p.Name -ieq 'node.exe'){ Stop-Process -Id $op -Force -ErrorAction SilentlyContinue; Write-Output 1; exit 0 }; Write-Output 0; exit 0 } catch { Write-Output 0; exit 0 }"') do set "_cs_rc=%%R"
+if "!_cs_rc!"=="1" (
+    echo   !BYLW!  [INFO]!R!  Removed stale ScrollScape server on port 3000.
+)
 goto :eof
 
 :: Run docker compose <args> with a spinner, suppress all output.

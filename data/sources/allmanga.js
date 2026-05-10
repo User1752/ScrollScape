@@ -20,6 +20,15 @@ const GQL_HEADERS = {
   'Origin': 'https://allmanga.to',
 };
 
+const DAILY_POPULAR_HASH = '60f50b84bb545fa25ee7f7c8c0adbf8f5cea40f7b1ef8501cbbff70e38589489';
+const LATEST_UPDATES_HASH = '2d48e19fb67ddcac42fbb885204b6abb0a84f406f15ef83f36de4a66f49f651a';
+
+const HTML_HEADERS = {
+  'User-Agent': GQL_HEADERS['User-Agent'],
+  'Referer': WEB_BASE,
+  'Origin': WEB_BASE,
+};
+
 function decodeTobeparsed(blob) {
   const raw = Buffer.from(blob, 'base64');
   if (raw.length <= 29) {
@@ -106,6 +115,99 @@ async function safeListCall(fn) {
   }
 }
 
+async function fetchDailyPopular(limit = 20) {
+  const dayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+  const variables = encodeURIComponent(JSON.stringify({
+    type: 'manga',
+    size: limit,
+    dateRange: 1,
+    page: 1,
+    allowUnknown: false,
+    allowAdult: false,
+  }));
+  const extensions = encodeURIComponent(JSON.stringify({
+    persistedQuery: {
+      version: 1,
+      sha256Hash: DAILY_POPULAR_HASH,
+    },
+  }));
+  const url = `${APIS[0]}?variables=${variables}&extensions=${extensions}&day=${encodeURIComponent(dayKey)}`;
+
+  const res = await fetch(url, {
+    headers: {
+      ...HTML_HEADERS,
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    },
+    cache: 'no-store',
+    signal: withTimeout(12000),
+  });
+  const json = await res.json();
+  const rows = json?.data?.queryPopular?.recommendations || json?.data?.recommendations || [];
+
+  return rows
+    .map(rec => {
+      const m = rec?.anyCard || {};
+      if (!m._id || !m.name) return null;
+      return {
+        id: m._id,
+        title: m.name,
+        cover: thumbUrl(m.thumbnail),
+        url: `${WEB_BASE}/manga/${m._id}`,
+        genres: [],
+        status: normalizeStatus(m.status),
+        author: '',
+        sourceId: 'allmanga',
+        sourceName: 'AllManga.to',
+      };
+    })
+    .filter(Boolean);
+}
+
+async function fetchLatestUpdates(limit = 20) {
+  const variables = encodeURIComponent(JSON.stringify({
+    search: { isManga: true },
+    limit,
+    page: 1,
+    translationType: 'sub',
+    countryOrigin: 'ALL',
+  }));
+  const extensions = encodeURIComponent(JSON.stringify({
+    persistedQuery: {
+      version: 1,
+      sha256Hash: LATEST_UPDATES_HASH,
+    },
+  }));
+  const url = `${APIS[0]}?variables=${variables}&extensions=${extensions}`;
+
+  const res = await fetch(url, {
+    headers: {
+      ...HTML_HEADERS,
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    },
+    cache: 'no-store',
+    signal: withTimeout(12000),
+  });
+  const json = await res.json();
+  const rows = json?.data?.mangas?.edges || [];
+
+  return rows
+    .map(e => {
+      if (!e?._id || !e?.name) return null;
+      return {
+        id: e._id,
+        title: e.name,
+        cover: thumbUrl(e.thumbnail),
+        url: `${WEB_BASE}/manga/${e._id}`,
+        genres: [],
+        status: normalizeStatus(e.status),
+        author: '',
+      };
+    })
+    .filter(Boolean);
+}
+
 function thumbUrl(thumbnail) {
   if (!thumbnail) return '';
   if (thumbnail.startsWith('http')) return thumbnail;
@@ -113,14 +215,30 @@ function thumbUrl(thumbnail) {
 }
 
 function mapEdge(e) {
+  const genres = e.genres || [];
+  const set = new Set(genres.map(g => String(g).toLowerCase()));
+  let format = 'manga';
+  if (set.has('manhwa') || set.has('webtoon') || set.has('webtoons')) format = 'manhwa';
+  else if (set.has('manhua')) format = 'manhua';
+  else if (set.has('doujinshi')) format = 'doujinshi';
+  else if (set.has('one-shot') || set.has('oneshot') || set.has('one shot')) format = 'oneshot';
+
+  let contentRating = 'safe';
+  if (set.has('hentai') || set.has('smut') || set.has('mature') || set.has('adult')) contentRating = 'erotica';
+  else if (set.has('ecchi') || set.has('suggestive')) contentRating = 'suggestive';
+
   return {
     id: e._id,
     title: e.name || e._id,
     cover: thumbUrl(e.thumbnail),
     url: `${WEB_BASE}/manga/${e._id}`,
-    genres: e.genres || [],
+    genres,
     status: normalizeStatus(e.status),
     author: (e.authors || [])[0] || '',
+    format,
+    contentRating,
+    sourceId: 'allmanga',
+    sourceName: 'AllManga.to',
   };
 }
 
@@ -132,6 +250,35 @@ function normalizeStatus(s) {
   return l || 'unknown';
 }
 
+function sortResults(results, orderBy = '') {
+  if (!orderBy || orderBy === 'relevance') return results;
+  const rows = [...results];
+  if (orderBy === 'title') rows.sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+  if (orderBy === '-title') rows.sort((a, b) => String(b.title || '').localeCompare(String(a.title || '')));
+  return rows;
+}
+
+function applyFilters(results, filters = {}) {
+  let rows = results;
+
+  if (filters.publicationStatus) {
+    const target = String(filters.publicationStatus || '').toLowerCase();
+    rows = rows.filter(m => String(m.status || '').toLowerCase() === target);
+  }
+
+  if (filters.format) {
+    const fmt = String(filters.format || '').toLowerCase();
+    rows = rows.filter(m => String(m.format || '').toLowerCase() === fmt || (m.genres || []).some(g => String(g).toLowerCase() === fmt));
+  }
+
+  if (filters.contentRating) {
+    const target = String(filters.contentRating || '').toLowerCase();
+    rows = rows.filter(m => String(m.contentRating || 'safe').toLowerCase() === target);
+  }
+
+  return rows;
+}
+
 module.exports = {
   meta: {
     id: 'allmanga',
@@ -139,52 +286,100 @@ module.exports = {
     version: '1.1.0',
     author: 'auto',
     icon: '',
+    supportsPopularAllTime: true,
+    supportsRecentlyAdded: false,
   },
 
   async search(query, page = 1, orderBy = '', filters = {}) {
     return safeListCall(async () => {
-      // status filter applied client-side after fetch (AllManga GQL enum not reliable)
-      const q = `{ mangas(search:{query:${JSON.stringify(query || '')}}, limit:30, page:${page}) { edges { _id name thumbnail status } } }`;
+      const q = `{ mangas(search:{query:${JSON.stringify(query || '')}}, limit:30, page:${page}) { edges { _id name thumbnail status genres authors } } }`;
       const data = await gql(q);
       const edges = data.mangas?.edges || [];
-      return { results: edges.map(mapEdge), hasNextPage: edges.length >= 30 };
+      const rows = applyFilters(sortResults(edges.map(mapEdge), orderBy), filters);
+      return { results: rows, hasNextPage: edges.length >= 30 };
     });
   },
 
   async trending() {
     return safeListCall(async () => {
-      const q = `{ mangas(search:{sortBy: Popular}, limit:20, page:1) { edges { _id name thumbnail status } } }`;
-      const data = await gql(q);
-      return { results: (data.mangas?.edges || []).map(mapEdge) };
+      const results = await fetchDailyPopular(20);
+      return { results };
     });
   },
 
-  async recentlyAdded() {
+  async popularAllTime() {
     return safeListCall(async () => {
-      const q = `{ mangas(search:{sortBy: Latest_Update}, limit:20, page:1) { edges { _id name thumbnail status } } }`;
-      const data = await gql(q);
-      return { results: (data.mangas?.edges || []).map(mapEdge) };
+      const variables = encodeURIComponent(JSON.stringify({
+        search: {
+          sortBy: 'Top',
+          isManga: true,
+        },
+        limit: 26,
+        page: 1,
+        translationType: 'sub',
+        countryOrigin: 'ALL',
+      }));
+      const extensions = encodeURIComponent(JSON.stringify({
+        persistedQuery: {
+          version: 1,
+          sha256Hash: LATEST_UPDATES_HASH,
+        },
+      }));
+      const url = `${APIS[0]}?variables=${variables}&extensions=${extensions}`;
+      const res = await fetch(url, {
+        headers: {
+          ...HTML_HEADERS,
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+        cache: 'no-store',
+        signal: withTimeout(12000),
+      });
+      const json = await res.json();
+      const rows = json?.data?.mangas?.edges || [];
+      return {
+        results: rows
+          .map(e => {
+            if (!e?._id || !e?.name) return null;
+            return {
+              id: e._id,
+              title: e.name,
+              cover: thumbUrl(e.thumbnail),
+              url: `${WEB_BASE}/manga/${e._id}`,
+              genres: [],
+              status: normalizeStatus(e.status),
+              author: '',
+              sourceId: 'allmanga',
+              sourceName: 'AllManga.to',
+            };
+          })
+          .filter(Boolean),
+      };
     });
   },
 
   async latestUpdates() {
-    return this.recentlyAdded();
+    return safeListCall(async () => {
+      const results = await fetchLatestUpdates(26);
+      return { results };
+    });
   },
 
   async byGenres(genres, orderBy = '', filters = {}, page = 1) {
     return safeListCall(async () => {
-      // status filter applied client-side (AllManga GQL status enum not reliable)
       if (!genres || genres.length === 0) {
         const q = `{ mangas(search:{sortBy: Popular, allowAdult: false}, limit:30, page:${page}) { edges { _id name thumbnail status genres authors } } }`;
         const data = await gql(q);
         const edges = data.mangas?.edges || [];
-        return { results: edges.map(mapEdge), hasNextPage: edges.length === 30 };
+        const rows = applyFilters(sortResults(edges.map(mapEdge), orderBy), filters);
+        return { results: rows, hasNextPage: edges.length === 30 };
       }
       const genreList = genres.map(g => JSON.stringify(g)).join(',');
       const q = `{ mangas(search:{genres:[${genreList}], sortBy: Popular, allowAdult: false}, limit:30, page:${page}) { edges { _id name thumbnail status genres authors } } }`;
       const data = await gql(q);
       const edges = data.mangas?.edges || [];
-      return { results: edges.map(mapEdge), hasNextPage: edges.length === 30 };
+      const rows = applyFilters(sortResults(edges.map(mapEdge), orderBy), filters);
+      return { results: rows, hasNextPage: edges.length === 30 };
     });
   },
 

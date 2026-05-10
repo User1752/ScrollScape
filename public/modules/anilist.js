@@ -553,10 +553,10 @@ function _showAnilistSourcePicker(choices) {
 
       const fallbackCover = item.cover
         ? `<img src="${escapeHtml(item.cover)}" style="width:36px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">`
-        : `<div style="width:36px;height:50px;border-radius:6px;background:rgba(130,80,255,0.14);flex-shrink:0"></div>`;
+        : `<div style="width:36px;height:50px;border-radius:6px;background:color-mix(in srgb, var(--primary) 14%, transparent);flex-shrink:0"></div>`;
 
       return `
-        <div class="anilist-source-row" data-anilist-id="${escapeHtml(String(item.anilistId))}" style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(240px,340px);gap:0.6rem;align-items:center;padding:0.5rem 0.2rem;border-bottom:1px solid rgba(130,80,255,0.12)">
+        <div class="anilist-source-row" data-anilist-id="${escapeHtml(String(item.anilistId))}" style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(240px,340px);gap:0.6rem;align-items:center;padding:0.5rem 0.2rem;border-bottom:1px solid color-mix(in srgb, var(--primary) 12%, transparent)">
           <div style="display:flex;align-items:center;gap:0.55rem;min-width:0">
             ${fallbackCover}
             <div style="min-width:0">
@@ -569,7 +569,7 @@ function _showAnilistSourcePicker(choices) {
     }).join('');
 
     modal.innerHTML = `
-      <div class="settings-content" style="width:min(96vw,980px);max-width:980px;max-height:94vh;overflow:auto;border:1px solid rgba(130,80,255,0.25)">
+      <div class="settings-content" style="width:min(96vw,980px);max-width:980px;max-height:94vh;overflow:auto;border:1px solid color-mix(in srgb, var(--primary) 25%, transparent)">
         <div class="settings-header">
           <h2>Escolher Source Após Import</h2>
           <button class="btn secondary" id="anilistPickerClose">&#x2715;</button>
@@ -580,7 +580,7 @@ function _showAnilistSourcePicker(choices) {
           </p>
           <div style="max-height:66vh;overflow:auto;padding-right:4px">${rows}</div>
         </div>
-        <div style="padding:0.8rem 1.2rem;border-top:1px solid rgba(130,80,255,0.15);display:flex;justify-content:space-between;align-items:center;gap:0.6rem">
+        <div style="padding:0.8rem 1.2rem;border-top:1px solid color-mix(in srgb, var(--primary) 15%, transparent);display:flex;justify-content:space-between;align-items:center;gap:0.6rem">
           <span style="font-size:0.8rem;color:var(--text-muted)">${rowsData.length} manga com opções encontradas</span>
           <div style="display:flex;gap:0.5rem">
             <button class="btn secondary" id="anilistPickerSkip">Manter AniList</button>
@@ -734,6 +734,7 @@ async function anilistImportLibrary(opts = {}) {
       const libData = await fetch('/api/library').then(r => r.json());
       state.favorites    = libData.favorites || state.favorites;
       state.history      = libData.history   || state.history;
+      state.coverOverrides = libData.coverOverrides || state.coverOverrides;
       const statusData = await fetch('/api/user/status').then(r => r.json());
       state.readingStatus = statusData.readingStatus || state.readingStatus;
       // Update anilistSync metadata so Settings reflects the new import immediately
@@ -775,6 +776,7 @@ async function anilistImportLibrary(opts = {}) {
         try {
           const libData2 = await fetch('/api/library').then(r => r.json());
           state.favorites     = libData2.favorites || state.favorites;
+          state.coverOverrides = libData2.coverOverrides || state.coverOverrides;
           state.readingStatus = (await fetch('/api/user/status').then(r => r.json())).readingStatus || state.readingStatus;
           renderLibrary();
         } catch (_) {}

@@ -62,7 +62,7 @@
 
 .sidebar .nav-link.active {
   color: #ffffff;
-  background-color: rgba(145, 63, 226, 0.12);
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent);
   border-bottom: none;
 }
 

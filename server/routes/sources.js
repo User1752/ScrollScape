@@ -39,6 +39,8 @@ const {
 // Cached popular-all response — { ts: number, data: object }
 let _popularAllCache = null;
 const POPULAR_ALL_TTL = 60_000; // 1 minute
+const POPULAR_ALL_ENRICH_LIMIT = 12;
+const POPULAR_ALL_ENRICH_CONCURRENCY = 4;
 
 // Maximum wall-clock time for a single source method call (ms).
 const SOURCE_CALL_TIMEOUT = 30_000;
@@ -58,6 +60,39 @@ function withTimeout(promise, ms, label = 'source call') {
       setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
     ),
   ]);
+}
+
+async function enrichPopularBucketMissingGenres(mod, sid, items = []) {
+  if (!Array.isArray(items) || items.length === 0) return items;
+  if (typeof mod.mangaDetails !== 'function') return items;
+
+  const out = items.map(m => ({ ...m }));
+  const missing = out
+    .map((m, idx) => ({ idx, m }))
+    .filter(({ m }) => !Array.isArray(m.genres) || m.genres.length === 0)
+    .slice(0, POPULAR_ALL_ENRICH_LIMIT);
+
+  if (missing.length === 0) return out;
+
+  let cursor = 0;
+  async function worker() {
+    while (cursor < missing.length) {
+      const at = cursor++;
+      const { idx, m } = missing[at];
+      try {
+        const details = await withTimeout(mod.mangaDetails(m.id || ''), SOURCE_CALL_TIMEOUT, `${sid}.mangaDetails`);
+        if (Array.isArray(details?.genres) && details.genres.length > 0) out[idx].genres = details.genres;
+        if ((!out[idx].author || out[idx].author === '') && details?.author) out[idx].author = details.author;
+        if ((!out[idx].status || out[idx].status === 'unknown') && details?.status) out[idx].status = details.status;
+      } catch (_) {
+        // Keep base card data if enrichment fails.
+      }
+    }
+  }
+
+  const workers = Math.min(POPULAR_ALL_ENRICH_CONCURRENCY, missing.length);
+  await Promise.all(Array.from({ length: workers }, worker));
+  return out;
 }
 
 /**
@@ -153,8 +188,12 @@ function registerSourceRoutes(router) {
     const mod = loadSourceFromFile(sid);
     if (typeof mod[method] !== 'function') return res.status(400).json({ error: 'Method not implemented by this source' });
 
-    const { query, page, mangaId, chapterId, genres, orderBy, authorName, publicationStatus, format } = req.body || {};
-    const filters = { publicationStatus: publicationStatus || '', format: format || '' };
+    const { query, page, mangaId, chapterId, genres, orderBy, authorName, publicationStatus, contentRating, format } = req.body || {};
+    const filters = {
+      publicationStatus: publicationStatus || '',
+      contentRating: contentRating || '',
+      format: format || '',
+    };
 
     let call;
     switch (method) {
@@ -194,34 +233,62 @@ function registerSourceRoutes(router) {
       return res.json(_popularAllCache.data);
     }
 
-    const store     = await readStore();
-    const sourceIds = Object.keys(store.installedSources || {});
+    const store = await readStore();
+    const allSourceIds = Object.keys(store.installedSources || {});
+    if (!allSourceIds.length) return res.json({ results: [] });
+
+    // Only include sources that have a genuine all-time popularity ranking.
+    const sourceIds = allSourceIds.filter(sid => {
+      try {
+        const mod = loadSourceFromFile(sid);
+        return mod.meta?.supportsPopularAllTime === true;
+      } catch (_) {
+        return false;
+      }
+    });
     if (!sourceIds.length) return res.json({ results: [] });
 
+    // Build one bucket per source with max 20 all-time popular titles.
     const settled = await Promise.allSettled(
       sourceIds.map(async (sid) => {
         const mod = loadSourceFromFile(sid);
-        if (typeof mod.trending !== 'function') return [];
-        const r = await withTimeout(mod.trending(), SOURCE_CALL_TIMEOUT, `${sid}.trending`);
-        return (r.results || []).map(m => ({
+        let results = [];
+
+        if (typeof mod.popularAllTime === 'function') {
+          const r = await withTimeout(mod.popularAllTime(), SOURCE_CALL_TIMEOUT, `${sid}.popularAllTime`);
+          results = (r.results || []).slice(0, 20);
+        } else if (typeof mod.trending === 'function') {
+          const r = await withTimeout(mod.trending(1), SOURCE_CALL_TIMEOUT, `${sid}.trending`);
+          results = (r.results || []).slice(0, 20);
+        } else if (typeof mod.recentlyAdded === 'function') {
+          const r = await withTimeout(mod.recentlyAdded(1), SOURCE_CALL_TIMEOUT, `${sid}.recentlyAdded`);
+          results = (r.results || []).slice(0, 20);
+        }
+
+        const base = results.map(m => ({
           ...m,
-          sourceId:   sid,
+          sourceId: sid,
           sourceName: store.installedSources[sid]?.name || sid,
         }));
+
+        return enrichPopularBucketMissingGenres(mod, sid, base);
       })
     );
 
     // Interleave source buckets (zip) then de-duplicate by title.
     const buckets = settled.filter(s => s.status === 'fulfilled').map(s => s.value);
-    const seen    = new Set();
-    const merged  = [];
-    const maxLen  = Math.max(...buckets.map(b => b.length), 0);
-    
+    const seen = new Set();
+    const merged = [];
+    const maxLen = Math.max(...buckets.map(b => b.length), 0);
+
     for (let i = 0; i < maxLen; i++) {
       for (const bucket of buckets) {
         if (i < bucket.length) {
           const key = (bucket[i].title || '').trim().toLowerCase();
-          if (!seen.has(key)) { seen.add(key); merged.push(bucket[i]); }
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(bucket[i]);
+          }
         }
       }
     }

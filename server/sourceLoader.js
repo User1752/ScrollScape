@@ -256,7 +256,6 @@ async function autoInstallLocalSources() {
         icon:        mod.meta.icon    || '',
         installedAt: new Date().toISOString(),
       };
-      console.log(`✓ Auto-installed: ${mod.meta.name}`);
     } catch (e) {
       console.warn(`⚠ Auto-install failed for ${id}:`, e.message);
     }

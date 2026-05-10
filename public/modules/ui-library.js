@@ -275,6 +275,27 @@ function renderLibrary() {
     if (prev && prev !== 'all') catSelect.value = prev;
   }
 
+  // Repair local AniList tracker links for previously migrated items.
+  try {
+    const raw = localStorage.getItem('scrollscape_al_links');
+    const links = raw ? JSON.parse(raw) : {};
+    if (links && typeof links === 'object') {
+      let changed = false;
+      for (const manga of favs) {
+        const id = String(manga?.id || '');
+        const ani = String(manga?.anilistId || '');
+        if (!id || !ani) continue;
+        if (!links[id]) {
+          links[id] = ani;
+          changed = true;
+        }
+      }
+      if (changed) localStorage.setItem('scrollscape_al_links', JSON.stringify(links));
+    }
+  } catch (_) {
+    // Non-fatal.
+  }
+
   const favHTML = favs.map(manga => {
     const key    = _libStatusKey(manga.id, manga.sourceId);
     const status = state.readingStatus[key]?.status;
@@ -596,6 +617,7 @@ async function showLibraryContextMenu(e, manga, mangaCategories) {
     <div class="ctx-categories-header" style="padding-top:0.55rem;padding-bottom:0.35rem">${bulkPrefix} manga actions</div>
     <button class="context-item" id="ctxDownloadAll">${_ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>')} ${isBulk ? `Download All Chapters (${actionMangas.length})` : 'Download All'}</button>
     <div class="context-divider"></div>
+    ${!isBulk ? `<button class="context-item" id="ctxChangeCover">${_ico('<rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>')} Change Cover</button><button class="context-item" id="ctxMigrateOne">${_ico('<path d="M8 7h13M13 3l4 4-4 4"/><path d="M16 17H3"/><path d="M7 13l-4 4 4 4"/>')} Migrate this manga</button><div class="context-divider"></div>` : ''}
     <button class="context-item ${currentStatus === 'completed' ? 'ctx-item-active' : ''}" id="ctxMarkCompleted">${_ico('<polyline points="20 6 9 17 4 12"/>')} ${isBulk ? 'Mark Selected as Completed' : 'Mark as Completed'}</button>
     <button class="context-item ${currentStatus === 'reading'   ? 'ctx-item-active' : ''}" id="ctxMarkReading">${_ico('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>')} ${isBulk ? 'Mark Selected as Reading' : 'Mark as Reading'}</button>
     <button class="context-item ${!currentStatus             ? 'ctx-item-active' : ''}" id="ctxRemoveStatus">${_ico('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>')} ${isBulk ? 'Mark Selected as Unread' : 'Mark as Unread'}</button>
@@ -643,6 +665,32 @@ async function showLibraryContextMenu(e, manga, mangaCategories) {
     showToast('Removed', ok ? `${ok} manga removed${fail ? `, ${fail} failed` : ''}` : 'No manga removed', fail ? 'warning' : 'info');
     _closeLibraryContextMenu();
   };
+
+  const changeCoverBtn = menu.querySelector('#ctxChangeCover');
+  if (changeCoverBtn) {
+    changeCoverBtn.onclick = () => {
+      _closeLibraryContextMenu();
+      if (typeof window.openMangaCoverPicker === 'function') {
+        window.openMangaCoverPicker(manga, {
+          sourceId,
+          sourceCover: manga._sourceCover || manga.cover,
+          currentCover: manga.cover,
+        });
+      }
+    };
+  }
+
+  const migrateOneBtn = menu.querySelector('#ctxMigrateOne');
+  if (migrateOneBtn) {
+    migrateOneBtn.onclick = () => {
+      _closeLibraryContextMenu();
+      if (typeof showMigrateModalForManga === 'function') {
+        showMigrateModalForManga({ ...manga, sourceId });
+      } else {
+        showToast('Migration', 'Migration UI is not ready yet.', 'warning');
+      }
+    };
+  }
 
   // Download All
   menu.querySelector('#ctxDownloadAll').onclick = async () => {

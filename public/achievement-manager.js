@@ -35,7 +35,25 @@ class AchievementManager {
    * @private
    */
   _applyData(data) {
-    this.categories = data?.categories || [];
+    const removedCategoryIds = new Set(['streak']);
+    const removedAchievementIds = new Set([
+      'streak_3',
+      'streak_7',
+      'streak_30',
+      'streak_100',
+      'streak_365',
+      'first_review',
+      'explorer',
+      'source_master',
+      'early_bird'
+    ]);
+
+    this.categories = (data?.categories || [])
+      .filter(c => !removedCategoryIds.has(c.id))
+      .map(c => ({
+        ...c,
+        achievements: (c.achievements || []).filter(a => !removedAchievementIds.has(a.id))
+      }));
     this.achievements = [];
     this._achievementsMap.clear();
 

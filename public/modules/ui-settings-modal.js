@@ -8,25 +8,17 @@ function showSettings() {
   modal.innerHTML = `
     <div class="settings-content">
       <div class="settings-header">
-        <h2>⚙️ Settings</h2>
+        <h2>Settings</h2>
         <button class="btn secondary" id="closeSettings">&#x2715;</button>
       </div>
       <div class="settings-layout">
 
         <!-- ── Sidebar nav ── -->
         <nav class="settings-nav">
-          <button class="settings-nav-item active" data-tab="tab-reading">
-            <span class="settings-nav-icon">📖</span><span>Reading</span>
-          </button>
-          <button class="settings-nav-item" data-tab="tab-library">
-            <span class="settings-nav-icon">📚</span><span>Library</span>
-          </button>
-          <button class="settings-nav-item" data-tab="tab-tracking">
-            <span class="settings-nav-icon">🔗</span><span>Tracking</span>
-          </button>
-          <button class="settings-nav-item" data-tab="tab-advanced">
-            <span class="settings-nav-icon">🛠️</span><span>Advanced</span>
-          </button>
+          <button class="settings-nav-item active" data-tab="tab-reading">Reading</button>
+          <button class="settings-nav-item" data-tab="tab-library">Library</button>
+          <button class="settings-nav-item" data-tab="tab-tracking">Tracking</button>
+          <button class="settings-nav-item" data-tab="tab-advanced">Advanced</button>
         </nav>
 
         <!-- ── Content panels ── -->
@@ -176,6 +168,39 @@ function showSettings() {
               </div>
               <div class="setting-group">
                 <label class="toggle-label">
+                  <span class="toggle-text">Show search panel on Home</span>
+                  <input type="checkbox" id="showHomeSearchToggle" ${state.settings.showHomeSearch !== false ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Shows or hides the Search Manga panel at the top of the Home page.</p>
+              </div>
+              <div class="setting-group">
+                <label>Home page source mode</label>
+                <select id="homeSourceModeSelect" class="input">
+                  <option value="all" ${state.settings.homeSourceMode !== 'selected' ? 'selected' : ''}>Show all installed sources</option>
+                  <option value="selected" ${state.settings.homeSourceMode === 'selected' ? 'selected' : ''}>Only selected sources</option>
+                </select>
+                <p class="setting-description">Controls which sources are used in Home rows (Most Popular Today, Recently Added and Latest Updates)</p>
+              </div>
+              <div class="setting-group" id="homeSourceSelectionGroup" style="${state.settings.homeSourceMode === 'selected' ? '' : 'display:none'}">
+                <label>Sources visible on Home</label>
+                <div id="homeSourceSelectionList">
+                  ${(() => {
+                    const ids = new Set(Array.isArray(state.settings.homeSelectedSourceIds) ? state.settings.homeSelectedSourceIds : []);
+                    const sources = Object.values(state.installedSources || {});
+                    if (!sources.length) return '<p class="muted" style="margin:0">No installed sources</p>';
+                    return sources.map(s => `
+                      <label class="home-source-check">
+                        <input type="checkbox" class="home-source-option" value="${escapeHtml(s.id)}" ${ids.size === 0 || ids.has(s.id) ? 'checked' : ''}>
+                        <span class="home-source-check-label">${escapeHtml(s.name || s.id)}</span>
+                      </label>
+                    `).join('');
+                  })()}
+                </div>
+                <p class="setting-description">If no source is selected, ScrollScape falls back to showing all.</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
                   <span class="toggle-text">Hide NSFW</span>
                   <input type="checkbox" id="hideNsfwToggle" ${state.settings.hideNsfw ? "checked" : ""}>
                   <span class="toggle-slider"></span>
@@ -226,7 +251,7 @@ function showSettings() {
             <div class="settings-section-card">
               <p class="settings-section-title">Data</p>
               <div class="setting-group">
-                <button class="btn secondary" id="clearReadBtn">🗑️ Clear Reading History</button>
+                <button class="btn secondary" id="clearReadBtn">Clear Reading History</button>
                 <p class="setting-description">Removes all reading history, last-read pages, and chapter flags</p>
               </div>
             </div>
@@ -285,7 +310,7 @@ function showSettings() {
                   <p class="setting-description">Automatically adds completed manga to a "Read" category when importing</p>
                 </div>
                 <div class="setting-group" style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn primary" id="btnAniListImportNow">⬇️ Import Library Now</button>
+                  <button class="btn primary" id="btnAniListImportNow">Import Library Now</button>
                   <button class="btn secondary" id="btnAniListDisconnect">Disconnect</button>
                 </div>
                 <div id="anilistImportProgressWrap" class="anilist-import-progress hidden">
@@ -472,6 +497,43 @@ function showSettings() {
       renderLibrary();
     };
   }
+
+  const showHomeSearchToggle = $("showHomeSearchToggle");
+  if (showHomeSearchToggle) {
+    showHomeSearchToggle.onchange = (e) => {
+      state.settings.showHomeSearch = e.target.checked;
+      saveSettings();
+      if (typeof applyHomeSearchVisibility === 'function') applyHomeSearchVisibility();
+    };
+  }
+
+  const refreshHomeRows = () => {
+    if (typeof loadPopularToday === 'function') loadPopularToday();
+    if (typeof loadRecentlyAdded === 'function') loadRecentlyAdded();
+    if (typeof loadLatestUpdates === 'function') loadLatestUpdates();
+  };
+
+  const homeSourceModeSelect = $("homeSourceModeSelect");
+  const homeSourceSelectionGroup = $("homeSourceSelectionGroup");
+  if (homeSourceModeSelect) {
+    homeSourceModeSelect.onchange = (e) => {
+      state.settings.homeSourceMode = e.target.value === 'selected' ? 'selected' : 'all';
+      saveSettings();
+      if (homeSourceSelectionGroup) {
+        homeSourceSelectionGroup.style.display = state.settings.homeSourceMode === 'selected' ? '' : 'none';
+      }
+      refreshHomeRows();
+    };
+  }
+
+  modal.querySelectorAll('.home-source-option').forEach(cb => {
+    cb.onchange = () => {
+      const selected = [...modal.querySelectorAll('.home-source-option:checked')].map(el => el.value);
+      state.settings.homeSelectedSourceIds = [...new Set(selected)];
+      saveSettings();
+      if (state.settings.homeSourceMode === 'selected') refreshHomeRows();
+    };
+  });
 
   const hideNsfwToggle = $("hideNsfwToggle");
   if (hideNsfwToggle) {
@@ -682,7 +744,7 @@ function showSettings() {
         };
 
         btnImportNow.disabled = true;
-        btnImportNow.textContent = '⏳ Importing…';
+        btnImportNow.textContent = 'Importing...';
         if (progressWrap) progressWrap.classList.remove('hidden');
         setProgress(0, 'Starting AniList import…');
 

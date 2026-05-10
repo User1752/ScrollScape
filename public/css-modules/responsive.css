@@ -133,7 +133,6 @@
 
 /* Recommended row: hide scrollbar (auto-scroll + drag) */
 #recommendedRow,
-#allTimePopularRow,
 #popularRow,
 #recentlyAddedRow,
 #latestUpdatesRow {
@@ -141,7 +140,6 @@
   -ms-overflow-style: none;
 }
 #recommendedRow::-webkit-scrollbar,
-#allTimePopularRow::-webkit-scrollbar,
 #popularRow::-webkit-scrollbar,
 #recentlyAddedRow::-webkit-scrollbar,
 #latestUpdatesRow::-webkit-scrollbar {
@@ -211,7 +209,7 @@
 
 .sidebar-footer .btn-settings-sidebar {
   width: 100%;
-  background-color: rgba(145, 63, 226, 0.2);
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent);
   border: 1px solid var(--primary);
   color: var(--text-primary);
   padding: 0.6rem 0.8rem;

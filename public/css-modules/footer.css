@@ -6,7 +6,7 @@
   padding: 2rem;
   margin-top: 4rem;
   text-align: center;
-  border-top: 1px solid rgba(145, 63, 226, 0.3);
+  border-top: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .footer-content {

@@ -11,7 +11,7 @@
 .manga-card-genre {
   font-size: 0.62rem;
   padding: 0.1rem 0.4rem;
-  background: rgba(145, 63, 226, 0.18);
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
   border-radius: 3px;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -21,7 +21,7 @@
 }
 
 [data-theme="light"] .manga-card-genre {
-  background: rgba(145, 63, 226, 0.12);
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
   color: var(--primary);
 }
 

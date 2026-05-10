@@ -335,6 +335,298 @@ async function _resolveMangaInSourceByTitle(sourceId, title) {
   return best;
 }
 
+function _getStoredMangaCover(mangaId, sourceId) {
+  const overrideKey = `${String(mangaId)}:${String(sourceId || '')}`;
+  return state.coverOverrides?.[overrideKey]
+    || (state.favorites || []).find(m => String(m?.id) === String(mangaId) && String(m?.sourceId || '') === String(sourceId))?.cover
+    || (state.history || []).find(m => String(m?.id) === String(mangaId) && String(m?.sourceId || '') === String(sourceId))?.cover
+    || '';
+}
+
+function _coverPickerSourceIds(primarySourceId) {
+  const sourceIds = Object.keys(state.installedSources || {}).filter(sid => sid !== 'local');
+  const ordered = [];
+  if (primarySourceId && sourceIds.includes(primarySourceId)) ordered.push(primarySourceId);
+  for (const sid of sourceIds) {
+    if (ordered.includes(sid)) continue;
+    ordered.push(sid);
+  }
+  return ordered.slice(0, 4);
+}
+
+function _coverChoiceKey(choice) {
+  return `${String(choice?.cover || '')}::${_normalizeLookupTitle(choice?.title || '')}::${String(choice?.sourceId || choice?.provider || '')}`;
+}
+
+function _applyCoverToCurrentDetailsView(mangaId, sourceId, coverUrl) {
+  if (!coverUrl) return;
+  if (String(state.currentManga?.id) !== String(mangaId) || String(state.currentSourceId || '') !== String(sourceId || '')) return;
+  state.currentManga = { ...state.currentManga, cover: coverUrl };
+  const coverImg = $("details")?.querySelector('.manga-cover img');
+  if (coverImg) coverImg.src = coverUrl;
+}
+
+async function persistMangaCover(mangaId, sourceId, coverUrl) {
+  const res = await api('/api/library/cover', {
+    method: 'POST',
+    body: JSON.stringify({ mangaId, sourceId, cover: coverUrl })
+  });
+  state.favorites = res.favorites || state.favorites;
+  state.history = res.history || state.history;
+  state.coverOverrides = res.coverOverrides || state.coverOverrides;
+  state.readingStatus = res.readingStatus || state.readingStatus;
+  renderLibrary();
+  if (typeof renderHistoryView === 'function') renderHistoryView();
+  _applyCoverToCurrentDetailsView(mangaId, sourceId, coverUrl);
+  return res;
+}
+
+async function searchAniListCoverChoices(title, page = 1, perPage = 8) {
+  const data = await anilistGQL(
+    `query ($search: String, $page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        media(search: $search, type: MANGA, sort: SEARCH_MATCH) {
+          id
+          title { romaji english native }
+          coverImage { extraLarge large medium }
+        }
+      }
+    }`,
+    { search: title, page, perPage }
+  );
+  return {
+    items: (data?.data?.Page?.media || [])
+      .map(item => ({
+        id: item.id,
+        title: item?.title?.english || item?.title?.romaji || item?.title?.native || title,
+        cover: item?.coverImage?.extraLarge || item?.coverImage?.large || item?.coverImage?.medium || '',
+        provider: 'AniList',
+        sourceId: 'anilist',
+      }))
+      .filter(item => item.cover),
+    hasNextPage: !!data?.data?.Page?.pageInfo?.hasNextPage,
+  };
+}
+
+async function searchSourceCoverChoices(query, sourceId, page = 1) {
+  const result = await api(`/api/source/${sourceId}/search`, {
+    method: 'POST',
+    body: JSON.stringify({ query, page })
+  });
+  return {
+    items: (result?.results || [])
+      .filter(item => item?.cover && !String(item.cover).endsWith('.pdf'))
+      .map(item => ({
+        id: item.id,
+        title: item.title || query,
+        cover: item.cover,
+        provider: state.installedSources[sourceId]?.name || sourceId,
+        sourceId,
+      })),
+    hasNextPage: !!result?.hasNextPage,
+  };
+}
+
+async function searchCoverChoices(query, sourceId, page = 1) {
+  const sourceIds = _coverPickerSourceIds(sourceId);
+  const jobs = [
+    searchAniListCoverChoices(query, page, 8).catch(() => ({ items: [], hasNextPage: false })),
+    ...sourceIds.map(sid => searchSourceCoverChoices(query, sid, page).catch(() => ({ items: [], hasNextPage: false }))),
+  ];
+  const results = await Promise.all(jobs);
+  const deduped = [];
+  const seen = new Set();
+  for (const block of results) {
+    for (const item of (block?.items || [])) {
+      const key = _coverChoiceKey(item);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(item);
+    }
+  }
+  return {
+    items: deduped,
+    hasNextPage: results.some(block => block?.hasNextPage),
+    sourceLabels: ['AniList', ...sourceIds.map(sid => state.installedSources[sid]?.name || sid)],
+  };
+}
+
+function openMangaCoverPicker(manga, options = {}) {
+  const mangaId = String(manga?.id || '');
+  const sourceId = String(options.sourceId || manga?.sourceId || state.currentSourceId || '');
+  const title = String(manga?.title || '').trim();
+  const sourceCover = String(options.sourceCover || manga?._sourceCover || manga?.cover || '').trim();
+  const currentCover = String(options.currentCover || manga?.cover || _getStoredMangaCover(mangaId, sourceId) || '').trim();
+
+  if (!mangaId || !sourceId || !title) {
+    showToast('Cover error', 'Missing manga data.', 'error');
+    return;
+  }
+
+  document.getElementById('coverPickerModal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'coverPickerModal';
+  modal.className = 'settings-modal';
+  modal.innerHTML = `
+    <div class="settings-content cover-picker-modal-content">
+      <div class="settings-header">
+        <h2>Choose Cover</h2>
+        <button class="btn btn-secondary" id="coverPickerClose">Close</button>
+      </div>
+      <div class="cover-picker-body">
+        <div class="cover-picker-column">
+          <p class="cover-picker-label">Current cover</p>
+          <div class="cover-picker-current">
+            ${currentCover ? `<img src="${escapeHtml(currentCover)}" alt="${escapeHtml(title)}">` : `<div class="no-cover">?</div>`}
+          </div>
+          <div class="cover-picker-actions">
+            ${sourceCover ? `<button class="btn btn-secondary" id="coverPickerUseSource">Use Source Cover</button>` : ''}
+            <button class="btn btn-secondary" id="coverPickerGoogle">Search on Google Images</button>
+          </div>
+          <div class="cover-picker-custom">
+            <label for="coverPickerUrlInput">Custom image URL</label>
+            <input id="coverPickerUrlInput" class="input" type="url" placeholder="https://...">
+            <button class="btn" id="coverPickerApplyUrl">Apply Custom URL</button>
+          </div>
+        </div>
+        <div class="cover-picker-column cover-picker-column-wide">
+          <div class="cover-picker-search-bar">
+            <input id="coverPickerSearchInput" class="input cover-picker-search-input" type="search" value="${escapeHtml(title)}" placeholder="Search covers...">
+            <button class="btn" id="coverPickerSearchBtn">Search</button>
+          </div>
+          <p class="cover-picker-label">Search results</p>
+          <div class="cover-picker-search-meta muted" id="coverPickerSearchMeta"></div>
+          <div class="cover-picker-grid muted" id="coverPickerSuggestions">Loading cover suggestions...</div>
+          <div class="cover-picker-load-more-wrap">
+            <button class="btn btn-secondary" id="coverPickerLoadMore">Load more</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.getElementById('coverPickerClose').onclick = () => modal.remove();
+
+  const closeAfterApply = async (coverUrl) => {
+    if (!coverUrl) return;
+    try {
+      await persistMangaCover(mangaId, sourceId, coverUrl);
+      modal.remove();
+      showToast('Cover updated', 'Saved to your library data.', 'success');
+    } catch (e) {
+      showToast('Cover error', e.message, 'error');
+    }
+  };
+
+  const sourceBtn = document.getElementById('coverPickerUseSource');
+  if (sourceBtn) sourceBtn.onclick = () => closeAfterApply(sourceCover);
+
+  const gridEl = document.getElementById('coverPickerSuggestions');
+  const metaEl = document.getElementById('coverPickerSearchMeta');
+  const searchInput = document.getElementById('coverPickerSearchInput');
+  const loadMoreBtn = document.getElementById('coverPickerLoadMore');
+  const pickerState = {
+    query: title,
+    page: 1,
+    seen: new Set(),
+    hasNextPage: false,
+    loading: false,
+  };
+
+  const renderChoiceCards = (choices, append = false) => {
+    const html = choices.map(choice => `
+      <button class="cover-choice-card" data-cover-url="${escapeHtml(choice.cover)}" title="${escapeHtml(choice.title)}">
+        <span class="cover-choice-thumb"><img src="${escapeHtml(choice.cover)}" alt="${escapeHtml(choice.title)}" loading="lazy"></span>
+        <span class="cover-choice-title">${escapeHtml(choice.title)}</span>
+        <span class="cover-choice-source">${escapeHtml(choice.provider || '')}</span>
+      </button>`).join('');
+    if (!append) gridEl.innerHTML = html;
+    else gridEl.insertAdjacentHTML('beforeend', html);
+    gridEl.querySelectorAll('.cover-choice-card[data-cover-url]').forEach((btn) => {
+      if (btn.dataset.bound === '1') return;
+      btn.dataset.bound = '1';
+      btn.onclick = () => closeAfterApply(btn.dataset.coverUrl || '');
+    });
+  };
+
+  const updateLoadMoreVisibility = () => {
+    if (!loadMoreBtn) return;
+    loadMoreBtn.style.display = pickerState.hasNextPage ? '' : 'none';
+    loadMoreBtn.disabled = pickerState.loading;
+  };
+
+  async function runCoverSearch(reset = false) {
+    if (pickerState.loading) return;
+    const nextQuery = (searchInput?.value || '').trim() || title;
+    pickerState.loading = true;
+    if (reset) {
+      pickerState.query = nextQuery;
+      pickerState.page = 1;
+      pickerState.seen.clear();
+      gridEl.classList.add('muted');
+      gridEl.innerHTML = 'Searching covers...';
+    } else {
+      pickerState.page += 1;
+    }
+    metaEl.textContent = `Searching in AniList + installed sources for "${nextQuery}"...`;
+    updateLoadMoreVisibility();
+    try {
+      const data = await searchCoverChoices(nextQuery, sourceId, pickerState.page);
+      const fresh = (data.items || []).filter(choice => {
+        const key = _coverChoiceKey(choice);
+        if (pickerState.seen.has(key)) return false;
+        pickerState.seen.add(key);
+        return true;
+      });
+      pickerState.hasNextPage = !!data.hasNextPage;
+      gridEl.classList.remove('muted');
+      if (!fresh.length && pickerState.page === 1) {
+        gridEl.innerHTML = '<p class="muted">No cover results found. Try a shorter title.</p>';
+      } else if (!fresh.length) {
+        showToast('Cover search', 'No more results found.', 'info');
+      } else {
+        renderChoiceCards(fresh, !reset && pickerState.page > 1);
+      }
+      metaEl.textContent = `${pickerState.seen.size} result(s) from ${data.sourceLabels.join(' + ')}.`;
+    } catch (e) {
+      pickerState.hasNextPage = false;
+      gridEl.classList.remove('muted');
+      gridEl.innerHTML = '<p class="muted">Could not load cover search results.</p>';
+      metaEl.textContent = e.message || 'Cover search failed.';
+    } finally {
+      pickerState.loading = false;
+      updateLoadMoreVisibility();
+    }
+  }
+
+  document.getElementById('coverPickerGoogle').onclick = () => {
+    const q = encodeURIComponent(`${title} manga cover`);
+    window.open(`https://www.google.com/search?tbm=isch&q=${q}`, '_blank', 'noopener,noreferrer');
+  };
+
+  document.getElementById('coverPickerApplyUrl').onclick = () => {
+    const raw = document.getElementById('coverPickerUrlInput')?.value?.trim() || '';
+    if (!/^https?:\/\//i.test(raw)) {
+      showToast('Invalid URL', 'Use a public http/https image URL.', 'warning');
+      return;
+    }
+    closeAfterApply(raw);
+  };
+
+  document.getElementById('coverPickerSearchBtn').onclick = () => runCoverSearch(true);
+  searchInput?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    runCoverSearch(true);
+  });
+  loadMoreBtn.onclick = () => runCoverSearch(false);
+  runCoverSearch(true);
+}
+
+window.openMangaCoverPicker = openMangaCoverPicker;
+
 async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = "", skipFallback = false, forcedSourceId = "") {
   if (forcedSourceId && forcedSourceId !== state.currentSourceId) {
     state.currentSourceId = forcedSourceId;
@@ -346,6 +638,9 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
       method: "POST",
       body: JSON.stringify({ mangaId })
     });
+    result._sourceCover = result.cover || "";
+    const storedCover = _getStoredMangaCover(result.id, state.currentSourceId);
+    if (storedCover) result.cover = storedCover;
     state.currentManga = result;
     const isFavorited = state.favorites.some(m => m.id === result.id && m.sourceId === state.currentSourceId);
     const hasProgress = state.lastReadChapter?.[result.id];
@@ -362,10 +657,10 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
       <div class="manga-details">
         ${result.cover && !result.cover.endsWith('.pdf') ? `
           <div class="manga-cover">
-            <a href="${escapeHtml(`https://anilist.co/search/manga?search=${encodeURIComponent(result.title)}`)}" target="_blank" rel="noopener noreferrer" class="cover-anilist-link" title="View on AniList" onclick="event.stopPropagation()">
+            <button type="button" class="cover-anilist-link cover-picker-trigger" title="Change cover">
               <img src="${escapeHtml(result.cover)}" alt="${escapeHtml(result.title)}">
-              <div class="cover-anilist-hint">View on AniList</div>
-            </a>
+              <div class="cover-anilist-hint">Change Cover</div>
+            </button>
           </div>` : (result.cover ? `<div class="manga-cover"><div class="no-cover" style="height:100%;font-size:4rem;">&#128196;</div></div>` : "")}
         <div class="manga-info">
           <h2 class="manga-title">${escapeHtml(result.title)}</h2>
@@ -390,8 +685,9 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
               ${result.genres.map(g => `<span class="genre-tag" data-genre="${escapeHtml(g)}" title="Search: ${escapeHtml(g)}">${escapeHtml(g)}</span>`).join("")}
             </div>` : ""}
           ${result.description ? `
-            <div class="manga-description">
+            <div class="manga-description" data-expanded="false">
               <p>${escapeHtml(result.description)}</p>
+              <button class="btn-expand-description" title="Show full description">Read More</button>
             </div>` : ""}
           <div class="manga-actions">
             <button class="btn" id="addFavBtn">
@@ -467,8 +763,35 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
       tag.onclick = (e) => { e.stopPropagation(); searchByGenre(tag.dataset.genre); };
     });
 
+    // Description expand/collapse
+    const descDiv = $("details").querySelector(".manga-description[data-expanded]");
+    if (descDiv) {
+      const expandBtn = descDiv.querySelector(".btn-expand-description");
+      if (expandBtn) {
+        expandBtn.onclick = (e) => {
+          e.preventDefault();
+          const isExpanded = descDiv.dataset.expanded === "true";
+          descDiv.dataset.expanded = !isExpanded ? "true" : "false";
+          expandBtn.textContent = !isExpanded ? "Show Less" : "Read More";
+        };
+      }
+    }
+
     // Tracker button
     $("trackerBtn").onclick = () => showTrackerModal(result);
+    const detailCoverTrigger = $("details")?.querySelector('.cover-picker-trigger');
+    if (detailCoverTrigger) {
+      detailCoverTrigger.title = 'Click to change cover';
+      detailCoverTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openMangaCoverPicker(result, {
+          sourceId: state.currentSourceId,
+          sourceCover: result._sourceCover,
+          currentCover: result.cover,
+        });
+      });
+    }
 
     // Categories button
     $("manageCategoriesBtn").onclick = () => {
@@ -517,6 +840,7 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
             try {
               const libData = await fetch('/api/library').then(r => r.json());
               state.favorites = libData.favorites || state.favorites;
+              state.coverOverrides = libData.coverOverrides || state.coverOverrides;
               const statusData = await fetch('/api/user/status').then(r => r.json());
               state.readingStatus = statusData.readingStatus || state.readingStatus;
               const ratingsData = await fetch('/api/ratings').then(r => r.json());

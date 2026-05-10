@@ -5,13 +5,92 @@
 const ADV_PAGE_SIZE = 50;
 const ADV_MAX_API_PAGES = 20; // safety limit per user-page
 
+// Capability matrix based on practical API smoke tests per source.
+// Only filters that are known to work are shown/enabled in the UI.
+const ADV_SOURCE_CAPABILITIES = {
+  default: {
+    orderBy: true,
+    publicationStatus: true,
+    contentRating: false,
+    format: true,
+    genres: true,
+  },
+  mangadex: {
+    orderBy: true,
+    publicationStatus: true,
+    contentRating: true,
+    format: true,
+    genres: true,
+  },
+  mangapill: {
+    orderBy: true,
+    publicationStatus: true,
+    contentRating: false,
+    format: true,
+    genres: true,
+  },
+  mangakatana: {
+    orderBy: true,
+    publicationStatus: true,
+    contentRating: false,
+    format: true,
+    genres: true,
+  },
+  allmanga: {
+    orderBy: true,
+    publicationStatus: true,
+    contentRating: true,
+    format: true,
+    genres: true,
+  },
+};
+
+function getAdvancedSourceCapabilities(sourceId) {
+  return { ...ADV_SOURCE_CAPABILITIES.default, ...(ADV_SOURCE_CAPABILITIES[sourceId] || {}) };
+}
+
+function updateAdvancedSearchFilterVisibility(sourceId = state.currentSourceId) {
+  const caps = getAdvancedSourceCapabilities(sourceId);
+
+  const toggleGroupBySelectId = (selectId, enabled) => {
+    const sel = $(selectId);
+    const group = sel?.closest('.filter-group');
+    if (group) group.style.display = enabled ? '' : 'none';
+    if (!enabled && sel) {
+      sel.value = (selectId === 'advancedOrderBy') ? 'relevance' : '';
+    }
+  };
+
+  toggleGroupBySelectId('advancedOrderBy', caps.orderBy);
+  toggleGroupBySelectId('advancedFormat', caps.format);
+  toggleGroupBySelectId('advancedPublicationStatus', caps.publicationStatus);
+
+  const contentRatingGroup = $('advancedContentRatingGroup');
+  if (contentRatingGroup) contentRatingGroup.style.display = caps.contentRating ? '' : 'none';
+  const contentRatingSel = $('advancedContentRating');
+  if (!caps.contentRating && contentRatingSel) contentRatingSel.value = '';
+
+  const genreGroup = $('genreFilterGroup');
+  if (genreGroup) genreGroup.style.display = caps.genres ? '' : 'none';
+  if (!caps.genres) {
+    document.querySelectorAll('#genreGrid input[type="checkbox"]').forEach(cb => cb.checked = false);
+  }
+
+  // Source capability changes can affect pagination/fill-up cache validity.
+  state._advAcc = null;
+
+  // Keep NSFW hiding rules on top of capability visibility.
+  applyAdvancedSearchNsfwVisibility();
+}
+
 function applyAdvancedSearchNsfwVisibility() {
   const hideNsfw = state.settings.hideNsfw === true;
   let changed = false;
 
   const contentRatingGroup = $("advancedContentRatingGroup");
   if (contentRatingGroup) {
-    contentRatingGroup.style.display = hideNsfw ? "none" : "";
+    const caps = getAdvancedSourceCapabilities(state.currentSourceId);
+    contentRatingGroup.style.display = (hideNsfw || !caps.contentRating) ? "none" : "";
   }
 
   const contentRatingSel = $("advancedContentRating");
@@ -32,38 +111,90 @@ function applyAdvancedSearchNsfwVisibility() {
   return changed;
 }
 
+function _normalizeFormat(value) {
+  const raw = String(value || '').toLowerCase().trim();
+  if (!raw) return '';
+  if (raw.includes('one') && raw.includes('shot')) return 'oneshot';
+  if (raw.includes('manhwa') || raw.includes('webtoon')) return 'manhwa';
+  if (raw.includes('manhua')) return 'manhua';
+  if (raw.includes('doujin')) return 'doujinshi';
+  if (raw.includes('manga')) return 'manga';
+  return raw;
+}
+
+function _inferFormat(manga) {
+  const fromField = _normalizeFormat(manga?.format);
+  if (fromField) return fromField;
+  const genres = Array.isArray(manga?.genres) ? manga.genres : [];
+  for (const g of genres) {
+    const n = _normalizeFormat(g);
+    if (['manga', 'manhwa', 'manhua', 'doujinshi', 'oneshot'].includes(n)) return n;
+  }
+  return '';
+}
+
+function _inferContentRating(manga) {
+  const explicit = String(manga?.contentRating || '').toLowerCase();
+  if (['safe', 'suggestive', 'erotica', 'pornographic'].includes(explicit)) return explicit;
+
+  const tags = new Set((Array.isArray(manga?.genres) ? manga.genres : []).map(g => String(g).toLowerCase()));
+  if (tags.has('hentai') || tags.has('smut') || tags.has('mature') || tags.has('adult')) return 'erotica';
+  if (tags.has('ecchi') || tags.has('suggestive')) return 'suggestive';
+  return 'safe';
+}
+
+function _normalizeStatus(value) {
+  const s = String(value || '').toLowerCase();
+  if (s.includes('ongoing') || s.includes('publishing') || s.includes('releasing')) return 'ongoing';
+  if (s.includes('complet') || s.includes('finished')) return 'completed';
+  if (s.includes('hiatus')) return 'hiatus';
+  if (s.includes('cancel')) return 'cancelled';
+  return s;
+}
+
 /**
  * Apply client-side filters to a batch of results.
  * Returns only items that pass all active filter criteria.
  */
 function _applyAdvFilters(results, query, selectedGenres, publicationStatus, contentRating, format) {
   let out = results;
-  if (query && selectedGenres.length > 0) {
+  if (query) {
     const q = query.toLowerCase();
     out = out.filter(m => (m.title || "").toLowerCase().includes(q));
   }
+  if (selectedGenres.length > 0) {
+    const wanted = new Set(selectedGenres.map(g => String(g).toLowerCase()));
+    out = out.filter(m => {
+      const genres = Array.isArray(m.genres) ? m.genres.map(g => String(g).toLowerCase()) : [];
+      return genres.some(g => wanted.has(g));
+    });
+  }
   if (publicationStatus) {
-    out = out.filter(m => m.status?.toLowerCase() === publicationStatus.toLowerCase());
+    const targetStatus = _normalizeStatus(publicationStatus);
+    out = out.filter(m => _normalizeStatus(m.status) === targetStatus);
   }
   if (contentRating) {
-    out = out.filter(m => m.contentRating?.toLowerCase() === contentRating.toLowerCase());
+    out = out.filter(m => _inferContentRating(m) === contentRating.toLowerCase());
   }
   if (format) {
-    const fmt = format.toLowerCase();
-    out = out.filter(m => (m.genres || []).some(g => g.toLowerCase() === fmt) || (m.format || '').toLowerCase() === fmt);
+    const target = _normalizeFormat(format);
+    out = out.filter(m => _inferFormat(m) === target);
   }
   return out;
 }
 
 async function advancedSearch(page = 1) {
-  applyAdvancedSearchNsfwVisibility();
+  updateAdvancedSearchFilterVisibility(state.currentSourceId);
 
+  const caps = getAdvancedSourceCapabilities(state.currentSourceId);
   const query   = $("advancedSearchInput").value.trim();
-  const orderBy = $("advancedOrderBy").value;
-  const publicationStatus = $("advancedPublicationStatus")?.value || "";
-  const contentRating = state.settings.hideNsfw ? "" : ($("advancedContentRating")?.value || "");
-  const format = $("advancedFormat")?.value || "";
-  let selectedGenres = Array.from(document.querySelectorAll('#genreGrid input[type="checkbox"]:checked')).map(cb => cb.value);
+  const orderBy = caps.orderBy ? $("advancedOrderBy").value : "relevance";
+  const publicationStatus = caps.publicationStatus ? ($("advancedPublicationStatus")?.value || "") : "";
+  const contentRating = (caps.contentRating && !state.settings.hideNsfw) ? ($("advancedContentRating")?.value || "") : "";
+  const format = caps.format ? ($("advancedFormat")?.value || "") : "";
+  let selectedGenres = caps.genres
+    ? Array.from(document.querySelectorAll('#genreGrid input[type="checkbox"]:checked')).map(cb => cb.value)
+    : [];
   if (state.settings.hideNsfw) {
     selectedGenres = selectedGenres.filter(g => !isNsfwTag(g));
   }
@@ -87,7 +218,7 @@ async function advancedSearch(page = 1) {
   $("advancedSearchStatus").textContent = "Searching...";
 
   // Determine if any client-side filter is active
-  const needsClientFilter = !!(publicationStatus || contentRating || format || (query && selectedGenres.length > 0));
+  const needsClientFilter = !!(publicationStatus || contentRating || format || selectedGenres.length > 0);
 
   // ── Fast path: no client filtering, use native API pagination ────────────
   if (!needsClientFilter) {
@@ -97,12 +228,12 @@ async function advancedSearch(page = 1) {
       if (selectedGenres.length > 0) {
         result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
           method: "POST",
-          body: JSON.stringify({ genres: selectedGenres, page, orderBy, publicationStatus, format })
+          body: JSON.stringify({ genres: selectedGenres, page, orderBy, publicationStatus, contentRating, format })
         });
       } else {
         result = await api(`/api/source/${state.currentSourceId}/search`, {
           method: "POST",
-          body: JSON.stringify({ query: query || "", page, orderBy, publicationStatus, format })
+          body: JSON.stringify({ query: query || "", page, orderBy, publicationStatus, contentRating, format })
         });
       }
       const results = await _filterMangaWithoutChapters(result.results || [], state.currentSourceId);
@@ -146,13 +277,13 @@ async function advancedSearch(page = 1) {
       if (selectedGenres.length > 0) {
         result = await api(`/api/source/${state.currentSourceId}/byGenres`, {
           method: "POST",
-          body: JSON.stringify({ genres: selectedGenres, page: acc.apiPage, orderBy, publicationStatus, format })
+          body: JSON.stringify({ genres: selectedGenres, page: acc.apiPage, orderBy, publicationStatus, contentRating, format })
         });
         acc.hasMore = result.hasNextPage || false;
       } else {
         result = await api(`/api/source/${state.currentSourceId}/search`, {
           method: "POST",
-          body: JSON.stringify({ query: query || "", page: acc.apiPage, orderBy, publicationStatus, format })
+          body: JSON.stringify({ query: query || "", page: acc.apiPage, orderBy, publicationStatus, contentRating, format })
         });
         acc.hasMore = result.hasNextPage || false;
       }
@@ -298,7 +429,14 @@ function openRandomPickerDrawer() {
 }
 
 function initAdvancedFilters() {
-  applyAdvancedSearchNsfwVisibility();
+  updateAdvancedSearchFilterVisibility(state.currentSourceId);
+
+  const advSourceSel = $("advancedSourceSelect");
+  if (advSourceSel) {
+    advSourceSel.addEventListener("change", () => {
+      updateAdvancedSearchFilterVisibility(advSourceSel.value);
+    });
+  }
 
   // Auto-refresh on dropdown changes
   const dropdownFilters = [

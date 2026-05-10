@@ -20,7 +20,7 @@
 
 .modal-content {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(22, 21, 29, 0.95) 100%);
-  border: 2px solid rgba(145, 63, 226, 0.3);
+  border: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
   border-radius: 12px;
   max-width: 500px;
   width: 90%;
@@ -42,7 +42,7 @@
 
 .modal-header {
   padding: 1.5rem 2rem;
-  border-bottom: 2px solid rgba(145, 63, 226, 0.2);
+  border-bottom: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -51,7 +51,7 @@
 .modal-header h2 {
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--primary-light), #e879f9);
+  background: linear-gradient(135deg, var(--primary-light), color-mix(in srgb, var(--primary-light) 65%, white 35%));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -73,7 +73,7 @@
 }
 
 .modal-close:hover {
-  background: rgba(145, 63, 226, 0.2);
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
   color: var(--text-primary);
 }
 
@@ -112,7 +112,7 @@
 .bulk-chapters-list {
   max-height: 400px;
   overflow-y: auto;
-  border: 2px solid rgba(145, 63, 226, 0.2);
+  border: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
   border-radius: 8px;
   padding: 0.5rem;
 }
@@ -143,7 +143,7 @@
 }
 
 .bulk-chapter-item:hover {
-  background: rgba(145, 63, 226, 0.1);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .bulk-chapter-checkbox {
@@ -176,7 +176,7 @@
 .bulk-progress-bar-wrap {
   width: 100%;
   height: 10px;
-  background: rgba(145, 63, 226, 0.15);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
   border-radius: 99px;
   overflow: hidden;
   margin-bottom: 0.6rem;
@@ -198,7 +198,7 @@
 
 .modal-footer {
   padding: 1.5rem 2rem;
-  border-top: 2px solid rgba(145, 63, 226, 0.2);
+  border-top: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
   display: flex;
   gap: 1rem;
   justify-content: flex-end;

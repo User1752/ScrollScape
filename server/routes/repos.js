@@ -19,6 +19,7 @@ const {
   listAvailableSourcesFromRepos,
   detectRepoKind,
   autoInstallLocalSources,
+  loadSourceFromFile,
 } = require('../sourceLoader');
 
 /**
@@ -32,10 +33,37 @@ function registerRepoRoutes(router) {
       await autoInstallLocalSources();
       const store     = await readStore();
       const available = await listAvailableSourcesFromRepos(store.repos);
+
+      const installedSources = { ...(store.installedSources || {}) };
+      for (const sid of Object.keys(installedSources)) {
+        try {
+          const mod = loadSourceFromFile(sid);
+          installedSources[sid] = {
+            ...installedSources[sid],
+            capabilities: {
+              trending: typeof mod.trending === 'function' && mod.meta?.supportsTrending !== false,
+              recentlyAdded: typeof mod.recentlyAdded === 'function' && mod.meta?.supportsRecentlyAdded !== false,
+              latestUpdates: typeof mod.latestUpdates === 'function' && mod.meta?.supportsLatestUpdates !== false,
+              popularAllTime: mod.meta?.supportsPopularAllTime === true,
+            },
+          };
+        } catch (_) {
+          installedSources[sid] = {
+            ...installedSources[sid],
+            capabilities: {
+              trending: false,
+              recentlyAdded: false,
+              latestUpdates: false,
+              popularAllTime: false,
+            },
+          };
+        }
+      }
+
       res.json({
         repos:            store.repos,
         availableSources: available,
-        installedSources: store.installedSources,
+        installedSources,
       });
     } catch (e) {
       res.status(500).json({ error: e.message });

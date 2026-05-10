@@ -24,6 +24,59 @@
 .chapters-header-actions {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chapters-selection-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-chapter-bulk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.35));
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.btn-chapter-bulk:hover {
+  background: rgba(148, 163, 184, 0.22);
+  color: var(--text-primary);
+}
+
+.btn-chapter-bulk-read {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+
+.btn-chapter-bulk-flag {
+  border-color: rgba(232, 168, 56, 0.45);
+  background: rgba(232, 168, 56, 0.12);
+  color: #e8a838;
+}
+
+.btn-chapter-bulk-save {
+  border-color: rgba(14, 165, 233, 0.45);
+  background: rgba(14, 165, 233, 0.12);
+  color: #0ea5e9;
+}
+
+.chapter-selected-count {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0 0.25rem;
 }
 
 .btn-reverse-chapters {
@@ -168,6 +221,20 @@
   padding-left: calc(2rem - 3px);
 }
 
+.chapter-item.chapter-selected {
+  outline: 1px solid rgba(14, 165, 233, 0.45);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.chapter-item.chapter-current-progress {
+  border-left: 3px solid rgba(56, 189, 248, 0.8);
+  padding-left: calc(1.5rem - 3px);
+}
+
+.chapter-item.chapter-current-progress:hover {
+  padding-left: calc(2rem - 3px);
+}
+
 .chapter-flag-icon {
   font-size: 0.85em;
   vertical-align: middle;
@@ -190,11 +257,38 @@
   color: var(--text-secondary);
 }
 
+.chapter-progress-page {
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
 .chapter-action {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--text-secondary);
+}
+
+.btn-open-chapter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-open-chapter:hover {
+  border-color: rgba(14, 165, 233, 0.5);
+  background: rgba(14, 165, 233, 0.16);
+  color: #0ea5e9;
 }
 
 .read-badge {

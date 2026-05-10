@@ -75,7 +75,7 @@
   border-color: var(--primary);
   color: white;
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(145, 63, 226, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .pagination-ellipsis {
@@ -85,11 +85,14 @@
 }
 
 .btn-continue {
-  background: linear-gradient(135deg, var(--success) 0%, #00a866 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  transition: all 0.3s ease;
 }
 
 .btn-continue:hover:not(:disabled) {
-  box-shadow: 0 8px 20px rgba(0, 208, 132, 0.4);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 40%, transparent);
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 80%, black 20%) 0%, var(--primary-dark) 100%);
 }
 
 @media (max-width: 768px) {

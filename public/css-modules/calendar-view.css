@@ -81,7 +81,7 @@
 
 .cal-cell--today {
   border-color: var(--primary);
-  box-shadow: 0 0 0 1px var(--primary-dark), inset 0 0 12px rgba(145,63,226,0.15);
+  box-shadow: 0 0 0 1px var(--primary-dark), inset 0 0 12px color-mix(in srgb, var(--primary) 15%, transparent);
 }
 .cal-cell--today .cal-day-num {
   color: var(--primary-light);
@@ -89,7 +89,7 @@
 }
 
 .cal-cell--has-releases {
-  background: rgba(145, 63, 226, 0.07);
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
 }
 
 .cal-day-num {
@@ -126,11 +126,11 @@
 .cal-more-btn {
   display: inline-block;
   font-size: .58rem;
-  color: rgba(180,150,255,0.9);
+  color: color-mix(in srgb, var(--primary-light) 74%, white 26%);
   padding: 1px 5px;
   margin-top: 1px;
-  background: rgba(145,63,226,0.12);
-  border: 1px solid rgba(145,63,226,0.28);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
   border-radius: 3px;
   cursor: pointer;
   transition: background .15s, border-color .15s, color .15s;
@@ -139,8 +139,8 @@
   text-align: left;
 }
 .cal-more-btn:hover {
-  background: rgba(145,63,226,0.28);
-  border-color: rgba(145,63,226,0.6);
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 60%, transparent);
   color: #fff;
 }
 
@@ -162,22 +162,22 @@
 }
 
 .cal-release-item:hover {
-  background: rgba(145, 63, 226, 0.28);
-  border-color: rgba(145, 63, 226, 0.4);
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
 /* predicted base */
 .cal-release-item--predicted {
-  border: 1px dashed rgba(145, 63, 226, 0.7);
-  background: rgba(145, 63, 226, 0.1);
+  border: 1px dashed color-mix(in srgb, var(--primary) 70%, transparent);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 .cal-release-item--predicted:hover {
-  background: rgba(145, 63, 226, 0.25);
-  border-color: rgba(145, 63, 226, 0.9);
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 90%, transparent);
   opacity: 1 !important;
 }
 .cal-release-item--predicted .cal-release-chap {
-  color: rgba(200, 170, 255, 0.9);
+  color: color-mix(in srgb, var(--primary-light) 70%, white 30%);
   font-style: italic;
 }
 
@@ -199,11 +199,11 @@
 
 /* upcoming + weekend tints */
 .cal-cell--upcoming {
-  border-color: rgba(145, 63, 226, 0.3);
-  background: rgba(145, 63, 226, 0.05);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
 }
 .cal-cell--upcoming .cal-day-num {
-  color: rgba(180, 140, 255, 0.9);
+  color: color-mix(in srgb, var(--primary-light) 65%, white 35%);
   font-weight: 700;
 }
 /* Sat = column 7 (nth-child mod 7 == 0), Sun = column 1 (mod 7 == 1) after header row */
@@ -252,12 +252,12 @@
   border: 1px solid rgba(255,255,255,0.18);
 }
 .cal-legend-swatch--predicted {
-  background: rgba(145, 63, 226, 0.04);
-  border: 1px dashed rgba(145, 63, 226, 0.5);
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--primary) 50%, transparent);
 }
 .cal-legend-swatch--low {
-  background: rgba(145, 63, 226, 0.04);
-  border: 1px dotted rgba(145, 63, 226, 0.35);
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
+  border: 1px dotted color-mix(in srgb, var(--primary) 35%, transparent);
   opacity: 0.5;
 }
 
@@ -278,14 +278,14 @@
   gap: 5px;
   padding: 2px 7px;
   border-radius: 12px;
-  background: rgba(145, 63, 226, 0.12);
-  border: 1px solid rgba(145, 63, 226, 0.3);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   cursor: pointer;
   transition: background .15s;
   font-size: .64rem;
   flex-shrink: 0;
 }
-.cal-upcoming-chip:hover { background: rgba(145, 63, 226, 0.25); }
+.cal-upcoming-chip:hover { background: color-mix(in srgb, var(--primary) 25%, transparent); }
 .cal-upcoming-chip img {
   width: 16px;
   height: 20px;
@@ -302,7 +302,7 @@
   white-space: nowrap;
 }
 .cal-upcoming-chip-when {
-  color: rgba(180,140,255,0.9);
+  color: color-mix(in srgb, var(--primary-light) 65%, white 35%);
   font-size: .62rem;
   white-space: nowrap;
 }
@@ -314,11 +314,11 @@
 }
 .cal-upcoming-more {
   font-size: .62rem;
-  color: rgba(180,150,255,0.85);
+  color: color-mix(in srgb, var(--primary-light) 62%, white 38%);
   white-space: nowrap;
   padding: 1px 7px;
-  background: rgba(145,63,226,0.1);
-  border: 1px solid rgba(145,63,226,0.22);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
   border-radius: 10px;
   flex-shrink: 0;
 }
@@ -358,7 +358,7 @@
 
 .cal-release-chap {
   font-size: .6rem;
-  color: rgba(210,185,255,0.95);
+  color: color-mix(in srgb, var(--primary-light) 78%, white 22%);
   white-space: nowrap;
   font-weight: 600;
   flex-shrink: 0;
@@ -382,7 +382,7 @@
 }
 
 .btn-cal-nav:hover {
-  background: rgba(145,63,226,0.28);
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
   border-color: var(--primary);
   color: #fff;
 }
@@ -423,7 +423,7 @@
 }
 
 .cal-no-schedule-item:hover {
-  background: rgba(145, 63, 226, 0.18);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
   border-color: var(--primary-dark);
 }
 
@@ -543,7 +543,7 @@
   max-height: 320px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(145,63,226,0.3) transparent;
+  scrollbar-color: color-mix(in srgb, var(--primary) 30%, transparent) transparent;
 }
 .cal-pop-item {
   display: flex;
@@ -557,8 +557,8 @@
   transition: background .15s, border-color .15s;
 }
 .cal-pop-item:hover {
-  background: rgba(145,63,226,0.15);
-  border-color: rgba(145,63,226,0.3);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 .cal-pop-cover {
   width: 30px;
@@ -614,7 +614,7 @@
   border: 1px solid rgba(76,175,80,0.3);
 }
 .cal-pop-badge--predicted {
-  background: rgba(145,63,226,0.18);
-  color: rgba(200,170,255,0.9);
-  border: 1px dashed rgba(145,63,226,0.5);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  color: color-mix(in srgb, var(--primary-light) 70%, white 30%);
+  border: 1px dashed color-mix(in srgb, var(--primary) 50%, transparent);
 }
