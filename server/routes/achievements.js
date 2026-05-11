@@ -14,62 +14,28 @@
 
 'use strict';
 
-const path        = require('path');
-const fsp         = require('fs').promises;
 const { readStore, writeStore } = require('../store');
+const { createAsyncHandler } = require('../modules/http/async-handler');
+const { createAchievementService } = require('../modules/achievements/service');
 
-// achievements.json sits at <project-root>/data/achievements.json
-// __dirname here is <project-root>/server/routes/
-const ACHIEVEMENTS_JSON = path.join(__dirname, '..', '..', 'data', 'achievements.json');
+const asyncHandler = createAsyncHandler('ACHIEVEMENTS');
+const achievementService = createAchievementService({ readStore, writeStore });
 
 /**
  * @param {import('express').Router} router
  */
 function registerAchievementRoutes(router) {
-  // ── GET /api/achievements/definitions ─────────────────────────────────────
-  // Returns the static achievement definitions (categories + achievements).
-  router.get('/api/achievements/definitions', async (_req, res) => {
-    try {
-      const raw  = await fsp.readFile(ACHIEVEMENTS_JSON, 'utf8');
-      const data = JSON.parse(raw);
-      res.json(data);
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+  router.get('/api/achievements/definitions', asyncHandler(async (_req, res) => {
+    res.json(await achievementService.getDefinitions());
+  }));
 
-  // ── GET /api/achievements ──────────────────────────────────────────────────
-  router.get('/api/achievements', async (_req, res) => {
-    try {
-      const store = await readStore();
-      res.json({ achievements: store.achievements });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+  router.get('/api/achievements', asyncHandler(async (_req, res) => {
+    res.json(await achievementService.getAchievements());
+  }));
 
-  // ── POST /api/achievements/unlock ──────────────────────────────────────────
-  router.post('/api/achievements/unlock', async (req, res) => {
-    try {
-      const { achievementId } = req.body || {};
-      if (!achievementId || typeof achievementId !== 'string')
-        return res.status(400).json({ error: 'achievementId (string) required' });
-
-      // Sanitise: allow only safe identifier characters.
-      const safeAchId = achievementId.slice(0, 100).replace(/[^a-z0-9_-]/gi, '_');
-
-      const store = await readStore();
-      const isNew = !store.achievements.includes(safeAchId);
-      if (isNew) {
-        store.achievements.push(safeAchId);
-        await writeStore(store);
-      }
-
-      res.json({ ok: true, isNew, achievements: store.achievements });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+  router.post('/api/achievements/unlock', asyncHandler(async (req, res) => {
+    res.json(await achievementService.unlockAchievement(req.body || {}));
+  }));
 }
 
 module.exports = { registerAchievementRoutes };

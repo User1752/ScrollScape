@@ -36,17 +36,18 @@
 
 ## Quick Start
 
-### Windows — Docker (recommended)
+### Windows — Launcher (recommended)
 ```bat
 ScrollScape.bat
 ```
-Double-click the bat file. It will start Docker Desktop if needed, build the container, and open `http://localhost:3000` automatically.
+Double-click the bat file. It starts `server.js` in the background, opens `http://localhost:3000`, and keeps a small `R` / `Q` launcher menu in the console.
 
 ### Linux / macOS — Docker
 ```bash
 chmod +x scrollscape.sh
 ./scrollscape.sh
 ```
+The Linux/macOS launcher now uses the same boxed R/Q console flow as the Windows launcher, while still running ScrollScape through Docker.
 
 ### Any platform — Node.js
 ```bash
@@ -74,6 +75,11 @@ server/
   store.js                    In-memory store with debounced JSON persistence
   sourceLoader.js             Plugin loading, path-confinement, caching
   middleware/security.js      Security headers + rate limiter
+  modules/
+    local/service.js          Local domain core (catalog + import + offline save/bulk)
+    calendar/service.js       Calendar domain core (MangaDex + prediction)
+    sources/popular-all.js    Aggregation and enrichment for home popular feed
+    downloads/service.js      Single + bulk CBZ generation
   routes/
     proxy.js                  Image proxy + AniList GraphQL relay
     repos.js                  Repository management
@@ -99,7 +105,7 @@ public/
     anilist.js                AniList OAuth, GraphQL, tracker modal
     ui-reader-noise.js        Animated reader wallpaper (canvas grain + GIF/WebP)
     ui-reader-page-rendering.js  Reader show/hide, page rendering, chapter navigation
-    ui-autoscroll-1.js        Webtoon autoscroll, auto-next chapter, chapter prefetch
+    ui-autoscroll.js          Webtoon autoscroll, auto-next chapter, chapter prefetch
     ui-analytics-view.js      Analytics dashboard rendering
     ui-migrate.js             Library migration modal UI
     ui-settings-modal.js      Settings UI (Reading Mode + Reader Appearance cards)
@@ -208,8 +214,8 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 | Repos | `POST /api/repos` · `DELETE /api/repos` |
 | Library | `GET /api/library` · `POST /api/favorites/toggle` · `POST /api/history/add` · `POST /api/library/cover` · `POST /api/library/migrate` |
 | Status & ratings | `GET/POST /api/user/status` · `GET/POST /api/reviews` · `POST /api/ratings/clear` |
-| Downloads | `POST /api/download/chapter` · `POST /api/download/bulk` |
-| Local files | `POST /api/local/import` · `GET /api/local/list` |
+| Downloads | `POST /api/download/chapter` · `POST /api/download/bulk/start` · `GET /api/download/bulk/progress/:jobId` · `GET /api/download/bulk/file/:jobId` |
+| Local files | `POST /api/local/import` · `GET /api/local/list` · `POST /api/local/save-chapter` · `POST /api/local/save-bulk/start` · `GET /api/local/save-bulk/progress/:jobId` |
 | Lists | `GET/POST /api/lists` · `POST/DELETE /api/lists/:id/items` |
 | Analytics | `GET /api/analytics` · `POST /api/analytics/session` |
 | Achievements | `GET /api/achievements` · `POST /api/achievements/unlock` |

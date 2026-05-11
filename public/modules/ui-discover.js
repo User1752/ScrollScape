@@ -9,6 +9,12 @@ const _homeRowRequestSeq = {
   latestUpdates: 0,
 };
 
+const HOME_SOURCE_TIMEOUT_MS = 3500;
+
+function _homeRequestTimeout() {
+  return new Promise(resolve => setTimeout(() => resolve(null), HOME_SOURCE_TIMEOUT_MS));
+}
+
 function _normalizeGenres(raw, max = 3) {
   if (Array.isArray(raw)) {
     return raw
@@ -135,10 +141,14 @@ async function _loadMultiSourceHomeList(method, perSourceLimit = 7, totalLimit =
 
   const settled = await Promise.allSettled(sourceIds.map(async (sid) => {
     try {
-      const result = await api(`/api/source/${sid}/${method}`, {
+      const result = await Promise.race([
+        api(`/api/source/${sid}/${method}`, {
         method: "POST",
         body: JSON.stringify({})
-      });
+        }),
+        _homeRequestTimeout(),
+      ]);
+      if (!result) return [];
       return (result.results || [])
         .filter(m => !(state.settings.hideNsfw && isNsfwManga(m)))
         .slice(0, perSourceLimit)
@@ -260,11 +270,12 @@ function mangaCardHTML(m) {
   const resolvedSourceId = m.sourceId || state.currentSourceId || "";
   const sourceAttr = resolvedSourceId ? ` data-source-id="${escapeHtml(resolvedSourceId)}"` : "";
   const sourceLabel = m.sourceName || (resolvedSourceId ? (state.installedSources?.[resolvedSourceId]?.name || resolvedSourceId) : "");
+  const coverUrl = normalizeImageUrl(m.cover);
   return `
     <div class="manga-card" data-manga-id="${escapeHtml(m.id)}"${sourceAttr}>
       <div class="manga-card-cover">
-        ${m.cover && !m.cover.endsWith('.pdf')
-          ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+        ${coverUrl && !coverUrl.endsWith('.pdf')
+          ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
           : (m.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
         ${sourceLabel ? `<span class="all-pop-source-badge">${escapeHtml(sourceLabel)}</span>` : ""}
       </div>

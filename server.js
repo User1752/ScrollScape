@@ -91,35 +91,9 @@ app.use('/api', rateLimiter(600_000, 6000));
 //    generic /api/source/:id/:method handler or the "local" ID matches the
 //    generic pattern and is passed to loadSourceFromFile, which throws.
 //  • Static files are always last so they never shadow API routes.
-const { registerProxyRoutes }        = require('./server/routes/proxy');
-const { registerRepoRoutes }         = require('./server/routes/repos');
-const { registerLocalRoutes }        = require('./server/routes/local');   // ← before sources
-const { registerSourceRoutes }       = require('./server/routes/sources');
-const { registerLibraryRoutes }      = require('./server/routes/library');
-const { registerDownloadRoutes }     = require('./server/routes/downloads');
-const { registerReviewRoutes }       = require('./server/routes/reviews');
-const { registerListRoutes }         = require('./server/routes/lists');
-const { registerAnalyticsRoutes }    = require('./server/routes/analytics');
-const { registerAchievementRoutes }  = require('./server/routes/achievements');
-const { registerMangaUpdatesRoutes } = require('./server/routes/mangaupdates');
-const { registerCalendarRoutes }     = require('./server/routes/calendar');
-const { registerThemePresetRoutes }  = require('./server/routes/theme-presets');
-const { registerCoverSearchRoutes }  = require('./server/routes/cover-search');
+const { registerAppRoutes } = require('./server/routes/bootstrap');
 
-registerProxyRoutes(app);
-registerRepoRoutes(app);
-registerLocalRoutes(app);
-registerSourceRoutes(app);
-registerLibraryRoutes(app);
-registerDownloadRoutes(app);
-registerReviewRoutes(app);
-registerListRoutes(app);
-registerAnalyticsRoutes(app);
-registerAchievementRoutes(app);
-registerMangaUpdatesRoutes(app);
-registerCalendarRoutes(app);
-registerThemePresetRoutes(app);
-registerCoverSearchRoutes(app);
+registerAppRoutes(app);
 
 // ── Reader wallpapers: list GIF/WebP files from public/ ──────────────────────
 app.get('/api/reader-wallpapers', (_req, res) => {

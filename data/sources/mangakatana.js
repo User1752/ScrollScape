@@ -1,11 +1,53 @@
 const cheerio = require('cheerio');
 
 const BASE = 'https://mangakatana.com';
+const FETCH_TIMEOUT_MS = 12000;
+let nextAllowedAt = 0;
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Referer': BASE
+  'Referer': BASE,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Cache-Control': 'no-cache',
+  'Pragma': 'no-cache'
 };
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function randomBetween(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+async function withSoftTimeout(promise, ms, fallbackValue) {
+  return Promise.race([
+    promise.catch(() => fallbackValue),
+    sleep(ms).then(() => fallbackValue),
+  ]);
+}
+
+function isRateLimitBody(text) {
+  const s = String(text || '').toLowerCase();
+  if (!s.trim()) return true;
+  return s.includes('just a moment') ||
+    s.includes('attention required') ||
+    s.includes('cloudflare') ||
+    s.includes('captcha') ||
+    s.includes('access denied') ||
+    s.includes('too many requests');
+}
+
+function isRateLimitedError(err) {
+  const msg = String(err?.message || '').toLowerCase();
+  return msg.includes('rate limited') ||
+    msg.includes('too many requests') ||
+    msg.includes('http 429') ||
+    msg.includes('just a moment') ||
+    msg.includes('cloudflare') ||
+    msg.includes('empty response');
+}
 
 function proxyImg(url) {
   if (!url) return '';
@@ -13,44 +55,64 @@ function proxyImg(url) {
 }
 
 async function getHtml(url, isPaginated = false) {
-  // Add delay before paginated requests to avoid MangaKatana rate limiting
-  // MangaKatana aggressively blocks rapid pagination requests
-  if (isPaginated) {
-    await new Promise(r => setTimeout(r, 1200));
+  if (Date.now() < nextAllowedAt) {
+    await sleep(nextAllowedAt - Date.now());
   }
-  
-  const maxRetries = 3;
+
+  // MangaKatana aggressively blocks rapid pagination requests.
+  if (isPaginated) {
+    await sleep(randomBetween(1400, 2200));
+  }
+
+  const maxRetries = 5;
   let lastError;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      // Add exponential backoff for retries
+      // Exponential backoff + jitter to avoid burst retries.
       if (attempt > 0) {
-        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1))); // 500ms, 1s
+        const backoff = Math.min(12000, 1000 * Math.pow(2, attempt - 1)) + randomBetween(250, 950);
+        await sleep(backoff);
       }
-      
-      const res = await fetch(url, { headers: HEADERS });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      
-      const text = await res.text();
-      
-      // MangaKatana returns empty response for rapid requests (rate limiting)
-      if (text.length === 0) {
-        lastError = new Error('Empty response (rate limited)');
+
+      const res = await fetch(url, {
+        headers: HEADERS,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+      });
+
+      if (res.status === 429) {
+        lastError = new Error('HTTP 429 (rate limited)');
+        nextAllowedAt = Date.now() + randomBetween(7000, 12000);
         if (attempt < maxRetries - 1) continue;
         throw lastError;
       }
-      
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const text = await res.text();
+
+      // Empty/challenge pages are treated as transient rate limiting.
+      if (isRateLimitBody(text)) {
+        lastError = new Error('Empty/challenge response (rate limited)');
+        nextAllowedAt = Date.now() + randomBetween(7000, 12000);
+        if (attempt < maxRetries - 1) continue;
+        throw lastError;
+      }
+
+      // Small pacing gap after success reduces consecutive burst traffic.
+      nextAllowedAt = Date.now() + randomBetween(400, 900);
       return text;
     } catch (err) {
       lastError = err;
+      if (isRateLimitedError(err)) {
+        nextAllowedAt = Math.max(nextAllowedAt, Date.now() + randomBetween(6000, 10000));
+      }
       if (attempt < maxRetries - 1) {
-        // Retry with exponential backoff
         continue;
       }
     }
   }
-  
+
   throw new Error(`MangaKatana fetch failed after ${maxRetries} attempts: ${lastError.message} (${url})`);
 }
 
@@ -235,7 +297,15 @@ module.exports = {
     }
     const q = encodeURIComponent(query.trim());
     const pageStr = page === 1 ? '' : `page/${page}/`;
-    const html = await getHtml(`${BASE}/${pageStr}?search=${q}&search_by=book_name`, page > 1);
+    let html;
+    try {
+      html = await getHtml(`${BASE}/${pageStr}?search=${q}&search_by=book_name`, page > 1);
+    } catch (err) {
+      if (isRateLimitedError(err)) {
+        return { results: [], hasNextPage: false, temporarilyUnavailable: true };
+      }
+      throw err;
+    }
     const $ = cheerio.load(html);
     const results = parseBookList($);
 
@@ -275,7 +345,15 @@ module.exports = {
 
   async trending(page = 1) {
     // Use only the sidebar HOT MANGA widget from homepage
-    const html = await getHtml(`${BASE}/`);
+    let html;
+    try {
+      html = await getHtml(`${BASE}/`);
+    } catch (err) {
+      if (isRateLimitedError(err)) {
+        return { results: [], hasNextPage: false, temporarilyUnavailable: true };
+      }
+      throw err;
+    }
     const $ = cheerio.load(html);
     const results = parseHotSidebarList($);
     return { results, hasNextPage: false };
@@ -284,7 +362,15 @@ module.exports = {
   async recentlyAdded(page = 1) {
     // Newly added manga at /new-manga
     const pageStr = page === 1 ? '' : `page/${page}/`;
-    const html = await getHtml(`${BASE}/new-manga${pageStr}`, page > 1);
+    let html;
+    try {
+      html = await getHtml(`${BASE}/new-manga${pageStr}`, page > 1);
+    } catch (err) {
+      if (isRateLimitedError(err)) {
+        return { results: [], hasNextPage: false, temporarilyUnavailable: true };
+      }
+      throw err;
+    }
     const $ = cheerio.load(html);
     const results = parseBookList($);
     return { results, hasNextPage: !!$('.next.page-numbers, .pagination .next').length };
@@ -293,17 +379,35 @@ module.exports = {
   async latestUpdates(page = 1) {
     // Latest updated manga at /latest
     const pageStr = page === 1 ? '' : `page/${page}/`;
-    const html = await getHtml(`${BASE}/latest${pageStr}`, page > 1);
+    let html;
+    try {
+      html = await getHtml(`${BASE}/latest${pageStr}`, page > 1);
+    } catch (err) {
+      if (isRateLimitedError(err)) {
+        return { results: [], hasNextPage: false, temporarilyUnavailable: true };
+      }
+      throw err;
+    }
     const $ = cheerio.load(html);
     const results = parseBookList($);
     return { results, hasNextPage: !!$('.next.page-numbers, .pagination .next').length };
   },
 
   async byGenres(genres, orderBy = '', filters = {}, page = 1) {
-    const t = await this.trending(page);
+    const safeGenres = Array.isArray(genres) ? genres : [];
+    const safeFilters = (filters && typeof filters === 'object') ? filters : {};
+    const needsMeta = safeGenres.length > 0 || !!safeFilters.publicationStatus || !!safeFilters.format;
+
+    const fallbackTrending = { results: [], hasNextPage: false, temporarilyUnavailable: true };
+    const t = await withSoftTimeout(this.trending(page), 8500, fallbackTrending);
     let rows = sortLocal(t.results || [], orderBy);
-    rows = await enrichListMeta(rows, 24);
-    rows = applyLocalFilters(rows, genres || [], filters || {});
+
+    if (needsMeta && rows.length > 0) {
+      // Enrich with metadata (maintaining original scope for speed while soft timeout prevents hangs).
+      rows = await withSoftTimeout(enrichListMeta(rows, 8, 3), 12000, rows);
+    }
+
+    rows = applyLocalFilters(rows, safeGenres, safeFilters);
     return { results: rows, hasNextPage: false };
   },
 
@@ -315,7 +419,24 @@ module.exports = {
     mangaId = String(mangaId || '').split('?')[0].split('#')[0].replace(/\/$/, '').trim();
     if (!mangaId) throw new Error('Invalid mangaId');
     const url = `${BASE}/manga/${mangaId}`;
-    const html = await getHtml(url);
+    let html;
+    try {
+      html = await getHtml(url);
+    } catch (err) {
+      if (isRateLimitedError(err)) {
+        return {
+          id: mangaId,
+          title: mangaId,
+          cover: '',
+          description: 'MangaKatana temporarily rate limited this request. Try again in a few seconds.',
+          status: 'unknown',
+          genres: [],
+          author: '',
+          url
+        };
+      }
+      throw err;
+    }
     const $ = cheerio.load(html);
 
     const title = $('h1.heading').text().trim() || mangaId;
@@ -350,7 +471,15 @@ module.exports = {
     mangaId = String(mangaId || '').split('?')[0].split('#')[0].replace(/\/$/, '').trim();
     if (!mangaId) throw new Error('Invalid mangaId');
     const url = `${BASE}/manga/${mangaId}`;
-    const html = await getHtml(url);
+    let html;
+    try {
+      html = await getHtml(url);
+    } catch (err) {
+      if (isRateLimitedError(err)) {
+        return { chapters: [], temporarilyUnavailable: true };
+      }
+      throw err;
+    }
     const $ = cheerio.load(html);
 
     const chapters = [];

@@ -15,6 +15,8 @@
 
 const { isSafeUrl, fetchJson, sha1Short } = require('../helpers');
 const { readStore, writeStore } = require('../store');
+const { createAsyncHandler } = require('../modules/http/async-handler');
+const { createRepoService } = require('../modules/repos/service');
 const {
   listAvailableSourcesFromRepos,
   detectRepoKind,
@@ -22,101 +24,34 @@ const {
   loadSourceFromFile,
 } = require('../sourceLoader');
 
+const asyncHandler = createAsyncHandler('REPOS');
+const repoService = createRepoService({
+  readStore,
+  writeStore,
+  listAvailableSourcesFromRepos,
+  detectRepoKind,
+  autoInstallLocalSources,
+  loadSourceFromFile,
+  isSafeUrl,
+  fetchJson,
+  sha1Short,
+});
+
 /**
  * @param {import('express').Router} router
  */
 function registerRepoRoutes(router) {
-  // ── GET /api/state ─────────────────────────────────────────────────────────
-  router.get('/api/state', async (req, res) => {
-    try {
-      // Keep installedSources in sync with files dropped into data/sources.
-      await autoInstallLocalSources();
-      const store     = await readStore();
-      const available = await listAvailableSourcesFromRepos(store.repos);
+  router.get('/api/state', asyncHandler(async (_req, res) => {
+    res.json(await repoService.getState());
+  }));
 
-      const installedSources = { ...(store.installedSources || {}) };
-      for (const sid of Object.keys(installedSources)) {
-        try {
-          const mod = loadSourceFromFile(sid);
-          installedSources[sid] = {
-            ...installedSources[sid],
-            capabilities: {
-              trending: typeof mod.trending === 'function' && mod.meta?.supportsTrending !== false,
-              recentlyAdded: typeof mod.recentlyAdded === 'function' && mod.meta?.supportsRecentlyAdded !== false,
-              latestUpdates: typeof mod.latestUpdates === 'function' && mod.meta?.supportsLatestUpdates !== false,
-              popularAllTime: mod.meta?.supportsPopularAllTime === true,
-            },
-          };
-        } catch (_) {
-          installedSources[sid] = {
-            ...installedSources[sid],
-            capabilities: {
-              trending: false,
-              recentlyAdded: false,
-              latestUpdates: false,
-              popularAllTime: false,
-            },
-          };
-        }
-      }
+  router.post('/api/repos', asyncHandler(async (req, res) => {
+    res.json(await repoService.addRepo(req.body || {}));
+  }));
 
-      res.json({
-        repos:            store.repos,
-        availableSources: available,
-        installedSources,
-      });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // ── POST /api/repos ────────────────────────────────────────────────────────
-  router.post('/api/repos', async (req, res) => {
-    try {
-      const { url, repoJson } = req.body || {};
-      let repoData, kind, repoUrl;
-
-      if (typeof url === 'string' && url.startsWith('http')) {
-        // SSRF guard: only allow public-internet URLs.
-        if (!isSafeUrl(url)) return res.status(400).json({ error: 'URL is not allowed (private/loopback)' });
-        repoData = await fetchJson(url);
-        repoUrl  = url;
-      } else if (repoJson) {
-        repoData = repoJson;
-        repoUrl  = `localrepo:${sha1Short(JSON.stringify(repoData))}`;
-      } else {
-        return res.status(400).json({ error: 'Valid URL or repoJson required' });
-      }
-
-      kind = detectRepoKind(repoData);
-      if (kind === 'unknown') return res.status(400).json({ error: 'Unrecognised repo format' });
-
-      const store = await readStore();
-      if (!store.repos.some(r => r.url === repoUrl)) {
-        const name = repoData?.name || (kind === 'tachiyomi' ? 'Tachiyomi Repo' : repoUrl);
-        store.repos.push({ url: repoUrl, name, kind });
-        await writeStore(store);
-      }
-
-      res.json({ ok: true, kind });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // ── DELETE /api/repos ──────────────────────────────────────────────────────
-  router.delete('/api/repos', async (req, res) => {
-    try {
-      const { url } = req.query;
-      if (!url) return res.status(400).json({ error: 'url query parameter required' });
-      const store    = await readStore();
-      store.repos    = store.repos.filter(r => r.url !== url);
-      await writeStore(store);
-      res.json({ ok: true });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+  router.delete('/api/repos', asyncHandler(async (req, res) => {
+    res.json(await repoService.deleteRepo(req.query?.url));
+  }));
 }
 
 module.exports = { registerRepoRoutes };

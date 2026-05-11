@@ -72,7 +72,7 @@ async function renderCalendarView() {
     html += `<div class="cal-upcoming-strip">`;
     for (const rel of shown) {
       const title   = escapeHtml(rel.manga?.title || '?');
-      const cover   = rel.manga?.cover ? escapeHtml(rel.manga.cover) : '';
+      const cover   = rel.manga?.cover ? escapeHtml(normalizeImageUrl(rel.manga.cover)) : '';
       const mid     = escapeHtml(rel.manga?.id || '');
       const sid     = escapeHtml(rel.manga?.sourceId || '');
       const chap    = escapeHtml(rel.chapter || '?');
@@ -118,7 +118,7 @@ async function renderCalendarView() {
     for (let ri = 0; ri < releases.length; ri++) {
       const rel         = releases[ri];
       const title       = escapeHtml(rel.manga?.title || "?");
-      const cover       = rel.manga?.cover ? escapeHtml(rel.manga.cover) : "";
+      const cover       = rel.manga?.cover ? escapeHtml(normalizeImageUrl(rel.manga.cover)) : "";
       const chap        = escapeHtml(rel.chapter || "?");
       const mid         = escapeHtml(rel.manga?.id || "");
       const sid         = escapeHtml(rel.manga?.sourceId || "");
@@ -151,7 +151,7 @@ async function renderCalendarView() {
       <div class="cal-no-schedule-list">`;
     for (const m of noSchedule) {
       const title = escapeHtml(m.title || "?");
-      const cover = m.cover ? escapeHtml(m.cover) : "";
+      const cover = m.cover ? escapeHtml(normalizeImageUrl(m.cover)) : "";
       const mid   = escapeHtml(m.id || "");
       const sid   = escapeHtml(m.sourceId || "");
       html += `<div class="cal-no-schedule-item" data-mid="${mid}" data-sid="${sid}">

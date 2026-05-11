@@ -199,7 +199,7 @@ function showListDetailModal(list, onDone = null) {
             <button class="btn-icon btn-icon-delete" data-action="remove-from-list" data-manga-id="${escapeHtml(m.id)}" title="Remove from category">&#x2715;</button>
           </div>
           <div style="display:flex;gap:10px;align-items:center">
-            ${m.cover ? `<img src="${escapeHtml(m.cover)}" alt="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:40px;height:56px;background:var(--bg-tertiary);border-radius:4px;flex-shrink:0"></div>'}
+            ${m.cover ? `<img src="${escapeHtml(normalizeImageUrl(m.cover))}" alt="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:40px;height:56px;background:var(--bg-tertiary);border-radius:4px;flex-shrink:0"></div>'}
             <div>
               <div class="list-card-title" style="font-size:0.9rem">${escapeHtml(m.title || '')}</div>
               ${m.sourceId ? `<div style="font-size:0.75rem;color:var(--text-secondary)">${escapeHtml(m.sourceId)}</div>` : ''}

@@ -31,21 +31,16 @@
 'use strict';
 
 const fs   = require('fs');
-const fsp  = fs.promises;
-const path = require('path');
 const { safeId, fetchJson } = require('./helpers');
 const { readStore, writeStore } = require('./store');
+const { createSourceLoaderCore } = require('./modules/source-loader/core');
 
-// Injected via configure()
-let SOURCES_DIR      = '';
-let SNAP_SOURCES_DIR = '';
-let IS_PKG           = false;
-
-// Per-module require() cache — avoids re-parsing source .js on every API call.
-const sourceCache = new Map();
-
-// In-process TTL cache for remote repo manifests (1 hour).
-const reposCache = new Map();
+const sourceLoaderCore = createSourceLoaderCore({
+  safeId,
+  fetchJson,
+  readStore,
+  writeStore,
+});
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
@@ -53,9 +48,7 @@ const reposCache = new Map();
  * @param {{ sourcesDir: string, snapSourcesDir: string, isPkg: boolean }} opts
  */
 function configure(opts) {
-  SOURCES_DIR      = opts.sourcesDir;
-  SNAP_SOURCES_DIR = opts.snapSourcesDir;
-  IS_PKG           = opts.isPkg;
+  sourceLoaderCore.configure(opts);
 }
 
 // ── Path helpers ─────────────────────────────────────────────────────────────
@@ -70,18 +63,7 @@ function configure(opts) {
  * @returns {string}   Absolute path (may not exist yet for install flows)
  */
 function sourcePath(id) {
-  const userPath     = path.join(SOURCES_DIR, `${id}.js`);
-  const resolvedUser = path.resolve(userPath);
-  const inSources    = resolvedUser.startsWith(path.resolve(SOURCES_DIR) + path.sep);
-  if (inSources && fs.existsSync(resolvedUser)) return resolvedUser;
-
-  if (IS_PKG) {
-    const snapPath = path.resolve(path.join(SNAP_SOURCES_DIR, `${id}.js`));
-    const inSnap   = snapPath.startsWith(path.resolve(SNAP_SOURCES_DIR) + path.sep);
-    if (inSnap && fs.existsSync(snapPath)) return snapPath;
-  }
-  // Return user path — callers that write (install) expect this location.
-  return resolvedUser;
+  return sourceLoaderCore.sourcePath(id);
 }
 
 // ── Module loading ───────────────────────────────────────────────────────────
@@ -95,44 +77,7 @@ function sourcePath(id) {
  * @returns {object}  The source module
  */
 function loadSourceFromFile(id) {
-  if (sourceCache.has(id)) return sourceCache.get(id);
-
-  const p = sourcePath(id);
-  if (!fs.existsSync(p)) throw new Error(`Source not found: ${id}`);
-
-  // Clear the Node require() cache so a freshly-dropped file is picked up.
-  try { delete require.cache[require.resolve(p)]; } catch (_) {}
-
-  let mod;
-  try {
-    mod = require(p);
-  } catch (loadErr) {
-    // Real-FS file may be a stale bytecode copy from an old pkg build.
-    // Fall back to the snapshot path which is always valid bytecode.
-    if (IS_PKG) {
-      const snapPath = path.resolve(path.join(SNAP_SOURCES_DIR, `${id}.js`));
-      if (fs.existsSync(snapPath) && snapPath !== p) {
-        try { delete require.cache[require.resolve(snapPath)]; } catch (_) {}
-        mod = require(snapPath);
-        // Delete the bad real-FS file so the snapshot is used directly next time
-        try { fs.unlinkSync(p); } catch (_) {}
-      } else {
-        throw loadErr;
-      }
-    } else {
-      throw loadErr;
-    }
-  }
-
-  // Contract validation — fail loudly rather than silently returning broken sources.
-  if (!mod?.meta?.id)                         throw new Error('Invalid source: missing meta.id');
-  if (typeof mod.search       !== 'function') throw new Error('Source missing search()');
-  if (typeof mod.mangaDetails !== 'function') throw new Error('Source missing mangaDetails()');
-  if (typeof mod.chapters     !== 'function') throw new Error('Source missing chapters()');
-  if (typeof mod.pages        !== 'function') throw new Error('Source missing pages()');
-
-  sourceCache.set(id, mod);
-  return mod;
+  return sourceLoaderCore.loadSourceFromFile(id);
 }
 
 /**
@@ -141,8 +86,7 @@ function loadSourceFromFile(id) {
  * @param {string} [id]  If omitted, clears the entire cache.
  */
 function clearSourceCache(id) {
-  if (id !== undefined) sourceCache.delete(id);
-  else sourceCache.clear();
+  return sourceLoaderCore.clearSourceCache(id);
 }
 
 // ── Repo helpers ─────────────────────────────────────────────────────────────
@@ -154,10 +98,7 @@ function clearSourceCache(id) {
  * @returns {'jsrepo'|'tachiyomi'|'unknown'}
  */
 function detectRepoKind(data) {
-  if (data?.sources && Array.isArray(data.sources))        return 'jsrepo';
-  if (Array.isArray(data))                                  return 'tachiyomi';
-  if (data?.extensions && Array.isArray(data.extensions))  return 'tachiyomi';
-  return 'unknown';
+  return sourceLoaderCore.detectRepoKind(data);
 }
 
 /**
@@ -169,19 +110,7 @@ function detectRepoKind(data) {
  * @returns {Promise<object>}
  */
 async function getRepoDataWithCache(repo, ttl = 3_600_000) {
-  const cached = reposCache.get(repo.url);
-  if (cached && Date.now() - cached.time < ttl) return cached.data;
-
-  if (repo.url.startsWith('localrepo:')) return { sources: [] };
-
-  try {
-    const data = await fetchJson(repo.url);
-    reposCache.set(repo.url, { data, time: Date.now() });
-    return data;
-  } catch (e) {
-    console.warn(`Failed to load repo ${repo.url}:`, e.message);
-    return cached?.data || {};
-  }
+  return sourceLoaderCore.getRepoDataWithCache(repo, ttl);
 }
 
 /**
@@ -191,34 +120,7 @@ async function getRepoDataWithCache(repo, ttl = 3_600_000) {
  * @returns {Promise<object[]>}
  */
 async function listAvailableSourcesFromRepos(repos) {
-  const sources = [];
-  for (const repo of repos) {
-    try {
-      const data = await getRepoDataWithCache(repo);
-      const kind = repo.kind || detectRepoKind(data);
-      if (kind === 'jsrepo' && data.sources) {
-        for (const s of data.sources) {
-          if (s?.id && s?.name && s?.version && s?.codeUrl && safeId(s.id)) {
-            sources.push({
-              kind:      'js',
-              installable: true,
-              repoUrl:   repo.url,
-              repoName:  repo.name,
-              id:        s.id,
-              name:      s.name,
-              version:   s.version,
-              codeUrl:   s.codeUrl,
-              author:    s.author  || '',
-              icon:      s.icon    || '',
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.warn(`Repo error ${repo.url}:`, e.message);
-    }
-  }
-  return sources;
+  return sourceLoaderCore.listAvailableSourcesFromRepos(repos);
 }
 
 /**
@@ -228,40 +130,7 @@ async function listAvailableSourcesFromRepos(repos) {
  * This enables "just drop a file" installation without going through the UI.
  */
 async function autoInstallLocalSources() {
-  const store = await readStore();
-  const seen  = new Set();
-  const allIds = [];
-
-  const scanDir = (dir) => {
-    if (!fs.existsSync(dir)) return;
-    for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
-      const id = f.replace('.js', '');
-      if (!seen.has(id)) { seen.add(id); allIds.push(id); }
-    }
-  };
-
-  scanDir(SOURCES_DIR);
-  if (IS_PKG) scanDir(SNAP_SOURCES_DIR);
-
-  // Run registrations in parallel for faster startup.
-  await Promise.all(allIds.map(async (id) => {
-    if (store.installedSources[id]) return; // already registered
-    try {
-      const mod = loadSourceFromFile(id);
-      store.installedSources[id] = {
-        id,
-        name:        mod.meta.name    || id,
-        version:     mod.meta.version || '1.0.0',
-        author:      mod.meta.author  || 'Local',
-        icon:        mod.meta.icon    || '',
-        installedAt: new Date().toISOString(),
-      };
-    } catch (e) {
-      console.warn(`⚠ Auto-install failed for ${id}:`, e.message);
-    }
-  }));
-
-  await writeStore(store);
+  return sourceLoaderCore.autoInstallLocalSources();
 }
 
 /**

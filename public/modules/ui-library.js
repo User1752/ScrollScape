@@ -333,11 +333,12 @@ function renderLibrary() {
       : '';
 
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
+    const coverUrl = normalizeImageUrl(manga.cover);
 
     return `
       <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}">
         <div class="library-card-cover">
-          ${manga.cover && !manga.cover.endsWith('.pdf') ? `<img src="${escapeHtml(manga.cover)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
+          ${coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
           ${statusBadge}
           ${chaptersLeftBadge}
           ${sourceLabel}

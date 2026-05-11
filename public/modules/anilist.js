@@ -552,7 +552,7 @@ function _showAnilistSourcePicker(choices) {
       `).join('');
 
       const fallbackCover = item.cover
-        ? `<img src="${escapeHtml(item.cover)}" style="width:36px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">`
+        ? `<img src="${escapeHtml(normalizeImageUrl(item.cover))}" style="width:36px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">`
         : `<div style="width:36px;height:50px;border-radius:6px;background:color-mix(in srgb, var(--primary) 14%, transparent);flex-shrink:0"></div>`;
 
       return `
@@ -964,7 +964,7 @@ async function showTrackerModal(manga) {
         <div class="tracker-sidebar">
           <div class="tracker-sidebar-cover">
             ${currentCover
-              ? `<img src="${escapeHtml(currentCover)}" alt="${escapeHtml(manga.title)}" loading="lazy">`
+              ? `<img src="${escapeHtml(normalizeImageUrl(currentCover))}" alt="${escapeHtml(manga.title)}" loading="lazy">`
               : `<div class="tracker-sidebar-no-cover">?</div>`}
           </div>
           <p class="tracker-sidebar-title">${escapeHtml(manga.title)}</p>
@@ -1042,7 +1042,7 @@ async function showTrackerModal(manga) {
           const cover = m.coverImage?.large || m.coverImage?.medium || '';
           return `<button class="tracker-pick-item" data-id="${m.id}" title="${escapeHtml(title)}">
             <div class="tracker-pick-cover">${cover
-              ? `<img src="${escapeHtml(cover)}" alt="" loading="lazy">`
+              ? `<img src="${escapeHtml(normalizeImageUrl(cover))}" alt="" loading="lazy">`
               : '<div class="tracker-pick-no-cover">?</div>'}
             </div>
             <div class="tracker-pick-info">

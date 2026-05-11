@@ -60,6 +60,7 @@ function renderHistoryView() {
     return;
   }
   container.innerHTML = history.map(m => {
+    const coverUrl = normalizeImageUrl(m.cover);
     const genres = (m.genres || []).slice(0, 3);
     const date   = m.readAt ? new Date(m.readAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }) : "";
     const chapterName = String(m.chapterName || '').trim();
@@ -68,7 +69,7 @@ function renderHistoryView() {
     return `
       <div class="history-item" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(m.sourceId || "")}" data-chapter-id="${escapeHtml(chapterId)}" data-chapter-name="${escapeHtml(chapterName)}">
         <div class="history-cover">
-          ${m.cover && !m.cover.endsWith('.pdf') ? `<img src="${escapeHtml(m.cover)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async">` : (m.cover ? `<div class="no-cover">&#128196;</div>` : `<div class="no-cover">?</div>`)}
+          ${coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async">` : (m.cover ? `<div class="no-cover">&#128196;</div>` : `<div class="no-cover">?</div>`) }
         </div>
         <div class="history-info">
           <h3 class="history-title">${escapeHtml(m.title)}</h3>

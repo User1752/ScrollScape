@@ -3,8 +3,22 @@
 // ============================================================================
 
 let _bookFlipAnimating = false;
-const WIDE_PAGE_RATIO_THRESHOLD = 1.33;
+const WIDE_PAGE_RATIO_THRESHOLD = 1.2;
 const _bookImageMeta = new Map(); // src -> { width, height, isWide }
+
+// Wide pages consume 1 slot (not 2) because they are a single file spanning both panels.
+// Going back: if the page immediately before us is wide it also consumed only 1 slot.
+function _spreadStep(idx, pages) {
+  // Wide at current OR partner slot → consume only 1 slot so partner isn't skipped
+  if (pages[idx]?.isWide) return 1;
+  if (pages[idx + 1]?.isWide) return 1;
+  return 2;
+}
+function _backStep(idx, pages) {
+  if (pages[idx]?.isWide) return 1;          // current is wide
+  if (idx >= 1 && pages[idx - 1]?.isWide) return 1; // prev was wide
+  return 2;
+}
 
 function _cacheBookImageMeta(src, imgLike) {
   if (!src || !imgLike?.naturalWidth || !imgLike?.naturalHeight) return;
@@ -50,45 +64,44 @@ function _prepareBookImages(root = document) {
 
 function getBookSpread(idx, pages) {
   _hydrateWideFlagFromCache(pages[idx]);
+  _hydrateWideFlagFromCache(pages[idx + 1]);
   const page = pages[idx];
-  // Wide (double-page scan): same image fills both panels, each showing one half
+  // Wide page: overlay covers both panels
   if (page?.isWide) {
-    return { right: page.img || null, left: page.img || null, isWide: true };
+    return { right: null, left: null, isWide: true, wideSrc: page.img || null, wideSide: 'right' };
   }
+  // Show both pages normally; step=1 ensures next spread lands on the wide page
   return {
-    right: pages[idx]?.img     || null,
-    left:  pages[idx + 1]?.img || null,
+    right: pages[idx]?.img || null,
+    left: pages[idx + 1]?.img || null,
     isWide: false,
+    wideSide: 'right',
+    wideSrc: null,
   };
 }
 
 // LTR (Western) spread: left = pages[idx], right = pages[idx+1]
 function getLTRSpread(idx, pages) {
   _hydrateWideFlagFromCache(pages[idx]);
+  _hydrateWideFlagFromCache(pages[idx + 1]);
   const page = pages[idx];
   if (page?.isWide) {
-    return { left: page.img || null, right: page.img || null, isWide: true };
+    return { left: null, right: null, isWide: true, wideSrc: page.img || null, wideSide: 'left' };
   }
+  // Show both pages normally; step=1 ensures next spread lands on the wide page
   return {
-    left:  pages[idx]?.img     || null,
+    left: pages[idx]?.img || null,
     right: pages[idx + 1]?.img || null,
     isWide: false,
+    wideSide: 'left',
+    wideSrc: null,
   };
 }
 
-// After rendering a spread, check whether the idx page image is a wide double-page scan.
-// RTL: pages[idx] is on the right panel. LTR: pages[idx] is on the left panel.
-// If wide, mutate both panels in-place to show left/right halves of the same source.
-// After rendering a spread, probe both panel images.
-// If either is landscape (wider than tall) it is a double-page scan —
-// overlay it as ONE full-spread image covering both panels.
-// Inject a full-spread overlay image for a wide (double-page scan) page.
-// The overlay is position:absolute inset:0 on the book-spread, showing
-// the image with object-fit:contain — no per-panel CSS math needed.
-function _injectWideOverlay(src, idx, pages) {
+// Render a wide scan in a full-spread overlay anchored to one side.
+function _injectWideOverlay(src, idx, pages, wideSide = 'right') {
   const spread = document.getElementById('bookSpread');
   if (!spread) return;
-  // Blank both panels
   const sL = document.getElementById('bookLeft');
   const sR = document.getElementById('bookRight');
   if (sL) sL.innerHTML = '<div class="book-page-blank"></div>';
@@ -98,7 +111,7 @@ function _injectWideOverlay(src, idx, pages) {
   document.getElementById('bookWideOverlay')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'bookWideOverlay';
-  overlay.className = 'book-wide-overlay';
+  overlay.className = `book-wide-overlay ${wideSide === 'left' ? 'wide-left' : 'wide-right'}`;
   const img = new Image();
   img.src = src;
   overlay.appendChild(img);
@@ -111,14 +124,12 @@ function _injectWideOverlay(src, idx, pages) {
   if (ctr && total) ctr.textContent = `${idx + 1} / ${total}`;
 }
 
-// Called after a flip completes. If page is already known wide → inject overlay.
-// If not yet known → probe image dimensions async and inject when ready.
+// Called after a flip completes. If new page is wide → inject overlay.
 function _applyWideForCurrentPage(idx, pages) {
   _hydrateWideFlagFromCache(pages[idx]);
   if (pages[idx]?.isWide) {
-    if (!document.getElementById('bookWideOverlay')) {
-      _injectWideOverlay(pages[idx].img, idx, pages);
-    }
+    const wideSide = state.settings.readingMode === 'ltr' ? 'left' : 'right';
+    _injectWideOverlay(pages[idx].img, idx, pages, wideSide);
     return;
   }
   _applyWideSplitIfNeeded(idx, pages);
@@ -126,46 +137,69 @@ function _applyWideForCurrentPage(idx, pages) {
 
 function _applyWideSplitIfNeeded(idx, pages) {
   if (pages[idx]?.isWide) return;
-  const selector = state.settings.readingMode === 'ltr'
-    ? '#bookLeft img.book-page-img'
-    : '#bookRight img.book-page-img';
-  const probe = document.querySelector(selector);
-  if (!probe) return;
+  const isLTR = state.settings.readingMode === 'ltr';
+
+  // Probe the CURRENT page slot (right in RTL, left in LTR)
+  const curSel = isLTR ? '#bookLeft img.book-page-img' : '#bookRight img.book-page-img';
+  // Probe the PARTNER page slot (left in RTL, right in LTR)
+  const parSel = isLTR ? '#bookRight img.book-page-img' : '#bookLeft img.book-page-img';
+  const curProbe = document.querySelector(curSel);
+  const parProbe = document.querySelector(parSel);
   let applied = false;
-  const check = () => {
-    if (applied) return;
-    if (state.currentPageIndex !== idx) return;
-    if (!probe.naturalWidth) return;
-    const ratio = probe.naturalWidth / Math.max(1, probe.naturalHeight);
+
+  // Current page is wide → inject overlay covering both panels
+  const checkCur = () => {
+    if (applied || state.currentPageIndex !== idx || !curProbe?.naturalWidth) return;
+    const ratio = curProbe.naturalWidth / Math.max(1, curProbe.naturalHeight);
     if (ratio < WIDE_PAGE_RATIO_THRESHOLD) return;
     applied = true;
     if (pages[idx]) pages[idx].isWide = true;
-    _cacheBookImageMeta(probe.src, probe);
-    _injectWideOverlay(probe.src, idx, pages);
+    _cacheBookImageMeta(curProbe.src, curProbe);
+    _injectWideOverlay(curProbe.src, idx, pages, isLTR ? 'left' : 'right');
   };
-  if (probe.complete && probe.naturalWidth > 0) check();
-  else probe.addEventListener('load', check, { once: true });
+
+  // Partner page is wide → just mark it; the spread keeps both pages visible.
+  // step=1 (from _spreadStep) ensures next navigation lands on the wide page as overlay.
+  const checkPar = () => {
+    if (applied || state.currentPageIndex !== idx || !parProbe?.naturalWidth) return;
+    const ratio = parProbe.naturalWidth / Math.max(1, parProbe.naturalHeight);
+    if (ratio < WIDE_PAGE_RATIO_THRESHOLD) return;
+    applied = true;
+    const partnerIdx = idx + 1;
+    if (pages[partnerIdx]) pages[partnerIdx].isWide = true;
+    _cacheBookImageMeta(parProbe.src, parProbe);
+    // No re-render: both pages stay visible in this spread (looks normal)
+  };
+
+  if (curProbe) {
+    if (curProbe.complete && curProbe.naturalWidth > 0) checkCur();
+    else curProbe.addEventListener('load', checkCur, { once: true });
+  }
+  if (parProbe) {
+    if (parProbe.complete && parProbe.naturalWidth > 0) checkPar();
+    else parProbe.addEventListener('load', checkPar, { once: true });
+  }
 }
 
 function renderBookSpread() {
   if (!state.currentChapter?.pages) return;
   // PDF: use canvas-based spread
   if (state.currentChapter.isPDF && state.pdfDocument) { renderPDFSpread(true); return; }
-  const pages    = state.currentChapter.pages;
+  const pages = state.currentChapter.pages;
   const pageWrap = $("pageWrap");
   if (!pageWrap) return;
 
-  const idx   = state.currentPageIndex;
+  const idx = state.currentPageIndex;
   const total = pages.length;
 
   const spread = getBookSpread(idx, pages);
-  const { right: rightImg, left: leftImg, isWide } = spread;
+  const { right: rightImg, left: leftImg, isWide, wideSide, wideSrc } = spread;
 
   const zoom = state.zoomLevel ?? 1.0;
   pageWrap.className = 'reader-content reading-mode-rtl' + _sharpClass();
   pageWrap.style.overflow = '';
 
-  const step = isWide ? 1 : 2;
+  const step = _spreadStep(idx, pages);
   const pv = $("prevPage"), nx = $("nextPage");
   const hasNextCh = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
   const hasPrevCh = getPrevChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
@@ -180,15 +214,15 @@ function renderBookSpread() {
   const wrapZoomStyle = '';
 
   // RTL: right panel reads first.
-  // Wide pages: both panels blank, a full-spread overlay is shown instead.
+  // Wide pages: panels stay blank and full-spread overlay is injected.
   const rightHtml = (rightImg && !isWide)
     ? `<img class="book-page-img" src="${escapeHtml(rightImg)}" alt="Page ${idx + 1}">`
     : `<div class="book-page-blank"></div>`;
   const leftHtml = (leftImg && !isWide)
     ? `<img class="book-page-img" src="${escapeHtml(leftImg)}" alt="Page ${idx + 2}">`
     : `<div class="book-page-blank"></div>`;
-  const overlayHtml = isWide && rightImg
-    ? `<div class="book-wide-overlay visible" id="bookWideOverlay"><img src="${escapeHtml(rightImg)}"></div>`
+  const overlayHtml = isWide && wideSrc
+    ? `<div class="book-wide-overlay visible ${wideSide === 'left' ? 'wide-left' : 'wide-right'}" id="bookWideOverlay"><img src="${escapeHtml(wideSrc)}" id="wideOverlayImg"></div>`
     : '';
 
   pageWrap.innerHTML = `
@@ -218,14 +252,14 @@ function attachBookDragEvents() {
 
   let startX = 0;
   let dragSide = null;
-  let active   = false;
+  let active = false;
 
   spread.addEventListener("pointerdown", e => {
     if (e.button && e.pointerType === "mouse") return;
     const rect = spread.getBoundingClientRect();
     dragSide = (e.clientX - rect.left) > rect.width / 2 ? "right" : "left";
-    startX   = e.clientX;
-    active   = true;
+    startX = e.clientX;
+    active = true;
     spread.setPointerCapture(e.pointerId);
   }, { passive: true });
 
@@ -238,15 +272,15 @@ function attachBookDragEvents() {
     const _navigate = state.settings.readingMode === "ltr" ? navigateLTR : navigateBook;
     // RTL (manga): left side = next pages, right side = previous pages
     // LTR: right side = next pages, left side = previous pages
-    if (dragSide === "right" && (dx < -50 || tap))  _navigate(isRTL ? "backward" : "forward");
-    if (dragSide === "left"  && (dx >  50 || tap))  _navigate(isRTL ? "forward"  : "backward");
+    if (dragSide === "right" && (dx < -50 || tap)) _navigate(isRTL ? "backward" : "forward");
+    if (dragSide === "left" && (dx > 50 || tap)) _navigate(isRTL ? "forward" : "backward");
   });
 }
 
 function navigateBook(direction) {
   const pages = state.currentChapter?.pages;
   if (!pages) return;
-  const idx   = state.currentPageIndex;
+  const idx = state.currentPageIndex;
   const total = pages.length;
   let newIdx;
 
@@ -279,14 +313,12 @@ function navigateBook(direction) {
   }
 
   if (direction === "forward") {
-    const step = pages[idx]?.isWide ? 1 : 2;
+    const step = _spreadStep(idx, pages);
     if (idx + step >= total) { _bookFlipAnimating = false; goToNextChapter(); return; }
     newIdx = idx + step;
   } else {
     if (idx === 0) { _bookFlipAnimating = false; goToPrevChapter(); return; }
-    // Step back by 1 if the preceding page is a wide page, else by 2
-    const backStep = pages[idx - 1]?.isWide ? 1 : 2;
-    newIdx = Math.max(0, idx - backStep);
+    newIdx = Math.max(0, idx - _backStep(idx, pages));
   }
 
   if (_bookFlipAnimating) return;
@@ -309,9 +341,9 @@ function navigateBook(direction) {
     state.currentPageIndex = newIdx;
     _bookFlipAnimating = false;
     // Update counter + nav buttons in-place — no DOM rebuild, no flash
-    const total2   = pages.length;
-    const isWide2  = pages[newIdx]?.isWide;
-    const step2    = isWide2 ? 1 : 2;
+    const total2 = pages.length;
+    const isWide2 = pages[newIdx]?.isWide;
+    const step2 = _spreadStep(newIdx, pages);
     const r = newIdx + 1, l = newIdx + 2;
     const ctr = $("pageCounter");
     if (ctr) ctr.textContent = isWide2 ? `${r} / ${total2}` : (l <= total2 ? `${r}-${l} / ${total2}` : `${r} / ${total2}`);
@@ -338,7 +370,7 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
   const newSpread = getSpread(newIdx, pages);
   const newIsWide = newSpread.isWide;
   const nRight = newSpread.right;
-  const nLeft  = newSpread.left;
+  const nLeft = newSpread.left;
   const isForward = direction === "forward";
 
   const sL = document.getElementById("bookLeft");
@@ -348,9 +380,9 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
     src ? `<img class="book-page-img" src="${escapeHtml(src)}">` : `<div class="book-page-blank"></div>`;
 
   // Clone the existing rendered <img> from the panel that is about to flip.
-  const flipPanel   = isForward ? sR : sL;
+  const flipPanel = isForward ? sR : sL;
   const existingImg = flipPanel?.querySelector("img");
-  const frontClone  = existingImg ? existingImg.cloneNode() : null;
+  const frontClone = existingImg ? existingImg.cloneNode() : null;
 
   // Panel UNDER the flipper: hidden by flipper at t=0, loads silently.
   // For wide destination: keep blank — overlay will appear after flip via _applyWideForCurrentPage.
@@ -367,15 +399,15 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
   // ── FLIPPER ────────────────────────────────────────────────────────────────
   const flipper = document.createElement("div");
   Object.assign(flipper.style, {
-    position:        "absolute",
-    top:             "0",
-    width:           w + "px",
-    height:          h + "px",
-    transformStyle:  "preserve-3d",
-    zIndex:          "20",
-    left:            isForward ? w + "px" : "0px",
+    position: "absolute",
+    top: "0",
+    width: w + "px",
+    height: h + "px",
+    transformStyle: "preserve-3d",
+    zIndex: "20",
+    left: isForward ? w + "px" : "0px",
     transformOrigin: isForward ? "left center" : "right center",
-    willChange:      "transform",
+    willChange: "transform",
   });
 
   // ── Front face: the currently visible page (cloned → always loaded) ─────────
@@ -431,15 +463,15 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
   // ── Cast-shadow on the stationary page ─────────────────────────────────────
   const castShadow = document.createElement("div");
   Object.assign(castShadow.style, {
-    position:      "absolute",
-    top:           "0",
-    width:         w + "px",
-    height:        h + "px",
-    left:          isForward ? "0px" : w + "px",
-    zIndex:        "19",
+    position: "absolute",
+    top: "0",
+    width: w + "px",
+    height: h + "px",
+    left: isForward ? "0px" : w + "px",
+    zIndex: "19",
     pointerEvents: "none",
-    opacity:       "0",
-    background:    isForward
+    opacity: "0",
+    background: isForward
       ? "linear-gradient(to left,rgba(0,0,0,0.55) 0%,transparent 65%)"
       : "linear-gradient(to right,rgba(0,0,0,0.55) 0%,transparent 65%)",
   });
@@ -448,8 +480,8 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
 
   // ── RAF animation loop ──────────────────────────────────────────────────────
   const DURATION = 520;
-  let startTime  = null;
-  let done       = false;
+  let startTime = null;
+  let done = false;
   let midUpdated = false; // flag: update opposite panel once at ~50% (hidden by flipper)
 
   function ease(t) {
@@ -461,7 +493,7 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
     if (!startTime) startTime = ts;
 
     const raw = Math.min((ts - startTime) / DURATION, 1);
-    const et  = ease(raw);
+    const et = ease(raw);
     const angle = isForward ? -180 * et : 180 * et;
 
     flipper.style.transform = `rotateY(${angle}deg)`;
@@ -473,7 +505,7 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
       if (!newIsWide) {
         // Normal page: update opposite panel mid-flip while hidden by flipper.
         if (isForward) { if (sL) sL.innerHTML = mkImg(nLeft); }
-        else           { if (sR) sR.innerHTML = mkImg(nRight); }
+        else { if (sR) sR.innerHTML = mkImg(nRight); }
         _prepareBookImages(spread);
       }
       // Wide page: leave panels blank — overlay appears after flip.
@@ -500,7 +532,7 @@ function playBookFlip(direction, oldIdx, newIdx, pages, onComplete, getSpread = 
     // Ensure opposite panel has correct content before handing back
     if (!midUpdated && !newIsWide) {
       if (isForward) { if (sL) sL.innerHTML = mkImg(nLeft); }
-      else           { if (sR) sR.innerHTML = mkImg(nRight); }
+      else { if (sR) sR.innerHTML = mkImg(nRight); }
     }
     _prepareBookImages(spread);
     onComplete();
@@ -640,13 +672,13 @@ async function playPDFFlip(isRTL, direction, oldIdx, newIdx, onComplete) {
   const DURATION = 520;
   let startTime = null, done = false;
 
-  function ease(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+  function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
   function frame(ts) {
     if (done) return;
     if (!startTime) startTime = ts;
     const raw = Math.min((ts - startTime) / DURATION, 1);
-    const et  = ease(raw);
+    const et = ease(raw);
     flipper.style.transform = `rotateY(${isAnimForward ? -180 * et : 180 * et}deg)`;
     const peak = Math.sin(et * Math.PI);
     curlShadow.style.opacity = (peak * 0.90).toFixed(3);

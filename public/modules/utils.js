@@ -30,6 +30,21 @@ function escapeHtml(s) {
 }
 
 /**
+ * Normalise image URLs for browser rendering.
+ * Upgrades insecure http:// image URLs to https:// to satisfy CSP and avoid
+ * mixed/insecure asset warnings for persisted legacy covers.
+ *
+ * @param {*} url
+ * @returns {string}
+ */
+function normalizeImageUrl(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (value.startsWith('http://')) return `https://${value.slice(7)}`;
+  return value;
+}
+
+/**
  * Format a duration in minutes as a human-readable string.
  * Examples: 45 → "45m", 90 → "1h 30m", 120 → "2h"
  *

@@ -16,13 +16,13 @@ function renderLTRSpread() {
   const total = pages.length;
 
   const spread = getLTRSpread(idx, pages);
-  const { left: leftImg, right: rightImg, isWide } = spread;
+  const { left: leftImg, right: rightImg, isWide, wideSide, wideSrc } = spread;
 
   const zoom = state.zoomLevel ?? 1.0;
   pageWrap.className = 'reader-content reading-mode-ltr' + _sharpClass();
   pageWrap.style.overflow = '';
 
-  const step = isWide ? 1 : 2;
+  const step = _spreadStep(idx, pages);
   const pv = $("prevPage"), nx = $("nextPage");
   const hasNextCh = getNextChapterIndex(state.currentChapterIndex) >= 0 && getNextChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
   const hasPrevCh = getPrevChapterIndex(state.currentChapterIndex) < (state.allChapters?.length || 0);
@@ -36,15 +36,15 @@ function renderLTRSpread() {
 
   const wrapZoomStyle = '';
 
-  // Wide pages: both panels blank, full-spread overlay shown instead.
-  const leftHtml = (leftImg && !isWide)
+  // Wide pages: panels stay blank and full-spread overlay is injected.
+  const leftHtml = (!isWide && leftImg)
     ? `<img class="book-page-img" src="${escapeHtml(leftImg)}" alt="Page ${idx + 1}">`
     : `<div class="book-page-blank"></div>`;
-  const rightHtml = (rightImg && !isWide)
+  const rightHtml = (!isWide && rightImg)
     ? `<img class="book-page-img" src="${escapeHtml(rightImg)}" alt="Page ${idx + 2}">`
     : `<div class="book-page-blank"></div>`;
-  const overlayHtml = isWide && leftImg
-    ? `<div class="book-wide-overlay visible" id="bookWideOverlay"><img src="${escapeHtml(leftImg)}"></div>`
+  const overlayHtml = isWide && wideSrc
+    ? `<div class="book-wide-overlay visible ${wideSide === 'left' ? 'wide-left' : 'wide-right'}" id="bookWideOverlay"><img src="${escapeHtml(wideSrc)}" id="wideOverlayImg"></div>`
     : '';
 
   pageWrap.innerHTML = `
@@ -103,13 +103,12 @@ function navigateLTR(direction) {
   }
 
   if (direction === "forward") {
-    const step = pages[idx]?.isWide ? 1 : 2;
+    const step = _spreadStep(idx, pages);
     if (idx + step >= total) { _ltrFlipAnimating = false; goToNextChapter(); return; }
     newIdx = idx + step;
   } else {
     if (idx === 0) { _ltrFlipAnimating = false; goToPrevChapter(); return; }
-    const backStep = pages[idx - 1]?.isWide ? 1 : 2;
-    newIdx = Math.max(0, idx - backStep);
+    newIdx = Math.max(0, idx - _backStep(idx, pages));
   }
 
   if (_ltrFlipAnimating) return;
@@ -130,7 +129,7 @@ function navigateLTR(direction) {
     _ltrFlipAnimating = false;
     const total2   = pages.length;
     const isWide2  = pages[newIdx]?.isWide;
-    const step2    = isWide2 ? 1 : 2;
+    const step2    = _spreadStep(newIdx, pages);
     const l = newIdx + 1, r = newIdx + 2;
     const ctr = $("pageCounter");
     if (ctr) ctr.textContent = isWide2 ? `${l} / ${total2}` : (r <= total2 ? `${l}-${r} / ${total2}` : `${l} / ${total2}`);
