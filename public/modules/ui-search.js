@@ -428,11 +428,22 @@ async function searchSourceCoverChoices(query, sourceId, page = 1) {
   };
 }
 
-async function searchCoverChoices(query, sourceId, page = 1) {
+async function searchCoverChoices(query, sourceId, page = 1, mode = 'sources') {
   const sourceIds = _coverPickerSourceIds(sourceId);
+  const otherSourceIds = sourceIds.filter(sid => sid !== sourceId);
+
+  if (mode === 'google') {
+    const google = await searchGoogleCoverChoices(query, page, 14).catch(() => ({ items: [], hasNextPage: false }));
+    return {
+      items: google.items || [],
+      hasNextPage: !!google.hasNextPage,
+      sourceLabels: ['Google Images'],
+    };
+  }
+
   const jobs = [
     searchAniListCoverChoices(query, page, 8).catch(() => ({ items: [], hasNextPage: false })),
-    ...sourceIds.map(sid => searchSourceCoverChoices(query, sid, page).catch(() => ({ items: [], hasNextPage: false }))),
+    ...otherSourceIds.map(sid => searchSourceCoverChoices(query, sid, page).catch(() => ({ items: [], hasNextPage: false }))),
   ];
   const results = await Promise.all(jobs);
   const deduped = [];
@@ -448,7 +459,26 @@ async function searchCoverChoices(query, sourceId, page = 1) {
   return {
     items: deduped,
     hasNextPage: results.some(block => block?.hasNextPage),
-    sourceLabels: ['AniList', ...sourceIds.map(sid => state.installedSources[sid]?.name || sid)],
+    sourceLabels: ['AniList', ...otherSourceIds.map(sid => state.installedSources[sid]?.name || sid)],
+  };
+}
+
+async function searchGoogleCoverChoices(query, page = 1, count = 14) {
+  const start = Math.max(0, (page - 1) * count);
+  const url = `/api/cover/google-images?q=${encodeURIComponent(query)}&start=${start}&count=${count}`;
+  const result = await api(url);
+  const items = Array.isArray(result?.items) ? result.items : [];
+  return {
+    items: items
+      .filter(item => item && item.cover)
+      .map(item => ({
+        id: item.id,
+        title: item.title || query,
+        cover: item.cover,
+        provider: item.provider || 'Google Images',
+        sourceId: 'google-images',
+      })),
+    hasNextPage: !!result?.hasNextPage,
   };
 }
 
@@ -465,6 +495,8 @@ function openMangaCoverPicker(manga, options = {}) {
   }
 
   document.getElementById('coverPickerModal')?.remove();
+  document.documentElement.classList.remove('cover-picker-open');
+  document.body.classList.remove('cover-picker-open');
   const modal = document.createElement('div');
   modal.id = 'coverPickerModal';
   modal.className = 'settings-modal';
@@ -482,18 +514,14 @@ function openMangaCoverPicker(manga, options = {}) {
           </div>
           <div class="cover-picker-actions">
             ${sourceCover ? `<button class="btn btn-secondary" id="coverPickerUseSource">Use Source Cover</button>` : ''}
-            <button class="btn btn-secondary" id="coverPickerGoogle">Search on Google Images</button>
-          </div>
-          <div class="cover-picker-custom">
-            <label for="coverPickerUrlInput">Custom image URL</label>
-            <input id="coverPickerUrlInput" class="input" type="url" placeholder="https://...">
-            <button class="btn" id="coverPickerApplyUrl">Apply Custom URL</button>
+            <button class="btn btn-secondary" id="coverPickerSearchSources">Search other sources</button>
+            <button class="btn btn-secondary" id="coverPickerGoogle">Search Google Images</button>
           </div>
         </div>
         <div class="cover-picker-column cover-picker-column-wide">
           <div class="cover-picker-search-bar">
             <input id="coverPickerSearchInput" class="input cover-picker-search-input" type="search" value="${escapeHtml(title)}" placeholder="Search covers...">
-            <button class="btn" id="coverPickerSearchBtn">Search</button>
+            <button class="btn" id="coverPickerSearchRun">Search</button>
           </div>
           <p class="cover-picker-label">Search results</p>
           <div class="cover-picker-search-meta muted" id="coverPickerSearchMeta"></div>
@@ -506,14 +534,23 @@ function openMangaCoverPicker(manga, options = {}) {
     </div>`;
 
   document.body.appendChild(modal);
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  document.getElementById('coverPickerClose').onclick = () => modal.remove();
+  document.documentElement.classList.add('cover-picker-open');
+  document.body.classList.add('cover-picker-open');
+
+  const closePicker = () => {
+    document.documentElement.classList.remove('cover-picker-open');
+    document.body.classList.remove('cover-picker-open');
+    modal.remove();
+  };
+
+  modal.onclick = (e) => { if (e.target === modal) closePicker(); };
+  document.getElementById('coverPickerClose').onclick = closePicker;
 
   const closeAfterApply = async (coverUrl) => {
     if (!coverUrl) return;
     try {
       await persistMangaCover(mangaId, sourceId, coverUrl);
-      modal.remove();
+      closePicker();
       showToast('Cover updated', 'Saved to your library data.', 'success');
     } catch (e) {
       showToast('Cover error', e.message, 'error');
@@ -529,6 +566,7 @@ function openMangaCoverPicker(manga, options = {}) {
   const loadMoreBtn = document.getElementById('coverPickerLoadMore');
   const pickerState = {
     query: title,
+    mode: 'sources',
     page: 1,
     seen: new Set(),
     hasNextPage: false,
@@ -570,10 +608,11 @@ function openMangaCoverPicker(manga, options = {}) {
     } else {
       pickerState.page += 1;
     }
-    metaEl.textContent = `Searching in AniList + installed sources for "${nextQuery}"...`;
+    const modeLabel = pickerState.mode === 'google' ? 'Google Images' : 'AniList + other sources';
+    metaEl.textContent = `Searching ${modeLabel} for "${nextQuery}"...`;
     updateLoadMoreVisibility();
     try {
-      const data = await searchCoverChoices(nextQuery, sourceId, pickerState.page);
+      const data = await searchCoverChoices(nextQuery, sourceId, pickerState.page, pickerState.mode);
       const fresh = (data.items || []).filter(choice => {
         const key = _coverChoiceKey(choice);
         if (pickerState.seen.has(key)) return false;
@@ -602,20 +641,19 @@ function openMangaCoverPicker(manga, options = {}) {
   }
 
   document.getElementById('coverPickerGoogle').onclick = () => {
-    const q = encodeURIComponent(`${title} manga cover`);
-    window.open(`https://www.google.com/search?tbm=isch&q=${q}`, '_blank', 'noopener,noreferrer');
+    pickerState.mode = 'google';
+    const base = (searchInput?.value || title || '').trim();
+    const q = /cover/i.test(base) ? base : `${base} manga cover`;
+    if (searchInput) searchInput.value = q;
+    runCoverSearch(true);
   };
 
-  document.getElementById('coverPickerApplyUrl').onclick = () => {
-    const raw = document.getElementById('coverPickerUrlInput')?.value?.trim() || '';
-    if (!/^https?:\/\//i.test(raw)) {
-      showToast('Invalid URL', 'Use a public http/https image URL.', 'warning');
-      return;
-    }
-    closeAfterApply(raw);
+  document.getElementById('coverPickerSearchSources').onclick = () => {
+    pickerState.mode = 'sources';
+    runCoverSearch(true);
   };
 
-  document.getElementById('coverPickerSearchBtn').onclick = () => runCoverSearch(true);
+  document.getElementById('coverPickerSearchRun').onclick = () => runCoverSearch(true);
   searchInput?.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
@@ -781,8 +819,17 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
     $("trackerBtn").onclick = () => showTrackerModal(result);
     const detailCoverTrigger = $("details")?.querySelector('.cover-picker-trigger');
     if (detailCoverTrigger) {
-      detailCoverTrigger.title = 'Click to change cover';
+      detailCoverTrigger.title = 'Left click or right click to change cover';
       detailCoverTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openMangaCoverPicker(result, {
+          sourceId: state.currentSourceId,
+          sourceCover: result._sourceCover,
+          currentCover: result.cover,
+        });
+      });
+      detailCoverTrigger.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
         openMangaCoverPicker(result, {

@@ -522,7 +522,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
       else if (isCurrent) cellStyle += 'color:var(--primary);font-weight:600;';
       else           cellStyle += 'color:var(--text-muted);';
       const label = count !== null ? String(count) : '—';
-      const crown = isBest && !isCurrent ? ' 👑' : '';
+      const crown = isBest && !isCurrent ? ' *' : '';
 
       if (isCurrent) {
         return `<td style="${cellStyle}">${label}${crown}</td>`;
@@ -568,7 +568,7 @@ function _migrateShowStep3Table(modal, results, allSources) {
     <div class="settings-body" style="padding-bottom:0">
       <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:0.75rem">
         Chapter counts show the top search result per source.
-        <span style="color:#7cfc88">Green / 👑</span> = most chapters.
+        <span style="color:#7cfc88">Green / *</span> = most chapters.
         Current source highlighted in <span style="color:var(--primary)">purple</span>. Only one checkbox per manga row.
       </p>
       <div style="overflow-x:auto;max-height:78vh;overflow-y:auto;border:1px solid color-mix(in srgb, var(--primary) 16%, transparent);border-radius:10px">

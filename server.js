@@ -104,6 +104,7 @@ const { registerAchievementRoutes }  = require('./server/routes/achievements');
 const { registerMangaUpdatesRoutes } = require('./server/routes/mangaupdates');
 const { registerCalendarRoutes }     = require('./server/routes/calendar');
 const { registerThemePresetRoutes }  = require('./server/routes/theme-presets');
+const { registerCoverSearchRoutes }  = require('./server/routes/cover-search');
 
 registerProxyRoutes(app);
 registerRepoRoutes(app);
@@ -118,6 +119,7 @@ registerAchievementRoutes(app);
 registerMangaUpdatesRoutes(app);
 registerCalendarRoutes(app);
 registerThemePresetRoutes(app);
+registerCoverSearchRoutes(app);
 
 // ── Reader wallpapers: list GIF/WebP files from public/ ──────────────────────
 app.get('/api/reader-wallpapers', (_req, res) => {
@@ -201,8 +203,8 @@ ensureDirs()
 
     function startServer(port, attempt = 0) {
       const server = app.listen(port, host, () => {
-        console.log(`🎌 ScrollScape running on http://localhost:${port}`);
-        console.log(`📚 Sources auto-installed!`);
+        console.log(`[OK] ScrollScape running on http://localhost:${port}`);
+        console.log(`[OK] Sources auto-installed!`);
         if (IS_PKG) openBrowser(`http://localhost:${port}`);
       });
 
