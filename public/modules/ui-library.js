@@ -1,3 +1,50 @@
+// ── Sources Modal ─────────────────────────────────────────────────────────
+function showSourcesModal() {
+  const modal = document.createElement('div');
+  modal.className = 'settings-modal';
+  const allSources = Object.values(state.installedSources || {});
+  const visible = Array.isArray(state.settings.visibleSources) ? state.settings.visibleSources : allSources.map(s => s.id);
+  modal.innerHTML = `
+    <div class="settings-content" style="max-width:400px">
+      <div class="settings-header">
+        <h2>Visible Sources</h2>
+        <button class="btn secondary" id="closeSourcesModal">&times;</button>
+      </div>
+      <div class="settings-body">
+        <form id="sourcesForm">
+          ${allSources.map(src => `
+            <label style="display:flex;align-items:center;margin-bottom:0.5rem;gap:0.5em">
+              <input type="checkbox" name="sources" value="${src.id}" ${visible.includes(src.id) ? 'checked' : ''}>
+              <span>${src.name || src.id}</span>
+            </label>
+          `).join('')}
+        </form>
+        <div style="margin-top:1.2em;display:flex;gap:1em;justify-content:flex-end">
+          <button class="btn secondary" id="cancelSourcesModal">Cancel</button>
+          <button class="btn primary" id="saveSourcesModal">Save</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  document.getElementById('closeSourcesModal').onclick = () => modal.remove();
+  document.getElementById('cancelSourcesModal').onclick = e => { e.preventDefault(); modal.remove(); };
+  document.getElementById('saveSourcesModal').onclick = e => {
+    e.preventDefault();
+    const checked = Array.from(modal.querySelectorAll('input[name="sources"]:checked')).map(cb => cb.value);
+    state.settings.visibleSources = checked;
+    localStorage.setItem('scrollscape_settings', JSON.stringify(state.settings));
+    modal.remove();
+    renderLibrary();
+    if (typeof window.loadPopularToday === 'function') window.loadPopularToday();
+    if (typeof window.loadRecentlyAdded === 'function') window.loadRecentlyAdded();
+    if (typeof window.loadLatestUpdates === 'function') window.loadLatestUpdates();
+  };
+}
+// Add event listener for the Sources button after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnSources')?.addEventListener('click', showSourcesModal);
+});
 // ============================================================================
 // LIBRARY RENDERING
 // ============================================================================
@@ -229,9 +276,12 @@ function renderLibrary() {
     }
   }
 
+  const visibleSources = Array.isArray(state.settings.visibleSources)
+    ? state.settings.visibleSources
+    : Object.keys(state.installedSources || {});
   let favs = state.favorites.filter(manga => {
+    if (!visibleSources.includes(manga.sourceId)) return false;
     if (hideNsfw && _isNsfwEnriched(manga)) return false;
-
     if (filterVal !== "all") {
       const key    = _libStatusKey(manga.id, manga.sourceId);
       const status = state.readingStatus[key]?.status;
