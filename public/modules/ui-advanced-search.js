@@ -138,8 +138,8 @@ function _inferContentRating(manga) {
   if (['safe', 'suggestive', 'erotica', 'pornographic'].includes(explicit)) return explicit;
 
   const tags = new Set((Array.isArray(manga?.genres) ? manga.genres : []).map(g => String(g).toLowerCase()));
-  if (tags.has('hentai') || tags.has('smut') || tags.has('mature') || tags.has('adult')) return 'erotica';
-  if (tags.has('ecchi') || tags.has('suggestive')) return 'suggestive';
+  if (tags.has('hentai') || tags.has('smut') || tags.has('mature') || tags.has('adult') || tags.has('ecchi')) return 'erotica';
+  if (tags.has('suggestive')) return 'suggestive';
   return 'safe';
 }
 
@@ -158,6 +158,12 @@ function _normalizeStatus(value) {
  */
 function _applyAdvFilters(results, query, selectedGenres, publicationStatus, contentRating, format) {
   let out = results;
+  const hideNsfw = state.settings.hideNsfw === true;
+
+  if (hideNsfw) {
+    out = out.filter(m => !isNsfwManga(m));
+  }
+
   if (query) {
     const q = query.toLowerCase();
     out = out.filter(m => (m.title || "").toLowerCase().includes(q));

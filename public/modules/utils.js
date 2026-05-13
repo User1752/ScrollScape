@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // UTILITIES
 // Stateless helper functions shared across the entire frontend.
 // No dependencies on state, navigation, or i18n.
@@ -31,8 +31,9 @@ function escapeHtml(s) {
 
 /**
  * Normalise image URLs for browser rendering.
- * Upgrades insecure http:// image URLs to https:// to satisfy CSP and avoid
- * mixed/insecure asset warnings for persisted legacy covers.
+ * - Upgrades insecure http:// image URLs to https://.
+ * - Routes AllManga CDN images through the local proxy (they require a
+ *   Referer: https://allmanga.to header that the browser won't send on its own).
  *
  * @param {*} url
  * @returns {string}
@@ -40,6 +41,13 @@ function escapeHtml(s) {
 function normalizeImageUrl(url) {
   const value = String(url || '').trim();
   if (!value) return '';
+  // Already routed through our proxy — leave as-is.
+  if (value.startsWith('/api/proxy-image')) return value;
+  // AllManga CDN images need a Referer header; proxy them server-side.
+  if (value.includes('wp.youtube-anime.com') || value.includes('aln.youtube-anime.com')) {
+    const ref = encodeURIComponent('https://allmanga.to');
+    return `/api/proxy-image?url=${encodeURIComponent(value)}&ref=${ref}`;
+  }
   if (value.startsWith('http://')) return `https://${value.slice(7)}`;
   return value;
 }
@@ -86,7 +94,16 @@ const NSFW_TAGS = new Set([
   'erotica',
   'suggestive',
   'pornographic',
-  'sexual violence'
+  'sexual violence',
+  'monster girl',
+  'netorare',
+  'ntr',
+  'bdsm',
+  'doujin',
+  'yuri h',
+  'girls love',
+  'yuri',
+  'yaoi'
 ]);
 
 const NSFW_TEXT_HINTS = [
@@ -113,7 +130,10 @@ const NSFW_TEXT_HINTS = [
   'ahegao',
   'yuri h',
   'doujin',
-  'lewdness'
+  'lewdness',
+  'girls love',
+  'yuri',
+  'yaoi'
 ];
 
 function normalizeTagValue(tag) {

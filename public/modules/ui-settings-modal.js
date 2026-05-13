@@ -551,7 +551,16 @@ function showSettings() {
         advancedSearch(1);
       }
 
-      renderLibrary();
+      // Atualizar todas as views principais
+      if (typeof renderLibrary === 'function') renderLibrary();
+      if (typeof renderCalendarView === 'function') renderCalendarView();
+      // Atualiza Discover (home rows)
+      if (typeof window.loadPopularToday === 'function') window.loadPopularToday();
+      if (typeof window.loadRecentlyAdded === 'function') window.loadRecentlyAdded();
+      if (typeof window.loadLatestUpdates === 'function') window.loadLatestUpdates();
+      // Atualiza Search se estiver visível
+      const searchView = document.querySelector('#view-search');
+      if (searchView && !searchView.classList.contains('hidden') && typeof window.search === 'function') window.search(1);
     };
   }
 

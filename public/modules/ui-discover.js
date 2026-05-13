@@ -184,7 +184,7 @@ async function _loadMultiSourceHomeList(method, perSourceLimit = 7, totalLimit =
   return merged;
 }
 
-async function loadPopularToday() {
+window.loadPopularToday = async function loadPopularToday() {
   const reqSeq = ++_homeRowRequestSeq.popularToday;
   const row = $("popularRow");
   if (!row) return;
@@ -218,7 +218,7 @@ async function loadPopularToday() {
   }
 }
 
-async function loadRecentlyAdded() {
+window.loadRecentlyAdded = async function loadRecentlyAdded() {
   const reqSeq = ++_homeRowRequestSeq.recentlyAdded;
   const row = $("recentlyAddedRow");
   if (!row) return;
@@ -246,7 +246,7 @@ async function loadRecentlyAdded() {
   }
 }
 
-async function loadLatestUpdates() {
+window.loadLatestUpdates = async function loadLatestUpdates() {
   const reqSeq = ++_homeRowRequestSeq.latestUpdates;
   const row = $("latestUpdatesRow");
   if (!row) return;

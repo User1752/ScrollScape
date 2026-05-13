@@ -168,7 +168,7 @@ function advSearchGoToPage(page) {
 }
 
 // ── Main search ─────────────────────────────────────────────────────────────
-async function search(page = 1) {
+window.search = async function search(page = 1) {
   const query = $("searchInput").value.trim();
   const dropdown = $("searchDropdown");
   if (!state.currentSourceId) { $("searchStatus").textContent = "Select a source first."; return; }
@@ -510,7 +510,7 @@ function openMangaCoverPicker(manga, options = {}) {
         <div class="cover-picker-column">
           <p class="cover-picker-label">Current cover</p>
           <div class="cover-picker-current">
-            ${currentCover ? `<img src="${escapeHtml(currentCover)}" alt="${escapeHtml(title)}">` : `<div class="no-cover">?</div>`}
+            ${currentCover ? `<img src="${escapeHtml(normalizeImageUrl(currentCover))}" alt="${escapeHtml(title)}">` : `<div class="no-cover">?</div>`}
           </div>
           <div class="cover-picker-actions">
             ${sourceCover ? `<button class="btn btn-secondary" id="coverPickerUseSource">Use Source Cover</button>` : ''}
@@ -696,7 +696,7 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
         ${result.cover && !result.cover.endsWith('.pdf') ? `
           <div class="manga-cover">
             <button type="button" class="cover-anilist-link cover-picker-trigger" title="Change cover">
-              <img src="${escapeHtml(result.cover)}" alt="${escapeHtml(result.title)}">
+              <img src="${escapeHtml(normalizeImageUrl(result.cover))}" alt="${escapeHtml(result.title)}">
               <div class="cover-anilist-hint">Change Cover</div>
             </button>
           </div>` : (result.cover ? `<div class="manga-cover"><div class="no-cover" style="height:100%;font-size:4rem;">&#128196;</div></div>` : "")}

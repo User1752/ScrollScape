@@ -237,7 +237,11 @@ async function loadRecommendations() {
   const row     = $("recommendedRow");
   if (!section || !row) return;
 
-  const installedSourceIds = Object.keys(state.installedSources);
+  let installedSourceIds = Object.keys(state.installedSources);
+  // Respeitar configuração de fontes selecionadas na home
+  if (state.settings.homeSourceMode === 'selected' && Array.isArray(state.settings.homeSelectedSourceIds) && state.settings.homeSelectedSourceIds.length > 0) {
+    installedSourceIds = installedSourceIds.filter(sid => state.settings.homeSelectedSourceIds.includes(sid));
+  }
   if (installedSourceIds.length === 0) return;
 
   // Build genre profile from history (weighted 2x) + favorites (weighted 1x)
@@ -311,12 +315,17 @@ async function loadRecommendations() {
     }
   }
   const seenTitles = new Set();
-  const list = interleaved.filter(m => {
+  let filtered = interleaved.filter(m => {
     const key = m.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30);
     if (seenTitles.has(key)) return false;
     seenTitles.add(key);
     return true;
-  }).slice(0, 24);
+  });
+  // Universal NSFW filter: só filtra se hideNsfw estiver ativado
+  if (state.settings.hideNsfw === true) {
+    filtered = filtered.filter(m => !isNsfwManga(m));
+  }
+  const list = filtered.slice(0, 24);
 
   if (!list.length) return;
   section.style.display = "block";

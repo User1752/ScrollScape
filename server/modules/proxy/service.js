@@ -1,6 +1,6 @@
 'use strict';
 
-const ALLOWED_IMAGE_CT = /^(image\/(jpeg|png|gif|webp|avif|bmp|svg\+xml)|application\/octet-stream)/i;
+const ALLOWED_IMAGE_CT = /^(image\/|application\/octet-stream)/i;
 
 function createProxyService({ isSafeUrl }) {
   async function proxyAniList({ query, variables } = {}, authorizationHeader) {
@@ -49,15 +49,26 @@ function createProxyService({ isSafeUrl }) {
       throw err;
     }
 
-    const upstreamCt = imgRes.headers.get('content-type') || '';
-    if (!ALLOWED_IMAGE_CT.test(upstreamCt)) {
+
+
+    let upstreamCt = imgRes.headers.get('content-type') || '';
+    let finalCt = upstreamCt.split(';')[0].trim();
+    const isImage = /^image\//i.test(finalCt);
+    const isOctet = /octet-stream|binary/i.test(finalCt);
+    const isKnownExt = /\.(jpg|jpeg|png|webp|gif)([?#].*)?$/i.test(url);
+    // Se a extensão for de imagem (mesmo com query string), sempre aceita e força o tipo correto
+    if (isKnownExt) {
+      if (/\.png([?#].*)?$/i.test(url)) finalCt = 'image/png';
+      else if (/\.webp([?#].*)?$/i.test(url)) finalCt = 'image/webp';
+      else if (/\.gif([?#].*)?$/i.test(url)) finalCt = 'image/gif';
+      else finalCt = 'image/jpeg';
+    } else if (!isImage && !isOctet) {
+      // Log para diagnóstico de URLs rejeitadas
+      console.warn('[proxy-image] 415 Unsupported:', url, '| Content-Type:', finalCt);
       const err = new Error('Unsupported upstream content type');
       err.statusCode = 415;
       throw err;
     }
-
-    let finalCt = upstreamCt.split(';')[0].trim();
-    if (finalCt.includes('octet-stream')) finalCt = 'image/jpeg';
 
     return {
       contentType: finalCt,

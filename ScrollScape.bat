@@ -2,8 +2,8 @@
 setlocal EnableExtensions EnableDelayedExpansion
 goto :main
 
-:banner
 cls
+:banner
 echo.
 echo   !GRY!  +=======================================================+!R!
 echo   !GRY!  ^|!R!                                                       !GRY!^|!R!
@@ -90,9 +90,6 @@ if "!KILLED!"=="1" (
 
 echo.
 call :status_box
-
-echo   !BCYN![ .. ]!R!  Opening browser at http://localhost:!PORT! ...
-start "" "http://localhost:!PORT!" >nul 2>&1
 
 set "SCROLLSCAPE_LAUNCHER=1"
 set "NODE_PID="

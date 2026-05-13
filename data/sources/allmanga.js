@@ -1,10 +1,11 @@
-﻿// AllManga.to source  uses the GraphQL API at https://api.allanime.day/api
+// AllManga.to source  uses the GraphQL API at https://api.allanime.day/api
 // v1.1.0
 
 const crypto = require('crypto');
 
 const APIS = [
   'https://api.allanime.day/api',
+  'https://api.allmanga.to/api',
   'https://api.allanime.day/allanimeapi',
 ];
 const COVER_BASE = 'https://wp.youtube-anime.com/aln.youtube-anime.com/';
@@ -69,7 +70,15 @@ async function gql(query) {
       });
 
       const text = await res.text();
+      let json;
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch {
+        // ignore
+      }
+
       if (!res.ok) {
+        if (json?.errors) throw new Error(json.errors[0]?.message || `HTTP ${res.status}`);
         if (isLikelyHtml(text)) {
           throw new Error(`AllManga upstream blocked (${res.status})`);
         }
@@ -80,19 +89,17 @@ async function gql(query) {
         throw new Error('AllManga upstream returned HTML challenge page');
       }
 
-      let json;
-      try {
-        json = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error('AllManga returned invalid JSON');
+      if (json.errors) {
+        const msg = json.errors[0]?.message || 'Unknown AllManga API error';
+        throw new Error(msg);
       }
-
-      if (json.errors) throw new Error(json.errors[0].message);
 
       // New API responses may come encrypted in data.tobeparsed.
       if (json.data?.tobeparsed) {
         const decoded = decodeTobeparsed(json.data.tobeparsed);
-        if (decoded.errors) throw new Error(decoded.errors[0].message);
+        if (decoded.errors) {
+          throw new Error(decoded.errors[0]?.message || 'Unknown AllManga API error (encrypted)');
+        }
         // tobeparsed may decode to { data: ... } or directly to payload.
         return decoded.data ?? decoded;
       }
@@ -210,8 +217,9 @@ async function fetchLatestUpdates(limit = 20) {
 
 function thumbUrl(thumbnail) {
   if (!thumbnail) return '';
-  if (thumbnail.startsWith('http')) return thumbnail;
-  return COVER_BASE + thumbnail + '?w=500';
+  const REF = encodeURIComponent(WEB_BASE);
+  const full = thumbnail.startsWith('http') ? thumbnail : COVER_BASE + thumbnail + '?w=500';
+  return `/api/proxy-image?url=${encodeURIComponent(full)}&ref=${REF}`;
 }
 
 function mapEdge(e) {
@@ -224,8 +232,8 @@ function mapEdge(e) {
   else if (set.has('one-shot') || set.has('oneshot') || set.has('one shot')) format = 'oneshot';
 
   let contentRating = 'safe';
-  if (set.has('hentai') || set.has('smut') || set.has('mature') || set.has('adult')) contentRating = 'erotica';
-  else if (set.has('ecchi') || set.has('suggestive')) contentRating = 'suggestive';
+  if (set.has('hentai') || set.has('smut') || set.has('mature') || set.has('adult') || set.has('ecchi')) contentRating = 'erotica';
+  else if (set.has('suggestive')) contentRating = 'suggestive';
 
   return {
     id: e._id,
@@ -279,6 +287,7 @@ function applyFilters(results, filters = {}) {
   return rows;
 }
 
+console.warn('[allmanga] Source allmanga.js carregado e registrado!');
 module.exports = {
   meta: {
     id: 'allmanga',
@@ -403,33 +412,89 @@ module.exports = {
   async chapters(mangaId) {
     const q = `{ manga(_id:${JSON.stringify(mangaId)}) { availableChaptersDetail } }`;
     const data = await gql(q);
+    console.warn('[allmanga] chapters() — resposta crua:', JSON.stringify(data));
     const detail = data.manga?.availableChaptersDetail || {};
-    const nums = detail.sub || detail.raw || [];
-    const chapters = nums.map(num => ({
-      id: `${mangaId}/chapter-${num}-sub`,
-      name: `Chapter ${num}`,
-      chapter: String(num),
-      url: `${WEB_BASE}/manga/${mangaId}/chapter-${num}-sub`,
-    }));
+
+    let chapters = [];
+    if (detail.sub && detail.sub.length > 0) {
+      chapters = detail.sub.map(num => ({
+        id: `${mangaId}/chapter-${num}-sub`,
+        name: `Chapter ${num}`,
+        chapter: String(num),
+        url: `${WEB_BASE}/manga/${mangaId}/chapter-${num}-sub`,
+      }));
+    } else if (detail.raw && detail.raw.length > 0) {
+      chapters = detail.raw.map(num => ({
+        id: `${mangaId}/chapter-${num}-raw`,
+        name: `Chapter ${num}`,
+        chapter: String(num),
+        url: `${WEB_BASE}/manga/${mangaId}/chapter-${num}-raw`,
+      }));
+    }
+
+    // Logar capítulos para diagnóstico
+    console.warn('[allmanga] chapters() — mangaId:', mangaId, '| chapters:', JSON.stringify(chapters));
+
     // Sort newest-first
     chapters.sort((a, b) => parseFloat(b.chapter) - parseFloat(a.chapter));
     return { chapters };
   },
 
   async pages(chapterId) {
-    // chapterId = "MANGAID/chapter-NUM-sub"
-    const parts = chapterId.match(/^(.+?)\/chapter-([\d.]+)-sub$/);
-    if (!parts) throw new Error(`Invalid chapterId: ${chapterId}`);
+    // chapterId = "MANGAID/chapter-NUM-sub" or "-raw"
+    console.warn('[allmanga] pages() — chapterId recebido:', chapterId);
+    let parts = chapterId.match(/^(.+?)\/chapter-([\d.]+)-(sub|raw)$/);
+    if (!parts) {
+      // Fallback for old saved chapters que sempre terminavam em -sub
+      const oldParts = chapterId.match(/^(.+?)\/chapter-([\d.]+).*$/);
+      if (!oldParts) {
+        console.warn('[allmanga] pages() — chapterId NÃO CASOU com nenhum padrão:', chapterId);
+        throw new Error(`Invalid chapterId: ${chapterId}`);
+      }
+      parts = [oldParts[0], oldParts[1], oldParts[2], 'sub'];
+    }
     const mangaId = parts[1];
     const chapterString = parts[2];
-    const q = `{ chapterPages(mangaId:${JSON.stringify(mangaId)}, chapterString:${JSON.stringify(chapterString)}, translationType: sub) { edges { pictureUrls pictureUrlHead } } }`;
-    const data = await gql(q);
-    const edge = (data.chapterPages?.edges || [])[0];
-    if (!edge) return { pages: [] };
+    const type = parts[3];
+
+    // Known AllManga server-side errors that indicate the backend is broken.
+    // In these cases we return empty pages rather than crashing with a 500.
+    const KNOWN_UPSTREAM_ERRORS = [
+      "Cannot read property 'type' of undefined",
+      'context is not defined',
+    ];
+
+    const tryFetch = async (translationType) => {
+      try {
+        const q = `{ chapterPages(mangaId:${JSON.stringify(mangaId)}, chapterString:${JSON.stringify(chapterString)}, translationType: ${translationType}) { edges { pictureUrls pictureUrlHead } } }`;
+        const data = await gql(q);
+        return (data?.chapterPages?.edges || [])[0] || null;
+      } catch (err) {
+        if (KNOWN_UPSTREAM_ERRORS.some(e => err.message?.includes(e))) {
+          return null; // AllManga backend is broken — suppress
+        }
+        throw err;
+      }
+    };
+
+    let edge = await tryFetch(type);
+    if (!edge) {
+      const fallbackType = type === 'sub' ? 'raw' : 'sub';
+      edge = await tryFetch(fallbackType);
+    }
+
+    if (!edge) {
+      console.warn('[allmanga] pages() — edge vazio para', chapterId);
+      return { pages: [] };
+    }
+    // Logar o edge retornado para diagnóstico
+    console.warn('[allmanga] pages() — edge:', JSON.stringify(edge));
+    return this._processEdge(edge);
+  },
+
+  _processEdge(edge) {
     const head = edge.pictureUrlHead || '';
     const REF  = encodeURIComponent('https://allmanga.to');
-
-    // pictureUrls currently comes as an array of strings, but keep object fallback.
     const pages = (edge.pictureUrls || []).map((p, idx) => {
       const segment = typeof p === 'string' ? p : (p?.url || '');
       const raw = /^https?:\/\//i.test(segment) ? segment : (head + segment);
