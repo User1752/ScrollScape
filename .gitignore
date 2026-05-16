@@ -7,6 +7,7 @@ data/local/
 data/cache/
 data/tmp/
 data/theme-presets/
+data/error-log.json
 
 # Keep these data files tracked (app config, not user data)
 !data/achievements.json
@@ -22,10 +23,20 @@ Thumbs.db
 # Build output
 dist/
 
+# Node/VSCode
+.vscode/
+.env
+*.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # Portable Node.js (auto-downloaded by build-exe.bat / ScrollScape.bat)
 tools/
 # pkg binary cache (populated by build-exe.bat)
 tools/pkg-cache/
+tools/node/
+tools/npm-cache/
 
 # Planning artefacts / personal notes
 mvp.sql

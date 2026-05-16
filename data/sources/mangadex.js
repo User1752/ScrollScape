@@ -43,6 +43,12 @@ async function mdFetch(url, retries = 3) {
       await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
       continue;
     }
+    // Adiciona mensagem especial para manutenção
+    if (res.status === 503) {
+      const err = new Error('MangaDex API error: 503 (O site MangaDex está em manutenção ou temporariamente indisponível)');
+      err.isMaintenance = true;
+      throw err;
+    }
     throw new Error(`MangaDex API error: ${res.status}`);
   }
 }
@@ -68,16 +74,54 @@ module.exports = {
     } else {
       url = `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&${orderParam}${statusParam}${ratingParam}`;
     }
-    const data = await mdFetch(url);
-    let results = (data.data || []).map(mapManga);
-    if (filters.format) {
-      const fmt = String(filters.format).toLowerCase();
-      results = results.filter(m => String(m.format || '').toLowerCase() === fmt || (m.genres || []).some(g => String(g).toLowerCase() === fmt));
+    try {
+      const data = await mdFetch(url);
+      let results = (data.data || []).map(mapManga);
+      if (filters.format) {
+        const fmt = String(filters.format).toLowerCase();
+        results = results.filter(m => String(m.format || '').toLowerCase() === fmt || (m.genres || []).some(g => String(g).toLowerCase() === fmt));
+      }
+      // Log known error if no results for a valid query
+      if (results.length === 0 && query && query !== '*') {
+        try {
+          const { MANGADEX_NO_RESULTS } = require('../../server/modules/errors/error-codes');
+          const { registerKnownError } = require('../../server/modules/errors/error-registry');
+          await registerKnownError({
+            logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+            code: MANGADEX_NO_RESULTS,
+            area: 'mangadex',
+            message: 'MangaDex search returned no results for a valid query.',
+            details: { query, url }
+          });
+        } catch (e) {}
+      }
+      return {
+        results,
+        hasNextPage: data.total > offset + limit
+      };
+    } catch (err) {
+      // Log known error for invalid response
+      try {
+        const { MANGADEX_INVALID_RESPONSE } = require('../../server/modules/errors/error-codes');
+        const { registerKnownError } = require('../../server/modules/errors/error-registry');
+        await registerKnownError({
+          logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+          code: MANGADEX_INVALID_RESPONSE,
+          area: 'mangadex',
+          message: 'MangaDex search failed or returned invalid response.',
+          details: { query, url, error: err.message }
+        });
+      } catch (e) {}
+      const isMaintenance = err && err.isMaintenance;
+      return {
+        results: [],
+        hasNextPage: false,
+        error: 'ERR-002',
+        errorMessage: isMaintenance
+          ? 'MangaDex está em manutenção ou temporariamente indisponível. Tente novamente mais tarde.'
+          : 'MangaDex search failed or returned invalid response.'
+      };
     }
-    return {
-      results,
-      hasNextPage: data.total > offset + limit
-    };
   },
 
   // Most followed / overall popular (all-time)
@@ -90,26 +134,89 @@ module.exports = {
 
   // Trending today (by rating)
   async trending() {
-    const data = await mdFetch(
-      `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[rating]=desc&hasAvailableChapters=true`
-    );
-    return { results: (data.data || []).map(mapManga) };
+    const url = `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[rating]=desc&hasAvailableChapters=true`;
+    try {
+      const data = await mdFetch(url);
+      return { results: (data.data || []).map(mapManga) };
+    } catch (err) {
+      try {
+        const { MANGADEX_INVALID_RESPONSE } = require('../../server/modules/errors/error-codes');
+        const { registerKnownError } = require('../../server/modules/errors/error-registry');
+        await registerKnownError({
+          logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+          code: MANGADEX_INVALID_RESPONSE,
+          area: 'mangadex',
+          message: 'MangaDex trending failed or returned invalid response.',
+          details: { url, error: err.message }
+        });
+      } catch (e) {}
+      const isMaintenance = err && err.isMaintenance;
+      return {
+        results: [],
+        error: 'ERR-002',
+        errorMessage: isMaintenance
+          ? 'MangaDex está em manutenção ou temporariamente indisponível. Tente novamente mais tarde.'
+          : 'MangaDex trending failed or returned invalid response.'
+      };
+    }
   },
 
   // Newest manga (by creation date)
   async recentlyAdded() {
-    const data = await mdFetch(
-      `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[createdAt]=desc&hasAvailableChapters=true`
-    );
-    return { results: (data.data || []).map(mapManga) };
+    const url = `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[createdAt]=desc&hasAvailableChapters=true`;
+    try {
+      const data = await mdFetch(url);
+      return { results: (data.data || []).map(mapManga) };
+    } catch (err) {
+      try {
+        const { MANGADEX_INVALID_RESPONSE } = require('../../server/modules/errors/error-codes');
+        const { registerKnownError } = require('../../server/modules/errors/error-registry');
+        await registerKnownError({
+          logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+          code: MANGADEX_INVALID_RESPONSE,
+          area: 'mangadex',
+          message: 'MangaDex recentlyAdded failed or returned invalid response.',
+          details: { url, error: err.message }
+        });
+      } catch (e) {}
+      const isMaintenance = err && err.isMaintenance;
+      return {
+        results: [],
+        error: 'ERR-002',
+        errorMessage: isMaintenance
+          ? 'MangaDex está em manutenção ou temporariamente indisponível. Tente novamente mais tarde.'
+          : 'MangaDex recentlyAdded failed or returned invalid response.'
+      };
+    }
   },
 
   // Most recently updated (last chapter upload)
   async latestUpdates() {
-    const data = await mdFetch(
-      `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc&hasAvailableChapters=true`
-    );
-    return { results: (data.data || []).map(mapManga) };
+    const url = `https://api.mangadex.org/manga?limit=20&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc&hasAvailableChapters=true`;
+    try {
+      const data = await mdFetch(url);
+      return { results: (data.data || []).map(mapManga) };
+    } catch (err) {
+      try {
+        const { MANGADEX_INVALID_RESPONSE } = require('../../server/modules/errors/error-codes');
+        const { registerKnownError } = require('../../server/modules/errors/error-registry');
+        await registerKnownError({
+          logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+          code: MANGADEX_INVALID_RESPONSE,
+          area: 'mangadex',
+          message: 'MangaDex latestUpdates failed or returned invalid response.',
+          details: { url, error: err.message }
+        });
+      } catch (e) {}
+      const isMaintenance = err && err.isMaintenance;
+      return {
+        results: [],
+        error: 'ERR-002',
+        errorMessage: isMaintenance
+          ? 'MangaDex está em manutenção ou temporariamente indisponível. Tente novamente mais tarde.'
+          : 'MangaDex latestUpdates failed or returned invalid response.'
+      };
+    }
   },
 
   // Manga that match the given genre names (resolved to MangaDex tag UUIDs)
@@ -141,40 +248,63 @@ module.exports = {
       "slice of life":  "slice of life",
       "martial arts":   "martial arts",
     };
-    // Fetch full tag list to resolve names -> UUIDs
-    const tagData = await mdFetch(`https://api.mangadex.org/manga/tag`);
-    const tagMap = {};
-    for (const t of (tagData.data || [])) {
-      const name = (t.attributes?.name?.en || "").toLowerCase();
-      if (name) tagMap[name] = t.id;
-    }
-    const tagIds = genres
-      .map(g => {
-        const key = g.toLowerCase();
-        const mapped = aliases[key] || key;
-        return tagMap[mapped];
-      })
-      .filter(Boolean)
-      .slice(0, 5);
+    try {
+      // Fetch full tag list to resolve names -> UUIDs
+      const tagData = await mdFetch(`https://api.mangadex.org/manga/tag`);
+      const tagMap = {};
+      for (const t of (tagData.data || [])) {
+        const name = (t.attributes?.name?.en || "").toLowerCase();
+        if (name) tagMap[name] = t.id;
+      }
+      const tagIds = genres
+        .map(g => {
+          const key = g.toLowerCase();
+          const mapped = aliases[key] || key;
+          return tagMap[mapped];
+        })
+        .filter(Boolean)
+        .slice(0, 5);
 
-    const orderParam = buildOrderParam(orderBy, 'followedCount');
-    const statusParam = filters.publicationStatus ? `&status[]=${encodeURIComponent(filters.publicationStatus)}` : '';
-    const ratingParam = filters.contentRating ? `&contentRating[]=${encodeURIComponent(filters.contentRating)}` : '';
-    let url;
-    const offset = (page - 1) * 50;
-    if (tagIds.length === 0) {
-      url = `https://api.mangadex.org/manga?limit=50&offset=${offset}&includes[]=cover_art&includes[]=author&${orderParam}&hasAvailableChapters=true${statusParam}${ratingParam}`;
-    } else {
-      const tagParams = tagIds.map(id => `includedTags[]=${id}`).join('&');
-      url = `https://api.mangadex.org/manga?limit=50&offset=${offset}&includes[]=cover_art&includes[]=author&${orderParam}&includedTagsMode=OR&${tagParams}&hasAvailableChapters=true${statusParam}${ratingParam}`;
+      const orderParam = buildOrderParam(orderBy, 'followedCount');
+      const statusParam = filters.publicationStatus ? `&status[]=${encodeURIComponent(filters.publicationStatus)}` : '';
+      const ratingParam = filters.contentRating ? `&contentRating[]=${encodeURIComponent(filters.contentRating)}` : '';
+      let url;
+      const offset = (page - 1) * 50;
+      if (tagIds.length === 0) {
+        url = `https://api.mangadex.org/manga?limit=50&offset=${offset}&includes[]=cover_art&includes[]=author&${orderParam}&hasAvailableChapters=true${statusParam}${ratingParam}`;
+      } else {
+        const tagParams = tagIds.map(id => `includedTags[]=${id}`).join('&');
+        url = `https://api.mangadex.org/manga?limit=50&offset=${offset}&includes[]=cover_art&includes[]=author&${orderParam}&includedTagsMode=OR&${tagParams}&hasAvailableChapters=true${statusParam}${ratingParam}`;
+      }
+      const data = await mdFetch(url);
+      let results = (data.data || []).map(mapManga);
+      if (filters.format) {
+        const fmt = String(filters.format).toLowerCase();
+        results = results.filter(m => String(m.format || '').toLowerCase() === fmt || (m.genres || []).some(g => String(g).toLowerCase() === fmt));
+      }
+      return { results, hasNextPage: results.length === 50 };
+    } catch (err) {
+      try {
+        const { MANGADEX_INVALID_RESPONSE } = require('../../server/modules/errors/error-codes');
+        const { registerKnownError } = require('../../server/modules/errors/error-registry');
+        await registerKnownError({
+          logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+          code: MANGADEX_INVALID_RESPONSE,
+          area: 'mangadex',
+          message: 'MangaDex byGenres failed or returned invalid response.',
+          details: { genres, orderBy, filters, page, error: err.message }
+        });
+      } catch (e) {}
+      const isMaintenance = err && err.isMaintenance;
+      return {
+        results: [],
+        hasNextPage: false,
+        error: 'ERR-002',
+        errorMessage: isMaintenance
+          ? 'MangaDex está em manutenção ou temporariamente indisponível. Tente novamente mais tarde.'
+          : 'MangaDex byGenres failed or returned invalid response.'
+      };
     }
-    const data = await mdFetch(url);
-    let results = (data.data || []).map(mapManga);
-    if (filters.format) {
-      const fmt = String(filters.format).toLowerCase();
-      results = results.filter(m => String(m.format || '').toLowerCase() === fmt || (m.genres || []).some(g => String(g).toLowerCase() === fmt));
-    }
-    return { results, hasNextPage: results.length === 50 };
   },
 
   async mangaDetails(mangaId) {

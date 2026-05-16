@@ -29,9 +29,7 @@
   min-width: 200px;
 }
 
-.search-form button:not(.cs-trigger) {
-  flex: 0 0 auto;
-}
+
 
 .form-control {
   flex: 1;

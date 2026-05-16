@@ -681,7 +681,7 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
     if (storedCover) result.cover = storedCover;
     state.currentManga = result;
     const isFavorited = state.favorites.some(m => m.id === result.id && m.sourceId === state.currentSourceId);
-    const hasProgress = state.lastReadChapter?.[result.id];
+    const hasProgress = !!state.lastReadChapter?.[result.id];
 
     // Navigate with context
     setView("manga-details", {
@@ -731,10 +731,10 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
             <button class="btn" id="addFavBtn">
               ${isFavorited ? "Remove from Library" : "Add to Library"}
             </button>
-            <button class="btn btn-start-reading-detail" id="startReadingBtn">&#9654; Start Reading</button>
+            ${!hasProgress ? `<button class="btn btn-start-reading-detail" id="startReadingBtn">&#9654; Start Reading</button>` : ""}
+            ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">Continue</button>` : ""}
             <button class="btn btn-tracker" id="trackerBtn">Tracker</button>
             <button class="btn btn-secondary" id="manageCategoriesBtn">&#128194; Categories</button>
-            ${hasProgress ? `<button class="btn btn-continue" id="continueReadingBtn">Continue</button>` : ""}
             ${fromView === 'random' ? `<button class="btn btn-reroll" id="rerollBtn" title="Pick another random manga">Reroll</button>` : ""}
           </div>
           <div id="detailRatingWrap" class="detail-rating-wrap"></div>
@@ -762,15 +762,18 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
     };
 
     // Start reading (first chapter)
-    $("startReadingBtn").onclick = async () => {
-      if (!state.allChapters?.length) {
-        showToast("Loading chapters...", "", "info");
-        return;
-      }
-      const firstIdx = state.allChapters.length - 1;
-      const ch = state.allChapters[firstIdx];
-      await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || 1}`, firstIdx);
-    };
+    const startBtn = $("startReadingBtn");
+    if (startBtn) {
+      startBtn.onclick = async () => {
+        if (!state.allChapters?.length) {
+          showToast("Loading chapters...", "", "info");
+          return;
+        }
+        const firstIdx = state.allChapters.length - 1;
+        const ch = state.allChapters[firstIdx];
+        await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || 1}`, firstIdx);
+      };
+    }
 
     // Continue reading
     if (hasProgress) {

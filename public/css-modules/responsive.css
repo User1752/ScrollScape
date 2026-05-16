@@ -34,10 +34,7 @@
     width: 100%;
   }
 
-  .search-form button:not(.cs-trigger) {
-    padding: 1rem;
-    font-size: 1rem;
-  }
+
 
   .filters-grid {
     grid-template-columns: 1fr;

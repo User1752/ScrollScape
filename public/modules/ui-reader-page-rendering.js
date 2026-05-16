@@ -60,8 +60,7 @@ function showReader() {
   applyReaderBackground();
   if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
   const mode = state.settings.readingMode;
-  // Reading defaults: manga spreads at 120%, webtoon/manhwa/manhua at 100%.
-  state.zoomLevel = (mode === "ltr" || mode === "rtl") ? 1.2 : 1.0;
+  // Do not reset zoom level when opening reader or changing chapters; preserve user zoom.
   const chapterMeta = state.allChapters?.[state.currentChapterIndex];
   const chapterNumber = chapterMeta?.chapter;
   const chapterName = state.currentChapter?.name || "";

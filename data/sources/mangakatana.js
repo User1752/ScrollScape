@@ -348,15 +348,32 @@ module.exports = {
     let html;
     try {
       html = await getHtml(`${BASE}/`);
+      const $ = cheerio.load(html);
+      const results = parseHotSidebarList($);
+      return { results, hasNextPage: false };
     } catch (err) {
       if (isRateLimitedError(err)) {
         return { results: [], hasNextPage: false, temporarilyUnavailable: true };
       }
-      throw err;
+      // Logging e retorno estruturado de erro
+      try {
+        const { MANGAKATANA_INVALID_RESPONSE } = require('../../server/modules/errors/error-codes');
+        const { registerKnownError } = require('../../server/modules/errors/error-registry');
+        await registerKnownError({
+          logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+          code: MANGAKATANA_INVALID_RESPONSE,
+          area: 'mangakatana',
+          message: 'MangaKatana trending failed or returned invalid response.',
+          details: { page, error: err.message }
+        });
+      } catch (e) {}
+      return {
+        results: [],
+        hasNextPage: false,
+        error: 'ERROR-012',
+        errorMessage: 'MangaKatana trending failed or returned invalid response.'
+      };
     }
-    const $ = cheerio.load(html);
-    const results = parseHotSidebarList($);
-    return { results, hasNextPage: false };
   },
 
   async recentlyAdded(page = 1) {
