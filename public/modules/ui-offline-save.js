@@ -26,6 +26,9 @@ async function saveChapterOffline(chapterId, chapterName) {
     if (data.skipped) {
       showToast("Already Saved", `"${chapterName}" is already in your offline library`, "info");
     } else {
+      if (!state.offlineChapters) state.offlineChapters = new Set();
+      state.offlineChapters.add(String(chapterId));
+      if (typeof renderChaptersList === 'function') renderChaptersList();
       showToast("Saved Offline", `"${chapterName}" saved. Open the Library tab to read it offline.`, "success");
     }
   } catch (e) {
@@ -79,6 +82,11 @@ async function saveBulkOffline(selectedChapters) {
       es.close();
       updateBulkProgress(selectedChapters.length, selectedChapters.length, '');
       setTimeout(() => closeBulkProgressModal(), 800);
+      
+      if (!state.offlineChapters) state.offlineChapters = new Set();
+      selectedChapters.forEach(ch => state.offlineChapters.add(String(ch.id)));
+      if (typeof renderChaptersList === 'function') renderChaptersList();
+
       showToast("Saved to Library", `${selectedChapters.length} chapter(s) saved. Open the Library tab to read offline.`, "success");
       resolve();
     });

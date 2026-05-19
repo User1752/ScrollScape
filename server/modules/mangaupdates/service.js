@@ -1,5 +1,7 @@
 'use strict';
 
+const limits = require('../../config/limits');
+
 function createMangaUpdatesService() {
   async function searchByTitle({ title } = {}) {
     if (!title || typeof title !== 'string') {
@@ -14,7 +16,7 @@ function createMangaUpdatesService() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ search: safeTitle, perpage: 5 }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(limits.fetchTimeoutMs),
     });
 
     if (!searchRes.ok) {
@@ -37,7 +39,7 @@ function createMangaUpdatesService() {
     }
 
     const detailRes = await fetch(`https://api.mangaupdates.com/v1/series/${seriesId}`, {
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(limits.fetchTimeoutMs),
     });
 
     if (!detailRes.ok) {

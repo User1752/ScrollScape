@@ -300,6 +300,35 @@ function createLocalService({
     }
   }
 
+  async function findLocalMangaDir(sourceId, mangaId) {
+    const sid = safeId(sourceId);
+    if (!sid || !mangaId) return null;
+
+    // Check old hash format
+    const oldId = `local-dl-${sha1Short(sid + ':' + mangaId)}`;
+    if (fs.existsSync(path.join(LOCAL_DIR, oldId, 'meta.json'))) {
+      return path.join(LOCAL_DIR, oldId);
+    }
+
+    if (!fs.existsSync(LOCAL_DIR)) return null;
+
+    // Search existing folders
+    const dirs = await fsp.readdir(LOCAL_DIR);
+    for (const d of dirs) {
+      const p = path.join(LOCAL_DIR, d);
+      const metaPath = path.join(p, 'meta.json');
+      if (fs.existsSync(metaPath)) {
+        try {
+          const meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
+          if (meta.originalSourceId === sid && meta.originalMangaId === String(mangaId)) {
+            return p;
+          }
+        } catch(e) {}
+      }
+    }
+    return null;
+  }
+
   async function saveChapter({ sourceId, chapterId, chapterName, mangaTitle, mangaId, cover } = {}) {
     const sid = safeId(sourceId);
     if (!sid || !chapterId || !mangaId) {
@@ -312,8 +341,45 @@ function createLocalService({
     const result = await source.pages(chapterId);
     const pages = result.pages || [];
 
-    const localId = `local-dl-${sha1Short(sid + ':' + mangaId)}`;
-    const mangaDir = path.join(LOCAL_DIR, localId);
+    let mangaDir = await findLocalMangaDir(sid, mangaId);
+    let localId;
+    let isNewManga = false;
+    if (mangaDir) {
+      localId = path.basename(mangaDir);
+    } else {
+      localId = safeName(mangaTitle) || `manga-${Date.now()}`;
+      mangaDir = path.join(LOCAL_DIR, localId);
+      let counter = 1;
+      while (fs.existsSync(mangaDir)) {
+        localId = `${safeName(mangaTitle)} (${counter})`;
+        mangaDir = path.join(LOCAL_DIR, localId);
+        counter++;
+      }
+      isNewManga = true;
+      await fsp.mkdir(mangaDir, { recursive: true });
+    }
+
+    const metaPath = path.join(mangaDir, 'meta.json');
+    let meta;
+    if (!isNewManga && fs.existsSync(metaPath)) {
+      meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
+    } else {
+      meta = {
+        id: localId,
+        title: mangaTitle,
+        originalSourceId: sid,
+        originalMangaId: String(mangaId),
+        cover: '',
+        type: 'cbz',
+        sourceId: 'local',
+        description: `Downloaded from ${sid}`,
+        genres: [],
+        author: '',
+        chapters: [],
+      };
+      await fsp.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+    }
+
     const chapDir = path.join(mangaDir, 'images', safeName(chapterName));
     await fsp.mkdir(chapDir, { recursive: true });
 
@@ -333,49 +399,24 @@ function createLocalService({
       }
     }
 
-    const metaPath = path.join(mangaDir, 'meta.json');
-    let meta;
-    if (fs.existsSync(metaPath)) {
+    if (imgPaths.length > 0) {
       meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
-    } else {
-      let localCover = imgPaths[0] || '';
-      if (cover && typeof cover === 'string' && cover.trim()) {
-        try {
-          const covBuf = await fetchImageBuffer(cover);
-          const covPath = path.join(mangaDir, 'cover.jpg');
-          await fsp.writeFile(covPath, covBuf);
-          localCover = `/local-media/${localId}/cover.jpg`;
-        } catch (_) {
-          // Use first page as cover.
-        }
+      const alreadySaved = meta.chapters.some((c) => c.sourceChapterId === chapterId);
+      if (!alreadySaved) {
+        meta.chapters.push({
+          id: `${localId}:${meta.chapters.length}`,
+          sourceChapterId: chapterId,
+          name: chapterName,
+          date: new Date().toISOString(),
+          isPDF: false,
+          pdfUrl: null,
+          pages: imgPaths,
+        });
+        if (!meta.cover) meta.cover = imgPaths[0] || '';
+        await fsp.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
       }
-      meta = {
-        id: localId,
-        title: mangaTitle,
-        cover: localCover,
-        type: 'cbz',
-        sourceId: 'local',
-        description: `Downloaded from ${sid}`,
-        genres: [],
-        author: '',
-        chapters: [],
-      };
-    }
-
-    const alreadySaved = meta.chapters.some((c) => c.sourceChapterId === chapterId);
-    if (!alreadySaved && imgPaths.length > 0) {
-      const chIndex = meta.chapters.length;
-      meta.chapters.push({
-        id: `${localId}:${chIndex}`,
-        sourceChapterId: chapterId,
-        name: chapterName,
-        date: new Date().toISOString(),
-        isPDF: false,
-        pdfUrl: null,
-        pages: imgPaths,
-      });
-      if (!meta.cover) meta.cover = imgPaths[0] || '';
-      await fsp.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+    } else {
+      try { await fsp.rm(chapDir, { recursive: true, force: true }); } catch (e) {}
     }
 
     return { success: true, localId };
@@ -429,6 +470,109 @@ function createLocalService({
     return { jobId };
   }
 
+  async function getOfflineChapterIds({ sourceId, mangaId } = {}) {
+    const mangaDir = await findLocalMangaDir(sourceId, mangaId);
+    if (!mangaDir) return [];
+    try {
+      const metaPath = path.join(mangaDir, 'meta.json');
+      if (!fs.existsSync(metaPath)) return [];
+      const meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
+      return meta.chapters.map(c => c.sourceChapterId).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  async function deleteOfflineChapters({ sourceId, mangaId, chapterIds } = {}) {
+    if (!Array.isArray(chapterIds) || chapterIds.length === 0) return { success: false };
+    const mangaDir = await findLocalMangaDir(sourceId, mangaId);
+    if (!mangaDir) return { success: false };
+    const metaPath = path.join(mangaDir, 'meta.json');
+    if (!fs.existsSync(metaPath)) return { success: true };
+
+    const meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
+    let modified = false;
+
+    for (const chId of chapterIds) {
+      const idx = meta.chapters.findIndex(c => c.sourceChapterId === chId);
+      if (idx >= 0) {
+        const chapter = meta.chapters[idx];
+        const chapDir = path.join(mangaDir, 'images', safeName(chapter.name));
+        if (fs.existsSync(chapDir)) {
+          await fsp.rm(chapDir, { recursive: true, force: true });
+        }
+        meta.chapters.splice(idx, 1);
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      if (meta.chapters.length === 0) {
+        await fsp.rm(mangaDir, { recursive: true, force: true });
+      } else {
+        await fsp.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+      }
+    }
+    return { success: true };
+  }
+
+  async function getSyntheticMangaDetails(sourceId, mangaId) {
+    const mangaDir = await findLocalMangaDir(sourceId, mangaId);
+    if (!mangaDir) return null;
+    try {
+      const metaPath = path.join(mangaDir, 'meta.json');
+      if (!fs.existsSync(metaPath)) return null;
+      const meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
+      return {
+        id: mangaId,
+        title: meta.title,
+        cover: meta.cover,
+        description: `(Offline) ${meta.description}`,
+        status: 'unknown',
+        genres: meta.genres || [],
+        author: meta.author || '',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function getSyntheticChapters(sourceId, mangaId) {
+    const mangaDir = await findLocalMangaDir(sourceId, mangaId);
+    if (!mangaDir) return null;
+    try {
+      const metaPath = path.join(mangaDir, 'meta.json');
+      if (!fs.existsSync(metaPath)) return null;
+      const meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
+      return {
+        chapters: meta.chapters.map((ch, i) => ({
+          id: ch.sourceChapterId,
+          name: ch.name,
+          chapter: String(i + 1),
+          date: ch.date || new Date().toISOString()
+        }))
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function getOfflinePages(sourceId, mangaId, chapterId) {
+    if (!chapterId) return null;
+    const mangaDir = await findLocalMangaDir(sourceId, mangaId);
+    if (!mangaDir) return null;
+    try {
+      const metaPath = path.join(mangaDir, 'meta.json');
+      if (!fs.existsSync(metaPath)) return null;
+      const meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
+      const ch = meta.chapters.find(c => c.sourceChapterId === String(chapterId));
+      if (!ch) return null;
+      return { pages: ch.pages.map(img => ({ img })) };
+    } catch {
+      return null;
+    }
+  }
+
   function getBulkJob(jobId) {
     return saveJobs.get(jobId) || null;
   }
@@ -460,6 +604,11 @@ function createLocalService({
     getBulkJob,
     addBulkListener,
     removeBulkListener,
+    getOfflineChapterIds,
+    deleteOfflineChapters,
+    getSyntheticMangaDetails,
+    getSyntheticChapters,
+    getOfflinePages,
   };
 }
 

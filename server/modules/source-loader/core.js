@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const limits = require('../../config/limits');
 
 function createSourceLoaderCore({ safeId, fetchJson, readStore, writeStore } = {}) {
   let SOURCES_DIR = '';
@@ -79,7 +80,7 @@ function createSourceLoaderCore({ safeId, fetchJson, readStore, writeStore } = {
     return 'unknown';
   }
 
-  async function getRepoDataWithCache(repo, ttl = 3_600_000) {
+  async function getRepoDataWithCache(repo, ttl = limits.repoCacheTtlMs) {
     const cached = reposCache.get(repo.url);
     if (cached && Date.now() - cached.time < ttl) return cached.data;
 

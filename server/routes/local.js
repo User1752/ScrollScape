@@ -142,6 +142,16 @@ function registerLocalRoutes(router) {
     res.json(await localService.startBulkSave(req.body || {}));
   }));
 
+  // ── POST /api/local/offline-chapters ───────────────────────────────────────
+  router.post('/api/local/offline-chapters', asyncHandler(async (req, res) => {
+    res.json({ chapters: await localService.getOfflineChapterIds(req.body || {}) });
+  }));
+
+  // ── POST /api/local/delete-offline-chapters ────────────────────────────────
+  router.post('/api/local/delete-offline-chapters', asyncHandler(async (req, res) => {
+    res.json(await localService.deleteOfflineChapters(req.body || {}));
+  }));
+
   // ── GET /api/local/save-bulk/progress/:jobId (SSE) ─────────────────────────
   router.get('/api/local/save-bulk/progress/:jobId', (req, res) => {
     const job = localService.getBulkJob(req.params.jobId);
@@ -158,4 +168,8 @@ function registerLocalRoutes(router) {
   });
 }
 
-module.exports = { configure, registerLocalRoutes };
+function getLocalService() {
+  return localService;
+}
+
+module.exports = { configure, registerLocalRoutes, getLocalService };

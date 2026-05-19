@@ -143,11 +143,5 @@ if exist "%TEMP%\ss_pid.txt" (
 goto :eof
 
 :wait_port
-set "_wp_try=0"
-:_wploop
-if !_wp_try! GEQ 20 goto :eof
-powershell -NoProfile -Command "try{$t=New-Object Net.Sockets.TcpClient('127.0.0.1',%~1);$t.Close();exit 0}catch{exit 1}" >nul 2>&1
-if %ERRORLEVEL% EQU 0 goto :eof
-timeout /t 1 /nobreak >nul
-set /a _wp_try+=1
-goto :_wploop
+powershell -NoProfile -Command "$port=%~1; for($i=0; $i -lt 20; $i++){ try{ $t=New-Object Net.Sockets.TcpClient('127.0.0.1', $port); $t.Close(); exit 0 }catch{ Start-Sleep -Seconds 1 } }; exit 1" >nul 2>&1
+goto :eof

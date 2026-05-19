@@ -52,7 +52,7 @@ const SOURCES_DIR      = path.join(DATA_DIR, 'sources');
 const SNAP_SOURCES_DIR = path.join(__dirname, 'data', 'sources');
 const STORE_PATH       = path.join(DATA_DIR, 'store.json');
 const CACHE_DIR        = path.join(DATA_DIR, 'cache');
-const LOCAL_DIR        = path.join(DATA_DIR, 'local');
+const LOCAL_DIR        = path.join(USER_ROOT, 'Local');
 const TMP_DIR          = path.join(DATA_DIR, 'tmp');
 const THEME_PRESETS_DIR = path.join(DATA_DIR, 'theme-presets');
 const PORT             = process.env.PORT || 3000;
@@ -63,11 +63,13 @@ const PORT             = process.env.PORT || 3000;
 const storeModule = require('./server/store');
 storeModule.configure(STORE_PATH);
 
+const limits = require('./server/config/limits');
+
 const sourceLoader = require('./server/sourceLoader');
 sourceLoader.configure({ sourcesDir: SOURCES_DIR, snapSourcesDir: SNAP_SOURCES_DIR, isPkg: IS_PKG });
 
 const localRoutes = require('./server/routes/local');
-const upload = multer({ dest: TMP_DIR, limits: { fileSize: 500 * 1024 * 1024 } });
+const upload = multer({ dest: TMP_DIR, limits: { fileSize: limits.maxUploadSizeBytes } });
 localRoutes.configure({ localDir: LOCAL_DIR, upload });
 
 const themePresetRoutes = require('./server/routes/theme-presets');
@@ -76,14 +78,14 @@ themePresetRoutes.configure({ presetsDir: THEME_PRESETS_DIR });
 // ── Express application ──────────────────────────────────────────────────────
 const app = express();
 app.use(compression());                   // gzip all responses
-app.use(express.json({ limit: '5mb' })); // parse JSON bodies
+app.use(express.json({ limit: limits.jsonBodyLimit })); // parse JSON bodies
 
 // ── Security middleware ───────────────────────────────────────────────────────
 const { applySecurityHeaders, rateLimiter } = require('./server/middleware/security');
 applySecurityHeaders(app);
-// Rate-limit API endpoints: 6000 requests / 10 minutes per IP.
+// Rate-limit API endpoints: configured in limits.js
 // Static assets are excluded so the UI loads without restriction.
-app.use('/api', rateLimiter(600_000, 6000));
+app.use('/api', rateLimiter(limits.apiRateLimitWindowMs, limits.apiRateLimitMaxRequests));
 
 // ── Route registration ────────────────────────────────────────────────────────
 // ORDER MATTERS:
@@ -130,6 +132,15 @@ app.use('/', express.static(path.join(__dirname, 'public'), {
  * Creates required directories and initialises a blank store.json if absent.
  */
 async function ensureDirs() {
+  const oldLocalDir = path.join(DATA_DIR, 'local');
+  if (fs.existsSync(oldLocalDir) && !fs.existsSync(LOCAL_DIR)) {
+    try {
+      await fsp.rename(oldLocalDir, LOCAL_DIR);
+    } catch(e) {
+      console.log("Migration warning (old local dir to Local):", e.message);
+    }
+  }
+
   for (const dir of [DATA_DIR, SOURCES_DIR, CACHE_DIR, LOCAL_DIR, TMP_DIR, THEME_PRESETS_DIR]) {
     await fsp.mkdir(dir, { recursive: true });
   }

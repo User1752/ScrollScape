@@ -73,7 +73,7 @@ function createCalendarService({ readStore, loadSourceFromFile }) {
     try {
       const params = new URLSearchParams({ title: title.trim().slice(0, 100), limit: '10', 'order[relevance]': 'desc' });
       for (const rating of ['safe', 'suggestive', 'erotica', 'pornographic']) params.append('contentRating[]', rating);
-      const res = await fetch(`https://api.mangadex.org/manga?${params}`, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`https://api.mangadex.org/manga?${params}`, { signal: AbortSignal.timeout(limits.fetchTimeoutMs) });
       if (!res.ok) {
         titleCache.set(key, null);
         return null;
@@ -119,7 +119,7 @@ function createCalendarService({ readStore, loadSourceFromFile }) {
 
         const res = await fetch(
           `https://api.mangadex.org/manga/${encodeURIComponent(uuid)}/feed?${params}`,
-          { signal: AbortSignal.timeout(MD_TIMEOUT_MS) }
+          { signal: AbortSignal.timeout(limits.fetchTimeoutMs) }
         );
         if (!res.ok) return { uuid, chapters: [] };
 

@@ -1,4 +1,4 @@
-﻿# ScrollScape
+# ScrollScape
 
 > Self-hosted manga reader — multiple online sources, local file support, AniList tracking, reading progress, library management, and more. Runs via Docker or as a standalone executable. No account required.
 
@@ -114,6 +114,27 @@ docker/
   Dockerfile
   docker-compose.yml
 ```
+
+---
+
+## Local Manga & Offline Reading
+
+ScrollScape supports reading your own local manga files (CBZ, CBR, PDF) and downloading chapters from online sources for offline reading.
+
+### Importing Local Manga
+1. Open the **Library** tab.
+2. Click the **Import Local** button at the top.
+3. Select your `.cbz`, `.cbr`, or `.pdf` file.
+4. The manga will be processed and added to your library under the "Local" source. You can later change its cover and track its progress normally.
+Alternatively, you can manually copy your CBZ files or image folders directly into the `Local/` directory (located in the project root or next to the `.bat` file) and they will be detected automatically.
+
+### Saving Chapters Offline
+To save chapters for offline reading directly in your ScrollScape library:
+1. Open a manga from any online source (e.g., MangaDex).
+2. To save a single chapter, click the **Save Offline** icon next to the chapter name.
+3. To save multiple chapters, click **Save Offline** in the chapters header, select the ones you want, and click **Save Selected**.
+4. Downloaded chapters will display a floppy disk icon. You can also delete them later by selecting them and clicking **Delete Offline**.
+*(Note: If you just want to export a `.cbz` file to your computer's Downloads folder, use the **Download** option in the chapter context menu).*
 
 ---
 

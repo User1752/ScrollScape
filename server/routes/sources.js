@@ -37,8 +37,9 @@ const { createSourceDispatchService } = require('../modules/sources/dispatch-ser
 const { createPopularAllService } = require('../modules/sources/popular-all');
 const { createSourceLifecycleService } = require('../modules/sources/lifecycle');
 const { createAsyncHandler } = require('../modules/http/async-handler');
+const limits = require('../config/limits');
 
-const SOURCE_CALL_TIMEOUT = 30_000;
+const SOURCE_CALL_TIMEOUT = limits.sourceCallTimeoutMs;
 
 function withTimeout(promise, ms = SOURCE_CALL_TIMEOUT, label = 'source call') {
   return Promise.race([
@@ -94,12 +95,33 @@ function registerSourceRoutes(router) {
   // ── POST /api/source/:id/:method ────────────────────────────────────────────
   // Whitelisted methods only — arbitrary method names are rejected.
   router.post('/api/source/:id/:method', asyncHandler(async (req, res) => {
-    const result = await sourceDispatchService.dispatch({
-      id: req.params.id,
-      method: req.params.method,
-      body: req.body || {},
-    });
-    res.json(result);
+    const { id, method } = req.params;
+    const body = req.body || {};
+    
+    const { getLocalService } = require('./local');
+    const localService = getLocalService ? getLocalService() : null;
+
+    // Prefer offline pages if downloaded
+    if (localService && method === 'pages' && body.mangaId && body.chapterId) {
+      const offlinePages = await localService.getOfflinePages(id, body.mangaId, body.chapterId);
+      if (offlinePages) return res.json(offlinePages);
+    }
+
+    try {
+      const result = await sourceDispatchService.dispatch({ id, method, body });
+      res.json(result);
+    } catch (e) {
+      if (localService && body.mangaId) {
+        if (method === 'mangaDetails') {
+          const synthetic = await localService.getSyntheticMangaDetails(id, body.mangaId);
+          if (synthetic) return res.json(synthetic);
+        } else if (method === 'chapters') {
+          const synthetic = await localService.getSyntheticChapters(id, body.mangaId);
+          if (synthetic) return res.json(synthetic);
+        }
+      }
+      throw e;
+    }
   }));
 
   // ── GET /api/popular-all ───────────────────────────────────────────────────

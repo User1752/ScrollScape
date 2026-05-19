@@ -34,6 +34,7 @@ const fs   = require('fs');
 const { safeId, fetchJson } = require('./helpers');
 const { readStore, writeStore } = require('./store');
 const { createSourceLoaderCore } = require('./modules/source-loader/core');
+const limits = require('./config/limits');
 
 const sourceLoaderCore = createSourceLoaderCore({
   safeId,
@@ -106,10 +107,10 @@ function detectRepoKind(data) {
  * Falls back to the previous cached copy on network error.
  *
  * @param {{ url: string }} repo
- * @param {number} [ttl=3600000]  Cache TTL in ms (default 1 h)
+ * @param {number} [ttl]  Cache TTL in ms (default config limit)
  * @returns {Promise<object>}
  */
-async function getRepoDataWithCache(repo, ttl = 3_600_000) {
+async function getRepoDataWithCache(repo, ttl = limits.repoCacheTtlMs) {
   return sourceLoaderCore.getRepoDataWithCache(repo, ttl);
 }
 

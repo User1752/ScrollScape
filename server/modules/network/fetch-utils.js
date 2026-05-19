@@ -1,11 +1,12 @@
 'use strict';
 
-const IMG_FETCH_TIMEOUT = 30_000;
+const limits = require('../../config/limits');
+const IMG_FETCH_TIMEOUT = limits.sourceCallTimeoutMs;
 
 async function fetchJson(url) {
   const res = await fetch(url, {
     redirect: 'follow',
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(limits.fetchTimeoutMs),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -14,7 +15,7 @@ async function fetchJson(url) {
 async function fetchText(url) {
   const res = await fetch(url, {
     redirect: 'follow',
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(limits.fetchTimeoutMs),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();

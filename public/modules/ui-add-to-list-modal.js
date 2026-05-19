@@ -149,6 +149,12 @@ async function loadChapters() {
       method: "POST",
       body: JSON.stringify({ mangaId: state.currentManga.id })
     });
+    
+    const offlineResult = await api(`/api/local/offline-chapters`, {
+      method: "POST",
+      body: JSON.stringify({ sourceId: state.currentSourceId, mangaId: state.currentManga.id })
+    }).catch(() => ({ chapters: [] }));
+    state.offlineChapters = new Set(offlineResult.chapters || []);
     state.allChapters = result.chapters || [];
     _repairMangaChapterProgressIfNeeded(state.currentManga.id, state.allChapters);
     state.chapterCountCache[state.currentManga.id] = state.allChapters.length;
@@ -253,6 +259,10 @@ function renderChaptersList() {
         ${state.currentSourceId !== 'local' ? `<button class="btn-download-bulk" id="downloadBulkBtn" title="Save chapters for offline reading">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v14a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Save Offline
+        </button>
+        <button class="btn-delete-offline" id="deleteOfflineBtn" title="Delete offline chapters" style="display: none; background: var(--color-danger, #d32f2f); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; align-items: center; gap: 4px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete Offline
         </button>` : ''}
       </div>
     </div>
@@ -265,6 +275,7 @@ function renderChaptersList() {
         const isFlagged = state.flaggedChapters.has(`${state.currentManga.id}:${ch.id}`);
         const isSelected = state._chapterSelection.has(String(ch.id));
         const isCurrentProgress = lastReadId && String(ch.id) === lastReadId;
+        const isOffline = state.offlineChapters && state.offlineChapters.has(String(ch.id));
         const progressKey = `${state.currentManga.id}:${ch.id}`;
         const rawSavedPage = Number(state.lastReadPages?.[progressKey]);
         const savedPage = Number.isFinite(rawSavedPage) && rawSavedPage >= 0 ? (Math.floor(rawSavedPage) + 1) : 1;
@@ -273,7 +284,11 @@ function renderChaptersList() {
         return `
           <div class="chapter-item ${isRead ? 'chapter-read' : ''} ${isFlagged ? 'chapter-flagged' : ''} ${isSelected ? 'chapter-selected' : ''} ${isCurrentProgress ? 'chapter-current-progress' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-display-index="${i}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
             <div class="chapter-info">
-              <div class="chapter-name">${isFlagged ? '<span class="chapter-flag-icon">&#x1F6A9;</span> ' : ''}${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}</div>
+              <div class="chapter-name">
+                ${isFlagged ? '<span class="chapter-flag-icon">&#x1F6A9;</span> ' : ''}
+                ${isOffline ? '<img src="https://cdn-icons-png.flaticon.com/512/0/532.png" width="14" height="14" title="Downloaded for offline reading" style="margin-right: 4px; vertical-align: text-bottom; filter: invert(0.5) sepia(1) saturate(5) hue-rotate(var(--theme-hue-rotate, 0deg));" alt="offline" />' : ''}
+                ${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}
+              </div>
               ${ch.date ? `<div class="chapter-date">${new Date(ch.date).toLocaleDateString("en-US", { day:"2-digit", month:"short", year:"numeric" })}</div>` : ""}
               ${isCurrentProgress ? `<div class="chapter-progress-page">Parou na página ${progressLabel}</div>` : ""}
             </div>
@@ -291,6 +306,12 @@ function renderChaptersList() {
   const _updateSelectedCount = () => {
     const countEl = $("chapterSelectedCount");
     if (countEl) countEl.textContent = `${state._chapterSelection.size} selected`;
+
+    const delBtn = $("deleteOfflineBtn");
+    if (delBtn) {
+      const hasOfflineSelected = Array.from(state._chapterSelection).some(id => state.offlineChapters && state.offlineChapters.has(id));
+      delBtn.style.display = hasOfflineSelected ? "inline-flex" : "none";
+    }
   };
 
   const _displayIndexById = new Map((displayChapters || []).map((ch, i) => [String(ch.id), i]));
@@ -402,6 +423,36 @@ function renderChaptersList() {
   const integrityBtn = $("checkIntegrityBtn");
   if (integrityBtn) {
     integrityBtn.onclick = () => checkChapterIntegrity(state.allChapters);
+  }
+
+  // Delete offline button
+  const delBtn = $("deleteOfflineBtn");
+  if (delBtn) {
+    delBtn.onclick = async () => {
+      if (!confirm("Are you sure you want to delete the selected offline chapters?")) return;
+      const selectedIds = Array.from(state._chapterSelection).filter(id => state.offlineChapters && state.offlineChapters.has(id));
+      if (!selectedIds.length) return;
+      
+      const prevHtml = delBtn.innerHTML;
+      delBtn.innerHTML = "Deleting...";
+      try {
+        await api("/api/local/delete-offline-chapters", {
+          method: "POST",
+          body: JSON.stringify({
+            sourceId: state.currentSourceId,
+            mangaId: state.currentManga.id,
+            chapterIds: selectedIds
+          })
+        });
+        selectedIds.forEach(id => state.offlineChapters.delete(id));
+        state._chapterSelection.clear();
+        renderChaptersList();
+        showToast("Deleted", "Offline chapters removed.", "success");
+      } catch(e) {
+        showToast("Error", "Failed to delete: " + e.message, "error");
+        delBtn.innerHTML = prevHtml;
+      }
+    };
   }
 }
 
