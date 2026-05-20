@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en" data-theme="dark">
 <head>
         <link rel="stylesheet" href="./css-modules/uiverse-button-fcolombati.css">
@@ -251,6 +251,10 @@
                 <select id="libraryCategoryFilter" class="form-control form-control-sm">
                   <option value="all">All Categories</option>
                 </select>
+                <select id="libraryTrackerFilter" class="form-control form-control-sm">
+                  <option value="all">All Tracker</option>
+                  <option value="anilist">AniList</option>
+                </select>
                 <div class="library-search-wrap" title="Search in current filtered category">
                   <span class="library-search-icon" aria-hidden="true">&#128269;</span>
                   <input id="librarySearchInput" class="library-search-input" type="text" placeholder="Search manga..." autocomplete="off" spellcheck="false">
@@ -263,20 +267,25 @@
           <!-- Floating vertical action panel (right edge, beside scrollbar) -->
           <div class="library-side-actions" id="librarySideActions">
             <button class="lib-side-btn" id="btnSortLibrary" title="Sort library">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><line x1="18" y1="4" x2="18" y2="20"></line><polyline points="14 16 18 20 22 16"></polyline><line x1="6" y1="20" x2="6" y2="4"></line><polyline points="10 8 6 4 2 8"></polyline></svg>
               <span class="lib-side-label" id="libSortLabel">Added</span>
               <span class="lib-side-sublabel">Sort</span>
             </button>
             <hr class="lib-side-divider">
             <button class="lib-side-btn" id="btnManageCategories" title="Manage categories">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
               <span class="lib-side-label">Categories</span>
             </button>
             <button class="lib-side-btn" id="btnMigrateLibrary" title="Migrate manga between sources">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
               <span class="lib-side-label">Migrate</span>
             </button>
             <button class="lib-side-btn" id="importLocalBtn" title="Import local manga" onclick="showImportModal()">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
               <span class="lib-side-label">Import<br>Local</span>
             </button>
             <button class="lib-side-btn" id="btnSources" title="Choose visible sources">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
               <span class="lib-side-label">Sources</span>
             </button>
           </div>

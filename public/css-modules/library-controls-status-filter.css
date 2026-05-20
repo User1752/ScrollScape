@@ -57,19 +57,22 @@
 
 .library-side-actions {
   position: fixed;
-  right: 0;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 120;
   display: none;             /* shown only when library view is active */
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 0;
-  background: color-mix(in srgb, var(--bg-card, #1a1a2e) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-  border-right: none;
-  border-radius: 12px 0 0 12px;
-  box-shadow: -4px 0 24px color-mix(in srgb, var(--primary) 15%, transparent);
+  gap: 8px;
+  padding: 10px 8px;
+  background: color-mix(in srgb, var(--bg-card, var(--color-surface, #1a1a2e)) 70%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--primary, #8b5cf6) 25%, transparent);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .library-side-actions.active {
@@ -81,51 +84,70 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  width: 64px;
-  padding: 10px 6px;
+  gap: 6px;
+  width: 68px;
+  padding: 10px 4px;
   background: transparent;
   border: none;
-  border-radius: 8px;
-  color: var(--primary-light);
+  border-radius: 10px;
+  color: var(--text-secondary, var(--color-text-muted, #bdbdbd));
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: all 0.2s ease;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.1;
+  position: relative;
 }
 
 .lib-side-btn:hover {
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
-  color: #fff;
+  background: color-mix(in srgb, var(--primary, #8b5cf6) 16%, transparent);
+  color: var(--color-text, #fff);
+  transform: translateY(-1px);
 }
 
-.lib-side-icon {
-  font-size: 1.2rem;
-  line-height: 1;
+.lib-side-btn:active {
+  transform: translateY(1px);
+}
+
+.lib-side-svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--primary-light, var(--color-primary, #8b5cf6));
+  stroke-width: 2px;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.lib-side-btn:hover .lib-side-svg {
+  opacity: 1;
+  transform: scale(1.1);
+  stroke: var(--color-text, #fff);
 }
 
 .lib-side-label {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: inherit;
+  white-space: normal;
+  word-wrap: break-word;
+  max-width: 100%;
 }
 
 .lib-side-sublabel {
-  font-size: 0.52rem;
-  font-weight: 400;
-  letter-spacing: 0.05em;
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--primary-light) 60%, transparent);
-  margin-top: -2px;
+  color: color-mix(in srgb, var(--text-secondary, #bdbdbd) 50%, transparent);
+  margin-top: -3px;
 }
 
 .lib-side-divider {
   width: 70%;
   border: none;
-  border-top: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
-  margin: 2px auto;
+  border-top: 1px solid color-mix(in srgb, var(--primary, #8b5cf6) 20%, transparent);
+  margin: 4px auto;
 }
 
 .library-sort-backdrop {

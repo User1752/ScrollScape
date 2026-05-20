@@ -26,7 +26,7 @@
 'use strict';
 
 const { safeId } = require('../helpers');
-const { readStore, writeStore }         = require('../store');
+const { readStore, writeStore } = require('../store');
 const {
   sourcePath,
   loadSourceFromFile,
@@ -97,7 +97,7 @@ function registerSourceRoutes(router) {
   router.post('/api/source/:id/:method', asyncHandler(async (req, res) => {
     const { id, method } = req.params;
     const body = req.body || {};
-    
+
     const { getLocalService } = require('./local');
     const localService = getLocalService ? getLocalService() : null;
 

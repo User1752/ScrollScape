@@ -2,10 +2,32 @@
 // SETTINGS MANAGEMENT
 // ============================================================================
 
+// Expose settings functions globally for non-module scripts
+window.saveSettings = saveSettings;
+window.loadSettings = loadSettings;
+function deepMerge(target, source) {
+  for (const key in source) {
+    if (
+      source[key] && typeof source[key] === 'object' && !Array.isArray(source[key]) && target[key] && typeof target[key] === 'object'
+    ) {
+      deepMerge(target[key], source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
 function loadSettings() {
   try {
     const saved = localStorage.getItem("scrollscapeSettings");
-    if (saved) state.settings = { ...state.settings, ...JSON.parse(saved) };
+    if (saved) deepMerge(state.settings, JSON.parse(saved));
+    if (state.settings.displayMode === 'comfortable') state.settings.displayMode = 'detailed';
+    if (typeof state.settings.showCompactInfo !== 'boolean') state.settings.showCompactInfo = false;
+    if (typeof state.settings.hideLibraryStatusAndChapters !== 'boolean') state.settings.hideLibraryStatusAndChapters = false;
+    if (typeof state.settings.mangasPerRow !== 'number' || state.settings.mangasPerRow < 5 || state.settings.mangasPerRow > 14) {
+      state.settings.mangasPerRow = 6;
+    }
     if (typeof state.settings.showHomeSearch !== 'boolean') state.settings.showHomeSearch = true;
     if (state.settings.homeSourceMode !== 'selected') state.settings.homeSourceMode = 'all';
     if (!Array.isArray(state.settings.homeSelectedSourceIds)) state.settings.homeSelectedSourceIds = [];

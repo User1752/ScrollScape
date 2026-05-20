@@ -672,10 +672,28 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
   }
   $("searchStatus").textContent = "Loading details...";
   try {
-    const result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
-      method: "POST",
-      body: JSON.stringify({ mangaId })
-    });
+    let result;
+    try {
+      result = await api(`/api/source/${state.currentSourceId}/mangaDetails`, {
+        method: "POST",
+        body: JSON.stringify({ mangaId })
+      });
+    } catch (err) {
+      const activeSourceId = forcedSourceId || state.currentSourceId;
+      const fav = (state.favorites || []).find(m => String(m.id) === String(mangaId) && String(m.sourceId) === String(activeSourceId))
+               || (state.history || []).find(m => String(m.id) === String(mangaId) && String(m.sourceId) === String(activeSourceId));
+      if (!fav) throw err;
+      result = {
+        id: fav.id,
+        title: fav.title,
+        cover: fav.cover,
+        description: fav.description || "",
+        status: fav.status || "unknown",
+        genres: fav.genres || [],
+        author: fav.author || "",
+        altTitle: fav.altTitle || ""
+      };
+    }
     result._sourceCover = result.cover || "";
     const storedCover = _getStoredMangaCover(result.id, state.currentSourceId);
     if (storedCover) result.cover = storedCover;

@@ -92,6 +92,11 @@ const translations = {
     "settings.ltr": "Left to Right",
     "settings.rtl": "Right to Left",
     "settings.webtoon": "Webtoon",
+    "settings.hideStatusAndChapters": "Hide status and chapters left",
+    "settings.hideStatusAndChaptersDesc": "Hides the reading status badge and the chapters left to read count from library cards.",
+    "settings.tabThemeAppearance": "Theme & Appearance",
+    "settings.uiThemeTitle": "UI Theme",
+    "settings.uiThemeDesc": "Choose your active interface theme. Unlock more themes in the Theme Shop.",
     
     // Common
     "common.loading": "Loading...",
@@ -337,6 +342,11 @@ const translations = {
     "settings.ltr": "Esquerda para Direita",
     "settings.rtl": "Direita para Esquerda",
     "settings.webtoon": "Webtoon",
+    "settings.hideStatusAndChapters": "Esconder status e capítulos em falta",
+    "settings.hideStatusAndChaptersDesc": "Oculta o badge de status de leitura e a contagem de capítulos por ler das cartas da biblioteca.",
+    "settings.tabThemeAppearance": "Tema & Aparência",
+    "settings.uiThemeTitle": "Tema da Interface",
+    "settings.uiThemeDesc": "Escolhe o tema ativo da interface. Desbloqueia mais temas na Loja de Temas.",
     
     // Common
     "common.loading": "A carregar...",

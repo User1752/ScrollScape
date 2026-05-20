@@ -186,6 +186,10 @@ function bindUI() {
   const libCatFilter = $("libraryCategoryFilter");
   if (libCatFilter) libCatFilter.onchange = renderLibrary;
 
+  // Library tracker filter
+  const libTrackerFilter = $("libraryTrackerFilter");
+  if (libTrackerFilter) libTrackerFilter.onchange = renderLibrary;
+
   // Library text search
   const libSearchInput = $("librarySearchInput");
   if (libSearchInput) libSearchInput.oninput = renderLibrary;

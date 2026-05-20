@@ -1,8 +1,10 @@
+// (Removido do escopo global: handlers de displayModeSelect e mangasPerRowSelect)
 // ============================================================================
 // SETTINGS MODAL
 // ============================================================================
 
 function showSettings() {
+    let initializingSettingsModal = true;
   const modal = document.createElement("div");
   modal.className = "settings-modal";
   modal.innerHTML = `
@@ -17,6 +19,7 @@ function showSettings() {
         <nav class="settings-nav">
           <button class="settings-nav-item active" data-tab="tab-reading">Reading</button>
           <button class="settings-nav-item" data-tab="tab-library">Library</button>
+          <button class="settings-nav-item" data-tab="tab-appearance">${t('settings.tabThemeAppearance')}</button>
           <button class="settings-nav-item" data-tab="tab-tracking">Tracking</button>
           <button class="settings-nav-item" data-tab="tab-advanced">Advanced</button>
         </nav>
@@ -93,46 +96,7 @@ function showSettings() {
                 </select>
                 <p class="setting-description">Increases contrast to make manga lines crisper.</p>
               </div>
-            </div>
-
-            <div class="settings-section-card">
-              <p class="settings-section-title">Reader Appearance</p>
-              <div class="setting-group" id="readerBgColorGroup" style="${state.settings.readerNoiseEnabled ? 'display:none' : ''}">
-                <label>Background colour</label>
-                <select id="readerBgSelect" class="input">
-                  <option value="black" ${(state.settings.readerBackground||'black') === 'black' ? 'selected' : ''}>Black</option>
-                  <option value="dark"  ${(state.settings.readerBackground||'black') === 'dark'  ? 'selected' : ''}>Dark</option>
-                  <option value="gray"  ${(state.settings.readerBackground||'black') === 'gray'  ? 'selected' : ''}>Gray</option>
-                  <option value="sepia" ${(state.settings.readerBackground||'black') === 'sepia' ? 'selected' : ''}>Sepia</option>
-                  <option value="white" ${(state.settings.readerBackground||'black') === 'white' ? 'selected' : ''}>White</option>
-                </select>
-                <p class="setting-description">Background colour shown behind pages while reading.</p>
-              </div>
-              <div class="setting-group">
-                <label class="toggle-label">
-                  <span class="toggle-text">Animated wallpaper</span>
-                  <input type="checkbox" id="readerNoiseToggle" ${state.settings.readerNoiseEnabled ? "checked" : ""}>
-                  <span class="toggle-slider"></span>
-                </label>
-                <p class="setting-description">Replaces the background colour with an animated wallpaper.</p>
-              </div>
-              <div id="readerWallpaperOptions" style="${state.settings.readerNoiseEnabled ? '' : 'display:none'}">
-                <div class="setting-group">
-                  <label>Wallpaper type</label>
-                  <select id="readerNoiseSourceSelect" class="input">
-                    <option value="generated" ${(state.settings.readerNoiseSource||'generated')==='generated'?'selected':''}>Film grain (generated)</option>
-                    <option value="gif"        ${(state.settings.readerNoiseSource||'generated')==='gif'       ?'selected':''}>GIF / image file</option>
-                  </select>
                 </div>
-                <div class="setting-group" id="readerNoiseGifGroup" style="${(state.settings.readerNoiseSource||'generated')==='gif'?'':'display:none'}">
-                  <label>Wallpaper file</label>
-                  <select id="readerNoiseGifFileSelect" class="input">
-                    <option value="">— loading… —</option>
-                  </select>
-                  <p class="setting-description">Place GIF / WebP files in the <code>public/</code> folder.</p>
-                </div>
-              </div>
-            </div>
             <div class="settings-section-card">
               <p class="settings-section-title">Chapter Behaviour</p>
               <div class="setting-group">
@@ -158,6 +122,57 @@ function showSettings() {
           <div class="settings-tab" id="tab-library">
             <div class="settings-section-card">
               <p class="settings-section-title">Appearance</p>
+              <div class="setting-group">
+                <label>Display mode</label>
+                <select id="displayModeSelect" class="input">
+                  <option value="detailed" ${state.settings.displayMode === 'detailed' ? 'selected' : ''}>Detailed Grid</option>
+                  <option value="compact" ${state.settings.displayMode === 'compact' ? 'selected' : ''}>Compact Grid</option>
+                </select>
+                <p class="setting-description">Choose how manga are displayed in your library.</p>
+              </div>
+              <div class="setting-group" id="compactInfoGroup" style="${state.settings.displayMode === 'compact' ? '' : 'display:none'}">
+                <label class="toggle-label">
+                  <span class="toggle-text">Show info in Compact Grid</span>
+                  <input type="checkbox" id="showCompactInfoToggle" ${state.settings.showCompactInfo ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Show title and author below cover art when using Compact Grid mode.</p>
+              </div>
+              <div class="setting-group">
+                <label>Mangas per row</label>
+                <select id="mangasPerRowSelect" class="input">
+                  <option value="5" ${state.settings.mangasPerRow == 5 ? 'selected' : ''}>5</option>
+                  <option value="6" ${state.settings.mangasPerRow == 6 ? 'selected' : ''}>6</option>
+                  <option value="7" ${state.settings.mangasPerRow == 7 ? 'selected' : ''}>7</option>
+                  <option value="8" ${state.settings.mangasPerRow == 8 ? 'selected' : ''}>8</option>
+                  <option value="9" ${state.settings.mangasPerRow == 9 ? 'selected' : ''}>9</option>
+                  <option value="10" ${state.settings.mangasPerRow == 10 ? 'selected' : ''}>10</option>
+                  <option value="11" ${state.settings.mangasPerRow == 11 ? 'selected' : ''}>11</option>
+                  <option value="12" ${state.settings.mangasPerRow == 12 ? 'selected' : ''}>12</option>
+                  <option value="13" ${state.settings.mangasPerRow == 13 ? 'selected' : ''}>13</option>
+                  <option value="14" ${state.settings.mangasPerRow == 14 ? 'selected' : ''}>14</option>
+                </select>
+                <p class="setting-description">Number of manga cards per row (grid modes only).</p>
+              </div>
+              <div class="setting-group">
+                <label>Overlay badges</label>
+                <label class="toggle-label" style="margin-bottom:0.3em">
+                  <span class="toggle-text">Downloaded Chapters</span>
+                  <input type="checkbox" id="toggleOverlayDownloaded" ${state.settings.overlays?.downloaded !== false ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <label class="toggle-label" style="margin-bottom:0.3em">
+                  <span class="toggle-text">Unread Chapters</span>
+                  <input type="checkbox" id="toggleOverlayUnread" ${state.settings.overlays?.unread !== false ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <label class="toggle-label">
+                  <span class="toggle-text">Local Source</span>
+                  <input type="checkbox" id="toggleOverlayLocal" ${state.settings.overlays?.local !== false ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Show badges for downloaded, unread, and local manga in your library.</p>
+              </div>
               <div class="setting-group">
                 <label class="toggle-label">
                   <span class="toggle-text">Show source on library cards</span>
@@ -218,19 +233,19 @@ function showSettings() {
               </div>
               <div class="setting-group">
                 <label class="toggle-label">
-                  <span class="toggle-text">3D Bookshelf</span>
-                  <input type="checkbox" id="libraryBookshelf3dToggle" ${state.settings.libraryBookshelf3d ? "checked" : ""}>
-                  <span class="toggle-slider"></span>
-                </label>
-                <p class="setting-description">Shows library cards in a 3D bookshelf with depth effect</p>
-              </div>
-              <div class="setting-group">
-                <label class="toggle-label">
                   <span class="toggle-text">Mostrar capítulos em falta</span>
                   <input type="checkbox" id="showChaptersLeftToggle" ${state.settings.showChaptersLeft ? "checked" : ""}>
                   <span class="toggle-slider"></span>
                 </label>
                 <p class="setting-description">Mostra quantos capítulos faltam por ler em cada carta da biblioteca (requer ter aberto o manga pelo menos uma vez)</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">${t('settings.hideStatusAndChapters')}</span>
+                  <input type="checkbox" id="hideLibraryStatusAndChaptersToggle" ${state.settings.hideLibraryStatusAndChapters ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">${t('settings.hideStatusAndChaptersDesc')}</p>
               </div>
             </div>
             <div class="settings-section-card">
@@ -253,6 +268,84 @@ function showSettings() {
               <div class="setting-group">
                 <button class="btn secondary" id="clearReadBtn">Clear Reading History</button>
                 <p class="setting-description">Removes all reading history, last-read pages, and chapter flags</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Theme & Appearance tab -->
+          <div class="settings-tab" id="tab-appearance">
+            <!-- UI Theme card -->
+            <div class="settings-section-card">
+              <p class="settings-section-title">${t('settings.uiThemeTitle')}</p>
+              <div class="setting-group">
+                <label>${t('settings.uiThemeTitle')}</label>
+                <select id="uiThemeSelect" class="input">
+                  ${SHOP_THEMES.map(theme => {
+                    const isOwned = getPurchasedThemes().includes(theme.id);
+                    const isActive = getActiveTheme() === theme.id;
+                    if (!isOwned) return '';
+                    return `<option value="${escapeHtml(theme.id)}" ${isActive ? 'selected' : ''}>${escapeHtml(theme.name)}</option>`;
+                  }).join('')}
+                </select>
+                <p class="setting-description">${t('settings.uiThemeDesc')}</p>
+              </div>
+              <div class="setting-group">
+                <button class="btn secondary" id="btnGoToThemeShop" style="display:flex; gap:8px; justify-content:center; align-items:center; width:100%;">
+                  🛒 ${t('nav.shop')}
+                </button>
+              </div>
+            </div>
+
+            <!-- Reader Appearance card -->
+            <div class="settings-section-card">
+              <p class="settings-section-title">Reader Appearance</p>
+              <div class="setting-group" id="readerBgColorGroup" style="${state.settings.readerNoiseEnabled ? 'display:none' : ''}">
+                <label>Background colour</label>
+                <select id="readerBgSelect" class="input">
+                  <option value="black" ${(state.settings.readerBackground||'black') === 'black' ? 'selected' : ''}>Black</option>
+                  <option value="dark"  ${(state.settings.readerBackground||'black') === 'dark'  ? 'selected' : ''}>Dark</option>
+                  <option value="gray"  ${(state.settings.readerBackground||'black') === 'gray'  ? 'selected' : ''}>Gray</option>
+                  <option value="sepia" ${(state.settings.readerBackground||'black') === 'sepia' ? 'selected' : ''}>Sepia</option>
+                  <option value="white" ${(state.settings.readerBackground||'black') === 'white' ? 'selected' : ''}>White</option>
+                </select>
+                <p class="setting-description">Background colour shown behind pages while reading.</p>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Animated wallpaper</span>
+                  <input type="checkbox" id="readerNoiseToggle" ${state.settings.readerNoiseEnabled ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Replaces the background colour with an animated wallpaper.</p>
+              </div>
+              <div id="readerWallpaperOptions" style="${state.settings.readerNoiseEnabled ? '' : 'display:none'}">
+                <div class="setting-group">
+                  <label>Wallpaper type</label>
+                  <select id="readerNoiseSourceSelect" class="input">
+                    <option value="generated" ${(state.settings.readerNoiseSource||'generated')==='generated'?'selected':''}>Film grain (generated)</option>
+                    <option value="gif"        ${(state.settings.readerNoiseSource||'generated')==='gif'       ?'selected':''}>GIF / image file</option>
+                  </select>
+                </div>
+                <div class="setting-group" id="readerNoiseGifGroup" style="${(state.settings.readerNoiseSource||'generated')==='gif'?'':'display:none'}">
+                  <label>Wallpaper file</label>
+                  <select id="readerNoiseGifFileSelect" class="input">
+                    <option value="">— loading… —</option>
+                  </select>
+                  <p class="setting-description">Place GIF / WebP files in the <code>public/</code> folder.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Library Appearance card -->
+            <div class="settings-section-card">
+              <p class="settings-section-title">Library Appearance</p>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">3D Bookshelf</span>
+                  <input type="checkbox" id="libraryBookshelf3dToggle" ${state.settings.libraryBookshelf3d ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Shows library cards in a 3D bookshelf with depth effect</p>
               </div>
             </div>
           </div>
@@ -350,6 +443,8 @@ function showSettings() {
   document.body.appendChild(modal);
 
   $("closeSettings").onclick = () => modal.remove();
+  // Finaliza inicialização após todos os handlers estarem prontos
+  setTimeout(() => { initializingSettingsModal = false; }, 0);
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
   // Tab switching
@@ -364,9 +459,47 @@ function showSettings() {
     };
   });
 
+  // Display mode select
+  const displayModeSelect = $("displayModeSelect");
+  if (displayModeSelect) {
+    displayModeSelect.onchange = (e) => {
+      if (initializingSettingsModal) return;
+      state.settings.displayMode = e.target.value;
+      const compactInfoGroup = $("compactInfoGroup");
+      if (compactInfoGroup) {
+        compactInfoGroup.style.display = e.target.value === 'compact' ? '' : 'none';
+      }
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
+  // Mangas per row select
+  const mangasPerRowSelect = $("mangasPerRowSelect");
+  if (mangasPerRowSelect) {
+    mangasPerRowSelect.onchange = (e) => {
+      if (initializingSettingsModal) return;
+      state.settings.mangasPerRow = parseInt(e.target.value, 10);
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
+  // Show info in compact grid toggle
+  const showCompactInfoToggle = $("showCompactInfoToggle");
+  if (showCompactInfoToggle) {
+    showCompactInfoToggle.onchange = (e) => {
+      if (initializingSettingsModal) return;
+      state.settings.showCompactInfo = e.target.checked;
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
   $("modeSelect").onchange = (e) => {
     state.settings.readingMode = e.target.value;
     saveSettings();
+    location.reload();
     if (state.currentChapter) { showReader(); renderPage(); }
   };
   const webtoonTurnBtnSelect = $("webtoonTurnButtonPlacementSelect");
@@ -489,6 +622,36 @@ function showSettings() {
     };
   })();
 
+
+  // Overlay toggles (downloaded, unread, local)
+  const overlayDownloaded = $("toggleOverlayDownloaded");
+  if (overlayDownloaded) {
+    overlayDownloaded.onchange = (e) => {
+      if (!state.settings.overlays) state.settings.overlays = {};
+      state.settings.overlays.downloaded = e.target.checked;
+      saveSettings();
+      renderLibrary();
+    };
+  }
+  const overlayUnread = $("toggleOverlayUnread");
+  if (overlayUnread) {
+    overlayUnread.onchange = (e) => {
+      if (!state.settings.overlays) state.settings.overlays = {};
+      state.settings.overlays.unread = e.target.checked;
+      saveSettings();
+      renderLibrary();
+    };
+  }
+  const overlayLocal = $("toggleOverlayLocal");
+  if (overlayLocal) {
+    overlayLocal.onchange = (e) => {
+      if (!state.settings.overlays) state.settings.overlays = {};
+      state.settings.overlays.local = e.target.checked;
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
   const sourceBadgeToggle = $("showLibrarySourceToggle");
   if (sourceBadgeToggle) {
     sourceBadgeToggle.onchange = (e) => {
@@ -594,6 +757,41 @@ function showSettings() {
   if (statusBadgeLocSel) {
     statusBadgeLocSel.onchange = (e) => {
       state.settings.statusBadgeLocation = e.target.value || 'cover';
+      saveSettings();
+      renderLibrary();
+    };
+  }
+
+  const uiThemeSelect = $("uiThemeSelect");
+  if (uiThemeSelect) {
+    uiThemeSelect.onchange = (e) => {
+      const themeId = e.target.value;
+      if (typeof setActiveTheme === 'function') {
+        setActiveTheme(themeId);
+      }
+      if (typeof renderThemesView === 'function') {
+        renderThemesView();
+      }
+      if (typeof renderShopView === 'function') {
+        renderShopView();
+      }
+    };
+  }
+
+  const btnGoToThemeShop = $("btnGoToThemeShop");
+  if (btnGoToThemeShop) {
+    btnGoToThemeShop.onclick = () => {
+      modal.remove();
+      if (typeof setView === 'function') {
+        setView('shop');
+      }
+    };
+  }
+
+  const hideLibraryStatusAndChaptersToggle = $("hideLibraryStatusAndChaptersToggle");
+  if (hideLibraryStatusAndChaptersToggle) {
+    hideLibraryStatusAndChaptersToggle.onchange = (e) => {
+      state.settings.hideLibraryStatusAndChapters = e.target.checked;
       saveSettings();
       renderLibrary();
     };
@@ -789,4 +987,6 @@ function showSettings() {
     };
   }
 }
+
+window.showSettings = showSettings;
 

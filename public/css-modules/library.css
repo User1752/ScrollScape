@@ -1,3 +1,28 @@
+.library-card-overlay-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85em;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.18em 0.5em;
+  margin: 0 0.18em 0.18em 0;
+  background: var(--bg-tertiary, #232336);
+  color: var(--primary, #8b5cf6);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+}
+.library-card-overlay-badge.downloaded {
+  background: var(--color-success, #22c55e);
+  color: #fff;
+}
+.library-card-overlay-badge.unread {
+  background: var(--color-danger, #ef4444);
+  color: #fff;
+}
+.library-card-overlay-badge.local {
+  background: var(--color-surface-muted, #1f2937);
+  color: var(--color-warning, #f59e42);
+}
 /* ============================================================================
    LIBRARY
    ============================================================================ */
@@ -24,11 +49,40 @@
   font-weight: 600;
 }
 
+
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
+}
+
+.library-grid-compact {
+  gap: 0.7rem;
+}
+
+.library-grid-compact:not(.library-grid-compact-show-info) .library-card-info {
+  display: none;
+}
+
+.library-grid-detailed {
+  gap: 1.5rem;
+}
+
+.library-grid-list {
+  display: block;
+  gap: 0;
+}
+
+.library-display-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1.2em;
+  background: var(--bg-tertiary, #232336);
+  padding: 0.7em 1.2em;
+  border-radius: 8px;
+  font-size: 0.98em;
+  color: var(--text-secondary, #bdbdbd);
 }
 
 .library-grid.library-grid-bookshelf {
@@ -199,7 +253,7 @@
 }
 
 .btn-read {
-  padding: 0.75rem 1.5rem;
+  padding: 0.4rem 1.5rem;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
   color: white;
   border: none;

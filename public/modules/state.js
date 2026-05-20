@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // APPLICATION STATE
 // Single global object that holds all runtime state for the ScrollScape frontend.
 // Mutated in-place by feature modules; never replaced wholesale.
@@ -65,6 +65,17 @@ const state = {
     anilistAutoCategorize: true,
     autoWebtoonDetect: true,
     pageFlipAnimation: true,
+
+    // === Biblioteca ===
+    displayMode: 'detailed', // 'compact' | 'detailed' | 'list'
+    showCompactInfo: false,
+    hideLibraryStatusAndChapters: false,
+    mangasPerRow: 6, // 5-14
+    overlays: {
+      downloaded: true,
+      unread: true,
+      local: true,
+    },
     readerBackground: 'black',
     webtoonTurnButtonsEnabled: true,
     webtoonTurnButtonPlacement: 'corners',

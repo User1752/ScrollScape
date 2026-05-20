@@ -17,7 +17,7 @@
 | **Multiple sources** | MangaDex, AllManga, MangaKatana, MangaPill — add your own in `data/sources/` |
 | **Local files** | Import CBZ, CBR and PDF files through the same reader |
 | **Reading progress** | Per-chapter markers, continue-reading, full history |
-| **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold) |
+| **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold), and display modes (Detailed Grid, Compact Grid, List) |
 | **Library migration** | Migrate manga between sources while preserving custom lists and reading status |
 | **Custom cover picker** | Change manga covers with a visual picker (AniList + installed sources), custom URL input, and Google Images shortcut. In Library: right-click card -> Change Cover. In manga details: click the cover. |
 | **AniList Tracker** | OAuth login, search & link manga, sync chapter progress / score / status / dates automatically |

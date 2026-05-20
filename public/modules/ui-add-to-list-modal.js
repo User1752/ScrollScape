@@ -162,7 +162,30 @@ async function loadChapters() {
     state.chaptersReversed = false;
     renderChaptersList();
   } catch (e) {
-    chapDiv.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
+    const activeSourceId = state.currentSourceId;
+    const isLibraryOrHistory = (state.favorites || []).some(m => String(m.id) === String(state.currentManga.id) && String(m.sourceId) === String(activeSourceId))
+                            || (state.history || []).some(m => String(m.id) === String(state.currentManga.id) && String(m.sourceId) === String(activeSourceId));
+    if (isLibraryOrHistory) {
+      try {
+        const offlineResult = await api(`/api/local/offline-chapters`, {
+          method: "POST",
+          body: JSON.stringify({ sourceId: activeSourceId, mangaId: state.currentManga.id })
+        });
+        state.offlineChapters = new Set(offlineResult.chapters || []);
+        const syntheticResult = await api(`/api/source/${activeSourceId}/chapters`, {
+          method: "POST",
+          body: JSON.stringify({ mangaId: state.currentManga.id })
+        }).catch(() => ({ chapters: [] }));
+        state.allChapters = syntheticResult.chapters || [];
+      } catch (_) {
+        state.offlineChapters = new Set();
+        state.allChapters = [];
+      }
+      state.chaptersReversed = false;
+      renderChaptersList();
+    } else {
+      chapDiv.innerHTML = `<div class="muted">Error: ${e.message}</div>`;
+    }
   }
 }
 
