@@ -22,7 +22,7 @@ async function showManageCategoriesModal() {
   document.querySelector('.manage-categories-modal')?.remove();
 
   const modal = document.createElement('div');
-  modal.className = 'settings-modal manage-categories-modal';
+  modal.className = 'modal-overlay manage-categories-modal';
 
   const renderGrid = () => {
     if (state.customLists.length === 0) {
@@ -49,12 +49,12 @@ async function showManageCategoriesModal() {
   };
 
   modal.innerHTML = `
-    <div class="settings-content" style="max-width:700px;max-height:85vh;overflow-y:auto">
-      <div class="settings-header">
-        <h2>Manage Categories</h2>
-        <button class="btn secondary" id="closeMgmtModal">&#x2715;</button>
+    <div class="import-modal-box" style="max-width:700px">
+      <div class="modal-header">
+        <h3>Manage Categories</h3>
+        <button class="btn-close-modal" id="closeMgmtModal">&times;</button>
       </div>
-      <div class="settings-body">
+      <div class="modal-body" style="max-height:65vh;overflow-y:auto">
         <div style="margin-bottom:1rem">
           <button class="btn primary" id="btnCreateListMgmt">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -69,7 +69,7 @@ async function showManageCategoriesModal() {
   const refresh = async () => {
     await _listsReload();
     $('mgmt-lists-grid').innerHTML = renderGrid();
-    renderLibrary(); // update filter dropdown and chips
+    renderLibrary();
   };
 
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -97,6 +97,7 @@ async function showManageCategoriesModal() {
     }
   });
 }
+
 
 // ── Create / Edit modal ───────────────────────────────────────────────────────
 

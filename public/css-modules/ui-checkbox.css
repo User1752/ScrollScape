@@ -1,0 +1,117 @@
+/* ============================================================================
+   GLOBAL CHECKBOX — uiverse.io by Galahhad (MIT)
+   Adapted to use ScrollScape theme CSS variables.
+   Apply to: ALL input[type="checkbox"] automatically.
+   Hidden toggle checkboxes remain hidden via the higher-specificity rule
+   `.toggle-label input[type="checkbox"] { display: none; }` in settings-modal.css
+   ============================================================================ */
+
+/* Box-sizing reset */
+input[type="checkbox"],
+input[type="checkbox"]::before,
+input[type="checkbox"]::after {
+  box-sizing: border-box;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+input[type="checkbox"] {
+  /* Size tokens — override per context if needed */
+  --ck-diameter: 20px;
+  --ck-radius: 5px;
+  --ck-mark-size: 1.2;
+
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: var(--ck-diameter);
+  height: var(--ck-diameter);
+  border-radius: var(--ck-radius);
+  background: color-mix(in srgb, var(--bg-secondary, #1a1a2e) 95%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary, #8b5cf6) 40%, transparent);
+  transition: all 0.3s;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* ── Ripple ring (shows on :active when unchecked) ────────────────────────── */
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: 0 0 0 calc(var(--ck-diameter) / 2.5) var(--primary, #8b5cf6);
+  border-radius: inherit;
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.12, 0.4, 0.29, 1.46);
+}
+
+/* ── Checkmark ───────────────────────────────────────────────────────────── */
+input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  /* Scale checkmark proportionally with diameter */
+  width:  calc(var(--ck-diameter) * 0.22);
+  height: calc(var(--ck-diameter) * 0.38);
+  border-right:  2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translate(-50%, -50%) rotate(45deg) scale(0);
+  opacity: 0;
+  transition: all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6), opacity 0.1s;
+}
+
+/* ── Hover ───────────────────────────────────────────────────────────────── */
+input[type="checkbox"]:hover {
+  border-color: var(--primary, #8b5cf6);
+}
+
+/* ── Checked ─────────────────────────────────────────────────────────────── */
+input[type="checkbox"]:checked {
+  background: var(--primary, #8b5cf6);
+  border-color: transparent;
+}
+
+input[type="checkbox"]:checked::before {
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(45deg) scale(var(--ck-mark-size));
+  transition: all 0.2s cubic-bezier(0.12, 0.4, 0.29, 1.46) 0.1s;
+}
+
+/* ── Active (ripple trigger on uncheck) ──────────────────────────────────── */
+input[type="checkbox"]:active:not(:checked)::after {
+  transition: none;
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* ── Indeterminate (used by "Select All" in migrate, etc.) ───────────────── */
+input[type="checkbox"]:indeterminate {
+  background: color-mix(in srgb, var(--primary, #8b5cf6) 45%, transparent);
+  border-color: var(--primary, #8b5cf6);
+}
+
+input[type="checkbox"]:indeterminate::before {
+  opacity: 1;
+  width:  calc(var(--ck-diameter) * 0.55);
+  height: 0;
+  border-right: none;
+  border-bottom: 2px solid #fff;
+  transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  transition: all 0.2s cubic-bezier(0.12, 0.4, 0.29, 1.46) 0.1s;
+}
+
+/* ── Context-specific size overrides ─────────────────────────────────────── */
+
+/* Genre filter grid — compact, tight layout */
+.genre-check input[type="checkbox"] {
+  --ck-diameter: 14px;
+  --ck-radius: 3px;
+}
+
+/* Context menu category checkboxes — slightly smaller */
+.ctx-categories-list input[type="checkbox"] {
+  --ck-diameter: 16px;
+  --ck-radius: 4px;
+}

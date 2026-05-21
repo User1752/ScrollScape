@@ -94,26 +94,8 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-.genre-check input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s, border-color 0.15s;
-}
 
-.genre-check input[type="checkbox"]:checked {
-  background: var(--primary);
-  border-color: var(--primary);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M2 6l3 3 5-5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-}
+/* Checkbox size override is in ui-checkbox.css via .genre-check input[type="checkbox"] */
 
 .genre-check span {
   font-size: 0.82rem;

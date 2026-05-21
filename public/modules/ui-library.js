@@ -1,44 +1,50 @@
 // ── Sources Modal ─────────────────────────────────────────────────────────
 function showSourcesModal() {
   const modal = document.createElement('div');
-  modal.className = 'settings-modal';
+  modal.className = 'modal-overlay';
   const allSources = Object.values(state.installedSources || {});
-  const visible = Array.isArray(state.settings.visibleSources) ? state.settings.visibleSources : allSources.map(s => s.id);
+  const visible = Array.isArray(state.settings.visibleSources)
+    ? state.settings.visibleSources
+    : allSources.map(s => s.id);
+
   modal.innerHTML = `
-    <div class="settings-content" style="max-width:400px">
-      <div class="settings-header">
-        <h2>Visible Sources</h2>
-        <button class="btn secondary" id="closeSourcesModal">&times;</button>
+    <div class="import-modal-box" style="max-width:400px">
+      <div class="modal-header">
+        <h3>Visible Sources</h3>
+        <button class="btn-close-modal" id="closeSourcesModal">&times;</button>
       </div>
-      <div class="settings-body">
-        <form id="sourcesForm">
-          ${allSources.map(src => `
-            <label style="display:flex;align-items:center;margin-bottom:0.5rem;gap:0.5em">
-              <input type="checkbox" name="sources" value="${src.id}" ${visible.includes(src.id) ? 'checked' : ''}>
-              <span>${src.name || src.id}</span>
+      <div class="modal-body">
+        <form id="sourcesForm" style="display:flex;flex-direction:column;gap:0.4rem">
+          ${allSources.length === 0
+            ? '<p style="color:var(--muted);text-align:center">No sources installed.</p>'
+            : allSources.map(src => `
+            <label class="home-source-check">
+              <input type="checkbox" class="home-source-option" name="sources" value="${escapeHtml(src.id)}" ${visible.includes(src.id) ? 'checked' : ''}>
+              <span class="home-source-check-label">${escapeHtml(src.name || src.id)}</span>
             </label>
           `).join('')}
         </form>
-        <div style="margin-top:1.2em;display:flex;gap:1em;justify-content:flex-end">
-          <button class="btn secondary" id="cancelSourcesModal">Cancel</button>
-          <button class="btn primary" id="saveSourcesModal">Save</button>
-        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" id="cancelSourcesModal">Cancel</button>
+        <button class="btn primary"   id="saveSourcesModal">Save</button>
       </div>
     </div>`;
+
   document.body.appendChild(modal);
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
-  document.getElementById('closeSourcesModal').onclick = () => modal.remove();
+  document.getElementById('closeSourcesModal').onclick  = () => modal.remove();
   document.getElementById('cancelSourcesModal').onclick = e => { e.preventDefault(); modal.remove(); };
-  document.getElementById('saveSourcesModal').onclick = e => {
+  document.getElementById('saveSourcesModal').onclick   = e => {
     e.preventDefault();
     const checked = Array.from(modal.querySelectorAll('input[name="sources"]:checked')).map(cb => cb.value);
     state.settings.visibleSources = checked;
     if (typeof saveSettings === 'function') saveSettings();
     modal.remove();
     renderLibrary();
-    if (typeof window.loadPopularToday === 'function') window.loadPopularToday();
-    if (typeof window.loadRecentlyAdded === 'function') window.loadRecentlyAdded();
-    if (typeof window.loadLatestUpdates === 'function') window.loadLatestUpdates();
+    if (typeof window.loadPopularToday === 'function')   window.loadPopularToday();
+    if (typeof window.loadRecentlyAdded === 'function')  window.loadRecentlyAdded();
+    if (typeof window.loadLatestUpdates === 'function')  window.loadLatestUpdates();
   };
 }
 // Add event listener for the Sources button after DOM is ready
@@ -169,6 +175,22 @@ function openLibrarySortDrawer() {
 
   document.body.appendChild(backdrop);
   document.body.appendChild(drawer);
+
+  // Position the drawer to the left of the sort button, vertically centred on it.
+  const sortBtn = document.getElementById('btnSortLibrary');
+  if (sortBtn) {
+    const btnRect   = sortBtn.getBoundingClientRect();
+    const gap       = 8;
+    const dw        = drawer.offsetWidth  || 220;
+    const dh        = drawer.offsetHeight || 300;
+    let left = btnRect.left - dw - gap;
+    if (left < 8) left = 8;
+    let top  = btnRect.top + btnRect.height / 2 - dh / 2;
+    if (top + dh > window.innerHeight - 8) top = window.innerHeight - dh - 8;
+    if (top < 8) top = 8;
+    drawer.style.top  = `${top}px`;
+    drawer.style.left = `${left}px`;
+  }
 
   backdrop.onclick = closeLibrarySortDrawer;
   drawer.querySelector('#librarySortClose').onclick = closeLibrarySortDrawer;
