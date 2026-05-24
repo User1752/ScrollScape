@@ -177,9 +177,13 @@ function openBrowser(url) {
 }
 
 // ── Bootstrap sequence ────────────────────────────────────────────────────────
+const { healthCheckService } = require('./server/routes/health-check');
+
 ensureDirs()
   .then(() => storeModule.initStore())
   .then(() => sourceLoader.autoInstallLocalSources())
+  // Fire-and-forget: log source health at startup without blocking the server.
+  .then(() => healthCheckService.logHealthCheck().catch(() => {}))
   .then(() => {
     // Standalone exe: bind only to loopback — never reachable from outside.
     // Docker / Termux / server: bind to all interfaces for port-mapping.

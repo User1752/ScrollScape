@@ -425,6 +425,30 @@ function showSettings() {
           <!-- Advanced tab -->
           <div class="settings-tab" id="tab-advanced">
             <div class="settings-section-card">
+              <p class="settings-section-title">Source Health</p>
+              <div class="setting-group">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <p class="setting-description" style="margin:0">Check if all installed sources are responding correctly.</p>
+                  <button class="btn secondary" id="btnRunSourceHealthCheck" style="white-space:nowrap">Run Check</button>
+                </div>
+              </div>
+              <div id="sourceHealthResults" style="display:none">
+                <div id="sourceHealthList"></div>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Recent Errors</p>
+              <div class="setting-group">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <p class="setting-description" style="margin:0">Errors logged by sources during normal operation.</p>
+                  <button class="btn secondary" id="btnClearErrorLog" style="white-space:nowrap;color:var(--color-danger)">Clear Log</button>
+                </div>
+              </div>
+              <div id="errorLogResults">
+                <p class="setting-description" style="margin:8px 0;font-style:italic">Loading…</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
               <p class="settings-section-title">Commands</p>
               <div class="setting-group">
                 <div style="display:flex;gap:8px;align-items:center">
@@ -827,6 +851,162 @@ function showSettings() {
         showToast('Unknown command', `"${cmd}" is not a valid command.`, 'warning');
     }
   }
+  // ── Source Health Check + Error Log ─────────────────────────────────────────
+  const btnRunSourceHealthCheck = $('btnRunSourceHealthCheck');
+  if (btnRunSourceHealthCheck) {
+    function formatRelativeTime(isoStr) {
+      if (!isoStr) return '';
+      const diff = Date.now() - new Date(isoStr).getTime();
+      const mins  = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days  = Math.floor(diff / 86400000);
+      if (mins  < 1)   return 'just now';
+      if (mins  < 60)  return `${mins}m ago`;
+      if (hours < 24)  return `${hours}h ago`;
+      return `${days}d ago`;
+    }
+
+    async function loadErrorLog() {
+      const wrap = $('errorLogResults');
+      if (!wrap) return;
+      try {
+        const data = await fetch('/api/error-log').then(r => r.json());
+        const entries = data.entries || [];
+        if (!entries.length) {
+          wrap.innerHTML = '<p class="setting-description" style="margin:8px 0">No errors recorded.</p>';
+          return;
+        }
+        // Group by area
+        const byArea = {};
+        for (const e of entries) {
+          const area = e.area || 'unknown';
+          if (!byArea[area]) byArea[area] = [];
+          byArea[area].push(e);
+        }
+        wrap.innerHTML = Object.entries(byArea).map(([area, errs]) => `
+          <div style="margin-bottom:12px">
+            <p style="font-weight:600;color:var(--color-text);margin:0 0 6px;font-size:0.9em;text-transform:uppercase;letter-spacing:0.05em">${escapeHtml(area)}</p>
+            ${errs.map(e => `
+              <div style="
+                background:var(--color-surface-muted,var(--color-surface));
+                border:1px solid var(--color-border);
+                border-left:3px solid var(--color-danger);
+                border-radius:6px;
+                padding:8px 10px;
+                margin-bottom:6px;
+              ">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+                  <code style="font-size:0.78em;color:var(--color-text-muted);flex-shrink:0">${escapeHtml(e.code || '')}</code>
+                  <span style="font-size:0.78em;color:var(--color-text-muted);white-space:nowrap">
+                    ${escapeHtml(formatRelativeTime(e.lastSeenAt))}
+                    ${e.count > 1 ? ` &nbsp;·&nbsp; <strong>${e.count}x</strong>` : ''}
+                  </span>
+                </div>
+                <p style="margin:4px 0 0;font-size:0.85em;color:var(--color-text)">${escapeHtml(e.message || '')}</p>
+                ${e.details?.error ? `<p style="margin:3px 0 0;font-size:0.8em;color:var(--color-text-muted);font-family:monospace">${escapeHtml(String(e.details.error))}</p>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+      } catch (err) {
+        wrap.innerHTML = `<p class="setting-description" style="color:var(--color-danger);margin:8px 0">Failed to load error log: ${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    async function runAndDisplaySourceHealthCheck() {
+      const btn = btnRunSourceHealthCheck;
+      const resultsWrap = $('sourceHealthResults');
+      const list = $('sourceHealthList');
+      if (!list || !resultsWrap) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Checking…';
+      resultsWrap.style.display = '';
+      list.innerHTML = '<p class="setting-description" style="margin:8px 0">Running health check…</p>';
+
+      // Load both health check and error log in parallel
+      const [healthData] = await Promise.all([
+        fetch('/api/sources/health-check').then(r => r.json()).catch(() => ({ results: [] })),
+        loadErrorLog(),
+      ]);
+
+      try {
+        const results = healthData.results || [];
+
+        if (!results.length) {
+          list.innerHTML = '<p class="setting-description" style="margin:8px 0">No sources installed.</p>';
+          btn.disabled = false;
+          btn.textContent = 'Run Check';
+          return;
+        }
+
+        list.innerHTML = results.map(r => `
+          <div class="source-health-row" style="
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--color-border);
+          ">
+            <span style="
+              font-size: 1.1em;
+              color: ${r.ok ? 'var(--color-success)' : 'var(--color-danger)'};
+              flex-shrink: 0;
+              margin-top: 1px;
+            ">${r.ok ? '✓' : '✗'}</span>
+            <div style="flex:1;min-width:0">
+              <span style="font-weight:600;color:var(--color-text)">${escapeHtml(r.name || r.id)}</span>
+              <span style="color:var(--color-text-muted);font-size:0.82em;margin-left:6px">(${escapeHtml(r.id)})</span>
+              ${r.ok && r.note ? `<p style="margin:3px 0 0;color:var(--color-text-muted);font-size:0.82em;font-style:italic">${escapeHtml(r.note)}</p>` : ''}
+              ${!r.ok ? `<p style="margin:3px 0 0;color:var(--color-danger);font-size:0.85em">${escapeHtml(r.error || 'Unknown error')}</p>` : ''}
+            </div>
+          </div>
+        `).join('');
+
+        const passing = results.filter(r => r.ok).length;
+        const failing = results.length - passing;
+        const summary = document.createElement('p');
+        summary.className = 'setting-description';
+        summary.style.marginBottom = '8px';
+        summary.innerHTML = `<strong>${passing}</strong> OK &nbsp;·&nbsp; <strong style="color:${failing ? 'var(--color-danger)' : 'inherit'}">${failing}</strong> failing`;
+        list.prepend(summary);
+
+      } catch (e) {
+        list.innerHTML = `<p class="setting-description" style="color:var(--color-danger);margin:8px 0">Failed to run health check: ${escapeHtml(e.message)}</p>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run Check';
+      }
+    }
+
+    btnRunSourceHealthCheck.onclick = runAndDisplaySourceHealthCheck;
+
+    // Clear error log button
+    const btnClearErrorLog = $('btnClearErrorLog');
+    if (btnClearErrorLog) {
+      btnClearErrorLog.onclick = async () => {
+        if (!confirm('Clear all recorded errors?')) return;
+        try {
+          await fetch('/api/error-log', { method: 'DELETE' });
+          showToast('Error log', 'All errors cleared.', 'info');
+          loadErrorLog();
+        } catch (e) {
+          showToast('Error log', 'Failed to clear: ' + e.message, 'warning');
+        }
+      };
+    }
+
+    // Auto-run when opening the Advanced tab
+    modal.querySelectorAll('.settings-nav-item').forEach(navBtn => {
+      navBtn._origOnclick = navBtn.onclick;
+      navBtn.onclick = function() {
+        if (navBtn._origOnclick) navBtn._origOnclick.call(this);
+        if (navBtn.dataset.tab === 'tab-advanced') runAndDisplaySourceHealthCheck();
+      };
+    });
+  }
+
+
   $('cheatRunBtn').onclick = async () => {
     const inp = $('cheatInput');
     await runCheatCommand(inp.value);

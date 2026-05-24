@@ -288,6 +288,8 @@ module.exports = {
     if (!query || query.trim().length < 3) {
       // No query → return homepage trending items
       const t = await this.trending(page);
+      // Propagate temporary unavailability so callers (e.g. health check) can detect it.
+      if (t.temporarilyUnavailable) return { results: [], hasNextPage: false, temporarilyUnavailable: true };
       let rows = sortLocal(t.results || [], orderBy);
       if (filters.publicationStatus || filters.format) {
         rows = await enrichListMeta(rows, 24);
@@ -430,6 +432,39 @@ module.exports = {
 
   async authorSearch(authorName) {
     return this.search(authorName);
+  },
+
+  /**
+   * Lightweight connectivity check used by the health check service.
+   * Makes a single, fast request with no retries or backoff.
+   * Returns { ok: true } if the site responds with valid HTML,
+   * or { ok: false, temporarilyUnavailable: true, error } if blocked/unreachable.
+   */
+  async healthCheck() {
+    try {
+      const res = await fetch(`${BASE}/`, {
+        headers: HEADERS,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (res.status === 429) {
+        return { ok: false, temporarilyUnavailable: true, error: 'HTTP 429 (rate limited)' };
+      }
+      if (!res.ok) {
+        return { ok: false, error: `HTTP ${res.status}` };
+      }
+      const text = await res.text();
+      if (isRateLimitBody(text)) {
+        return { ok: false, temporarilyUnavailable: true, error: 'Cloudflare challenge / empty response' };
+      }
+      return { ok: true };
+    } catch (e) {
+      // AbortError = timeout; treat as temporarily unavailable
+      if (e.name === 'AbortError' || e.name === 'TimeoutError') {
+        return { ok: false, temporarilyUnavailable: true, error: 'Connection timed out' };
+      }
+      return { ok: false, temporarilyUnavailable: true, error: e.message };
+    }
   },
 
   async mangaDetails(mangaId) {

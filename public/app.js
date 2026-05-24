@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // app.js    ScrollScape frontend application
 //
 // Foundational modules loaded (in order) before this file by index.html:

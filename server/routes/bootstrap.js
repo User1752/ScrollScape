@@ -15,6 +15,7 @@ function registerAppRoutes(app) {
   const { registerCalendarRoutes } = require('./calendar');
   const { registerThemePresetRoutes } = require('./theme-presets');
   const { registerCoverSearchRoutes } = require('./cover-search');
+  const { registerHealthCheckRoutes } = require('./health-check');
 
   registerProxyRoutes(app);
   registerRepoRoutes(app);
@@ -30,6 +31,7 @@ function registerAppRoutes(app) {
   registerCalendarRoutes(app);
   registerThemePresetRoutes(app);
   registerCoverSearchRoutes(app);
+  registerHealthCheckRoutes(app);
 }
 
 module.exports = { registerAppRoutes };
