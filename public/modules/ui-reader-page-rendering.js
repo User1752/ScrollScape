@@ -94,12 +94,24 @@ async function hideReader() {
 // ============================================================================
 
 let _autoScrollRAF = null;
-const AUTOSCROLL_SPEEDS = [0.2, 0.5, 1.0, 2.0, 3.5]; // px per animation frame
+let _autoScrollCarry = 0;
 const READER_PREFETCH_AHEAD = 6;
 const READER_PREFETCH_BEHIND = 1;
 const READER_PREFETCH_MAX_CACHE = 36;
 const _readerPrefetchCache = new Map();
 const WEBTOON_AUTO_NEXT_THRESHOLD = 120;
+
+function getAutoScrollPointSpeeds() {
+  const defaults = [0.2, 0.5, 1.0, 2.0, 3.5];
+  const saved = Array.isArray(state.settings?.autoScrollPointSpeeds)
+    ? state.settings.autoScrollPointSpeeds
+    : defaults;
+  return defaults.map((fallback, idx) => {
+    const n = Number(saved[idx]);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(12, Math.max(0.05, n));
+  });
+}
 
 let _webtoonAutoNextHandler = null;
 let _webtoonAutoNextLoading = false;
@@ -183,10 +195,17 @@ function startAutoScroll() {
   stopAutoScroll();
   const pageWrap = $("pageWrap");
   if (!pageWrap) return;
+  _autoScrollCarry = 0;
 
   function tick() {
-    const speedPx = AUTOSCROLL_SPEEDS[state.autoScroll.speed - 1] || 1.5;
-    pageWrap.scrollTop += speedPx;
+    const speeds = getAutoScrollPointSpeeds();
+    const speedPx = speeds[state.autoScroll.speed - 1] || speeds[1] || 1.5;
+    _autoScrollCarry += speedPx;
+    const delta = Math.trunc(_autoScrollCarry);
+    if (delta > 0) {
+      pageWrap.scrollTop += delta;
+      _autoScrollCarry -= delta;
+    }
     _autoScrollRAF = requestAnimationFrame(tick);
   }
   _autoScrollRAF = requestAnimationFrame(tick);
@@ -197,6 +216,7 @@ function stopAutoScroll() {
     cancelAnimationFrame(_autoScrollRAF);
     _autoScrollRAF = null;
   }
+  _autoScrollCarry = 0;
 }
 
 function toggleAutoScroll() {

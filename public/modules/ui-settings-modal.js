@@ -32,7 +32,7 @@ function showSettings() {
             <div class="settings-section-card">
               <p class="settings-section-title">Reading Mode</p>
               <div class="setting-group">
-                <label>Default reading direction</label>
+                <label for="modeSelect">Default reading direction</label>
                 <select id="modeSelect" class="input">
                   <option value="ltr"     ${state.settings.readingMode === "ltr"     ? "selected" : ""}>Left to Right</option>
                   <option value="rtl"     ${state.settings.readingMode === "rtl"     ? "selected" : ""}>Right to Left (Manga)</option>
@@ -63,7 +63,7 @@ function showSettings() {
                 </label>
               </div>
               <div class="setting-group">
-                <label>Webtoon button placement</label>
+                <label for="webtoonTurnButtonPlacementSelect">Webtoon button placement</label>
                 <select id="webtoonTurnButtonPlacementSelect" class="input">
                   <option value="bottom"  ${(state.settings.webtoonTurnButtonPlacement || 'corners') === 'bottom' ? 'selected' : ''}>Bottom center</option>
                   <option value="corners" ${(state.settings.webtoonTurnButtonPlacement || 'corners') === 'corners' ? 'selected' : ''}>Bottom corners</option>
@@ -87,7 +87,7 @@ function showSettings() {
                 <p class="setting-description">Allows horizontal scrolling on double-page spreads.</p>
               </div>
               <div class="setting-group">
-                <label>Line Sharpness</label>
+                <label for="sharpnessSelect">Line Sharpness</label>
                 <select id="sharpnessSelect" class="input">
                   <option value="0" ${(state.settings.lineSharpness||0) === 0 ? 'selected' : ''}>Off</option>
                   <option value="1" ${(state.settings.lineSharpness||0) === 1 ? 'selected' : ''}>Subtle</option>
@@ -116,6 +116,31 @@ function showSettings() {
                 <p class="setting-description">Automatically advances past duplicates of the same chapter number</p>
               </div>
             </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Auto Scroll</p>
+              <div class="setting-group">
+                <p class="setting-description" style="margin:0 0 0.5rem 0">Set the speed used by each auto-scroll level (points 1 to 5).</p>
+                <div id="autoScrollPointSpeedGrid" class="auto-scroll-point-grid">
+                  ${(() => {
+                    const defaults = [0.2, 0.5, 1.0, 2.0, 3.5];
+                    const raw = Array.isArray(state.settings.autoScrollPointSpeeds)
+                      ? state.settings.autoScrollPointSpeeds
+                      : defaults;
+                    const speeds = defaults.map((fallback, idx) => {
+                      const n = Number(raw[idx]);
+                      return Number.isFinite(n) ? Math.min(12, Math.max(0.05, n)) : fallback;
+                    });
+                    return speeds.map((v, i) => `
+                      <div class="auto-scroll-point-row">
+                        <label for="autoScrollPointSpeed${i + 1}">Point ${i + 1}</label>
+                        <input type="range" class="settings-speed-slider" id="autoScrollPointSpeed${i + 1}" min="0.05" max="12" step="0.05" value="${v.toFixed(2)}">
+                        <span id="autoScrollPointSpeed${i + 1}Label" class="auto-scroll-point-speed-label">${v.toFixed(2)} px/f</span>
+                      </div>
+                    `).join('');
+                  })()}
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Library tab -->
@@ -123,7 +148,7 @@ function showSettings() {
             <div class="settings-section-card">
               <p class="settings-section-title">Appearance</p>
               <div class="setting-group">
-                <label>Display mode</label>
+                <label for="displayModeSelect">Display mode</label>
                 <select id="displayModeSelect" class="input">
                   <option value="detailed" ${state.settings.displayMode === 'detailed' ? 'selected' : ''}>Detailed Grid</option>
                   <option value="compact" ${state.settings.displayMode === 'compact' ? 'selected' : ''}>Compact Grid</option>
@@ -139,7 +164,7 @@ function showSettings() {
                 <p class="setting-description">Show title and author below cover art when using Compact Grid mode.</p>
               </div>
               <div class="setting-group">
-                <label>Mangas per row</label>
+                <label for="mangasPerRowSelect">Mangas per row</label>
                 <select id="mangasPerRowSelect" class="input">
                   <option value="5" ${state.settings.mangasPerRow == 5 ? 'selected' : ''}>5</option>
                   <option value="6" ${state.settings.mangasPerRow == 6 ? 'selected' : ''}>6</option>
@@ -155,7 +180,7 @@ function showSettings() {
                 <p class="setting-description">Number of manga cards per row (grid modes only).</p>
               </div>
               <div class="setting-group">
-                <label>Overlay badges</label>
+                <p class="setting-description" style="margin:0 0 0.4rem 0;font-weight:600">Overlay badges</p>
                 <label class="toggle-label" style="margin-bottom:0.3em">
                   <span class="toggle-text">Downloaded Chapters</span>
                   <input type="checkbox" id="toggleOverlayDownloaded" ${state.settings.overlays?.downloaded !== false ? 'checked' : ''}>
@@ -190,7 +215,7 @@ function showSettings() {
                 <p class="setting-description">Shows or hides the Search Manga panel at the top of the Home page.</p>
               </div>
               <div class="setting-group">
-                <label>Home page source mode</label>
+                <label for="homeSourceModeSelect">Home page source mode</label>
                 <select id="homeSourceModeSelect" class="input">
                   <option value="all" ${state.settings.homeSourceMode !== 'selected' ? 'selected' : ''}>Show all installed sources</option>
                   <option value="selected" ${state.settings.homeSourceMode === 'selected' ? 'selected' : ''}>Only selected sources</option>
@@ -198,7 +223,7 @@ function showSettings() {
                 <p class="setting-description">Controls which sources are used in Home rows (Most Popular Today, Recently Added and Latest Updates)</p>
               </div>
               <div class="setting-group" id="homeSourceSelectionGroup" style="${state.settings.homeSourceMode === 'selected' ? '' : 'display:none'}">
-                <label>Sources visible on Home</label>
+                <p class="setting-description" style="margin:0 0 0.4rem 0;font-weight:600">Sources visible on Home</p>
                 <div id="homeSourceSelectionList">
                   ${(() => {
                     const ids = new Set(Array.isArray(state.settings.homeSelectedSourceIds) ? state.settings.homeSelectedSourceIds : []);
@@ -223,7 +248,7 @@ function showSettings() {
                 <p class="setting-description">Hides NSFW-related filters in Advanced Search and excludes NSFW-tagged titles from Library</p>
               </div>
               <div class="setting-group">
-                <label>Reading status badge location</label>
+                <label for="statusBadgeLocationSelect">Reading status badge location</label>
                 <select id="statusBadgeLocationSelect" class="input">
                   <option value="cover" ${(state.settings.statusBadgeLocation || 'cover') === 'cover' ? 'selected' : ''}>On cover (top-left)</option>
                   <option value="info" ${state.settings.statusBadgeLocation === 'info' ? 'selected' : ''}>Below title</option>
@@ -251,7 +276,7 @@ function showSettings() {
             <div class="settings-section-card">
               <p class="settings-section-title">Defaults</p>
               <div class="setting-group">
-                <label>Default status filter when opening Library</label>
+                <label for="libraryDefaultStatusFilterSelect">Default status filter when opening Library</label>
                 <select id="libraryDefaultStatusFilterSelect" class="input">
                   <option value="all" ${state.settings.libraryDefaultStatusFilter === 'all' ? 'selected' : ''}>All Manga</option>
                   <option value="reading" ${state.settings.libraryDefaultStatusFilter === 'reading' ? 'selected' : ''}>Reading</option>
@@ -278,7 +303,7 @@ function showSettings() {
             <div class="settings-section-card">
               <p class="settings-section-title">${t('settings.uiThemeTitle')}</p>
               <div class="setting-group">
-                <label>${t('settings.uiThemeTitle')}</label>
+                <label for="uiThemeSelect">${t('settings.uiThemeTitle')}</label>
                 <select id="uiThemeSelect" class="input">
                   ${SHOP_THEMES.map(theme => {
                     const isOwned = getPurchasedThemes().includes(theme.id);
@@ -300,7 +325,7 @@ function showSettings() {
             <div class="settings-section-card">
               <p class="settings-section-title">Reader Appearance</p>
               <div class="setting-group" id="readerBgColorGroup" style="${state.settings.readerNoiseEnabled ? 'display:none' : ''}">
-                <label>Background colour</label>
+                <label for="readerBgSelect">Background colour</label>
                 <select id="readerBgSelect" class="input">
                   <option value="black" ${(state.settings.readerBackground||'black') === 'black' ? 'selected' : ''}>Black</option>
                   <option value="dark"  ${(state.settings.readerBackground||'black') === 'dark'  ? 'selected' : ''}>Dark</option>
@@ -320,14 +345,14 @@ function showSettings() {
               </div>
               <div id="readerWallpaperOptions" style="${state.settings.readerNoiseEnabled ? '' : 'display:none'}">
                 <div class="setting-group">
-                  <label>Wallpaper type</label>
+                  <label for="readerNoiseSourceSelect">Wallpaper type</label>
                   <select id="readerNoiseSourceSelect" class="input">
                     <option value="generated" ${(state.settings.readerNoiseSource||'generated')==='generated'?'selected':''}>Film grain (generated)</option>
                     <option value="gif"        ${(state.settings.readerNoiseSource||'generated')==='gif'       ?'selected':''}>GIF / image file</option>
                   </select>
                 </div>
                 <div class="setting-group" id="readerNoiseGifGroup" style="${(state.settings.readerNoiseSource||'generated')==='gif'?'':'display:none'}">
-                  <label>Wallpaper file</label>
+                  <label for="readerNoiseGifFileSelect">Wallpaper file</label>
                   <select id="readerNoiseGifFileSelect" class="input">
                     <option value="">— loading… —</option>
                   </select>
@@ -356,7 +381,7 @@ function showSettings() {
               <p class="settings-section-title">AniList</p>
               <div id="anilist-loggedout" ${_alToken() ? 'style="display:none"' : ''}>
                 <div class="setting-group">
-                  <label>AniList Client ID</label>
+                  <label for="anilistClientIdInput">AniList Client ID</label>
                   <input type="text" id="anilistClientIdInput" class="input" value="${escapeHtml(_alClientId())}" placeholder="e.g. 23361" autocomplete="off" spellcheck="false">
                   <p class="setting-description">
                     Register a free app at <strong>anilist.co/settings/developer</strong> and set the
@@ -550,6 +575,44 @@ function showSettings() {
       if (state.currentChapter) { showReader(); renderPage(); }
     };
   }
+  const ensureAutoScrollSpeedConfig = () => {
+    const defaults = [0.2, 0.5, 1.0, 2.0, 3.5];
+    const raw = Array.isArray(state.settings.autoScrollPointSpeeds)
+      ? state.settings.autoScrollPointSpeeds
+      : defaults;
+    state.settings.autoScrollPointSpeeds = defaults.map((fallback, idx) => {
+      const n = Number(raw[idx]);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.min(12, Math.max(0.05, n));
+    });
+  };
+  ensureAutoScrollSpeedConfig();
+
+  const bindAutoScrollPointSpeed = (point) => {
+    const input = $(`autoScrollPointSpeed${point}`);
+    const label = $(`autoScrollPointSpeed${point}Label`);
+    if (!input || !label) return;
+    const idx = point - 1;
+    const current = Number(state.settings.autoScrollPointSpeeds[idx] ?? input.value);
+    input.value = Number.isFinite(current) ? String(current) : String(input.value);
+    label.textContent = `${Number(input.value).toFixed(2)} px/f`;
+    input.oninput = (e) => {
+      const value = Math.min(12, Math.max(0.05, Number(e.target.value) || 0.05));
+      state.settings.autoScrollPointSpeeds[idx] = value;
+      label.textContent = `${value.toFixed(2)} px/f`;
+      saveSettings();
+      if (state.autoScroll?.enabled && Number(state.autoScroll.speed) === point) {
+        if (typeof stopAutoScroll === 'function') stopAutoScroll();
+        if (typeof startAutoScroll === 'function') startAutoScroll();
+      }
+    };
+  };
+  bindAutoScrollPointSpeed(1);
+  bindAutoScrollPointSpeed(2);
+  bindAutoScrollPointSpeed(3);
+  bindAutoScrollPointSpeed(4);
+  bindAutoScrollPointSpeed(5);
+
   $("sharpnessSelect").onchange = (e) => {
     state.settings.lineSharpness = parseInt(e.target.value, 10);
     saveSettings();

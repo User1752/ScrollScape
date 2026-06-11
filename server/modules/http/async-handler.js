@@ -8,17 +8,20 @@ function createAsyncHandler(tag = 'API', defaultStatus = 500, defaultMessage = '
     try {
       await fn(req, res, next);
     } catch (err) {
-      console.error(`[${tag}][ERROR]`, {
+      const status = Number(err?.statusCode) || defaultStatus;
+      const isExpected = !!err?.expected || (status >= 400 && status < 500);
+      const logMethod = isExpected ? 'warn' : 'error';
+
+      console[logMethod](`[${tag}][${isExpected ? 'WARN' : 'ERROR'}]`, {
         method: req?.method,
         path: req?.originalUrl,
         params: req?.params,
         body: req?.body,
         error: err?.message,
-        stack: err?.stack,
+        ...(isExpected ? {} : { stack: err?.stack }),
       });
 
       if (res.headersSent) return;
-      const status = Number(err?.statusCode) || defaultStatus;
       res.status(status).json({ error: err?.message || defaultMessage });
     }
   };

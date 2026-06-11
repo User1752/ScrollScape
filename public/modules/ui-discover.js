@@ -3,6 +3,10 @@
 // ============================================================================
 
 const _genreHydrationCache = new Map();
+const _genreHydrationRequestQueue = [];
+const _genreHydrationInFlight = new Map();
+let _genreHydrationActive = 0;
+const GENRE_HYDRATION_MAX_CONCURRENT = 2;
 const _homeRowRequestSeq = {
   popularToday: 0,
   recentlyAdded: 0,
@@ -13,6 +17,44 @@ const HOME_SOURCE_TIMEOUT_MS = 3500;
 
 function _homeRequestTimeout() {
   return new Promise(resolve => setTimeout(() => resolve(null), HOME_SOURCE_TIMEOUT_MS));
+}
+
+function _pumpGenreHydrationQueue() {
+  while (_genreHydrationActive < GENRE_HYDRATION_MAX_CONCURRENT && _genreHydrationRequestQueue.length > 0) {
+    const task = _genreHydrationRequestQueue.shift();
+    _genreHydrationActive++;
+    Promise.resolve()
+      .then(task)
+      .finally(() => {
+        _genreHydrationActive = Math.max(0, _genreHydrationActive - 1);
+        _pumpGenreHydrationQueue();
+      });
+  }
+}
+
+function _queueMangaDetailsFetch(sourceId, mangaId) {
+  const key = `${sourceId}:${mangaId}`;
+  if (_genreHydrationInFlight.has(key)) return _genreHydrationInFlight.get(key);
+
+  const p = new Promise((resolve) => {
+    _genreHydrationRequestQueue.push(async () => {
+      try {
+        const details = await api(`/api/source/${sourceId}/mangaDetails`, {
+          method: 'POST',
+          body: JSON.stringify({ mangaId })
+        });
+        resolve(details);
+      } catch (_) {
+        resolve(null);
+      } finally {
+        _genreHydrationInFlight.delete(key);
+      }
+    });
+    _pumpGenreHydrationQueue();
+  });
+
+  _genreHydrationInFlight.set(key, p);
+  return p;
 }
 
 function _normalizeGenres(raw, max = 3) {
@@ -62,7 +104,15 @@ async function _hydrateMissingGenres(container) {
   if (!targets.length) return;
 
   let cursor = 0;
-  const workers = Math.min(4, targets.length);
+  // Keep hydration gentle: some sources (e.g. KingOfShojo) throttle bursts.
+  const workers = Math.min(2, targets.length);
+
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  async function fetchGenresForCard(sourceId, mangaId) {
+    const details = await _queueMangaDetailsFetch(sourceId, mangaId);
+    return _extractGenresFromDetails(details, 3);
+  }
 
   async function worker() {
     while (cursor < targets.length) {
@@ -76,20 +126,30 @@ async function _hydrateMissingGenres(container) {
 
       try {
         let genres = _genreHydrationCache.get(key);
-        if (!genres) {
-          const details = await api(`/api/source/${sourceId}/mangaDetails`, {
-            method: 'POST',
-            body: JSON.stringify({ mangaId })
-          });
-          genres = _extractGenresFromDetails(details, 3);
-          _genreHydrationCache.set(key, genres);
+        if (!genres || genres.length === 0) {
+          genres = await fetchGenresForCard(sourceId, mangaId);
+          if (!genres.length) {
+            // One quick retry helps when the source temporarily rate-limits.
+            await sleep(180);
+            genres = await fetchGenresForCard(sourceId, mangaId);
+          }
+
+          // Cache only successful non-empty hydration so transient failures can retry.
+          if (genres.length > 0) {
+            _genreHydrationCache.set(key, genres);
+          } else {
+            _genreHydrationCache.delete(key);
+          }
         }
 
         if (genres.length > 0) {
           box.removeAttribute('data-missing-genres');
           box.innerHTML = genres.map(g => `<span class="manga-card-genre">${escapeHtml(g)}</span>`).join('');
         }
+
+        await sleep(120);
       } catch (_) {
+        _genreHydrationCache.delete(key);
         // Keep fallback label when detail lookup fails.
       }
     }
@@ -98,11 +158,23 @@ async function _hydrateMissingGenres(container) {
   await Promise.all(Array.from({ length: workers }, worker));
 }
 
-function genreBadgesHTML(rawGenres, max = 3) {
+function genreBadgesHTML(rawGenres, max = 3, fallbackTag = '', sourceId = '') {
   const genres = _normalizeGenres(rawGenres, max);
-  if (!genres.length) {
-    return `<div class="manga-card-genres" data-missing-genres="1"><span class="manga-card-genre">Sem tags</span></div>`;
+  const sid = String(sourceId || '').toLowerCase();
+
+  // For KingOfShojo, card/list pages often only provide a generic type badge
+  // (e.g. "Manhwa"). Keep showing it, but still mark for async hydration.
+  const isGenericSingle = genres.length === 1 && ['manhwa', 'manhua', 'manga', 'webtoon'].includes(String(genres[0]).toLowerCase());
+  const shouldHydrate = !genres.length || (sid === 'kingofshojo' && isGenericSingle);
+
+  if (shouldHydrate) {
+    const tag = fallbackTag || genres[0] || '';
+    if (!tag) {
+      return `<div class="manga-card-genres" data-missing-genres="1"></div>`;
+    }
+    return `<div class="manga-card-genres" data-missing-genres="1"><span class="manga-card-genre">${escapeHtml(tag)}</span></div>`;
   }
+
   return `<div class="manga-card-genres">${genres.map(g => `<span class="manga-card-genre">${escapeHtml(g)}</span>`).join("")}</div>`;
 }
 
@@ -268,6 +340,7 @@ window.loadLatestUpdates = async function loadLatestUpdates() {
 
 function mangaCardHTML(m) {
   const resolvedSourceId = m.sourceId || state.currentSourceId || "";
+  const fallbackTag = resolvedSourceId === 'kingofshojo' ? 'Manhwa' : '';
   const sourceAttr = resolvedSourceId ? ` data-source-id="${escapeHtml(resolvedSourceId)}"` : "";
   const sourceLabel = m.sourceName || (resolvedSourceId ? (state.installedSources?.[resolvedSourceId]?.name || resolvedSourceId) : "");
   const coverUrl = normalizeImageUrl(m.cover);
@@ -282,7 +355,7 @@ function mangaCardHTML(m) {
       <div class="manga-card-info">
         <h3 class="manga-card-title">${escapeHtml(m.title)}</h3>
         <p class="manga-card-author">${escapeHtml(m.author || "")}</p>
-        ${genreBadgesHTML(m.genres, 3)}
+        ${genreBadgesHTML(m.genres, 3, fallbackTag, resolvedSourceId)}
         <button class="btn-start-reading" onclick="event.stopPropagation(); startReading('${escapeHtml(m.id)}', '${escapeHtml(resolvedSourceId)}')">▶ Start Reading</button>
       </div>
     </div>

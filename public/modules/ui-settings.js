@@ -31,6 +31,15 @@ function loadSettings() {
     if (typeof state.settings.showHomeSearch !== 'boolean') state.settings.showHomeSearch = true;
     if (state.settings.homeSourceMode !== 'selected') state.settings.homeSourceMode = 'all';
     if (!Array.isArray(state.settings.homeSelectedSourceIds)) state.settings.homeSelectedSourceIds = [];
+    const speedDefaults = [0.2, 0.5, 1.0, 2.0, 3.5];
+    const savedSpeeds = Array.isArray(state.settings.autoScrollPointSpeeds)
+      ? state.settings.autoScrollPointSpeeds
+      : speedDefaults;
+    state.settings.autoScrollPointSpeeds = speedDefaults.map((fallback, idx) => {
+      const n = Number(savedSpeeds[idx]);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.min(12, Math.max(0.05, n));
+    });
 
     const readChaps = localStorage.getItem("scrollscapeReadChapters");
     if (readChaps) state.readChapters = new Set(JSON.parse(readChaps));

@@ -503,6 +503,10 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
       await initPDFChapter(result.pdfUrl);
     }
 
+    if (!result?.isPDF && (!Array.isArray(result?.pages) || result.pages.length === 0)) {
+      throw new Error("This chapter has no public pages (it may be locked on the source).");
+    }
+
     const maxIndex = Math.max((state.currentChapter.pages?.length || 1) - 1, 0);
     state.currentPageIndex = Math.min(Math.max(startPageIndex, 0), maxIndex);
     // Keep zoom level between chapters — only reset if it was never set
