@@ -233,6 +233,48 @@ function _closeSrcDropdown() {
   document.querySelectorAll(".source-switch-dropdown").forEach(d => d.classList.add("hidden"));
 }
 
+function showSourceSwitchChoiceModal(sourceId, title, choices) {
+  document.getElementById('sourceSwitchChoiceModal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'sourceSwitchChoiceModal';
+  modal.className = 'settings-modal';
+  
+  const rows = choices.map(c => `
+    <div class="manga-choice-row" style="display:flex;align-items:center;gap:1rem;padding:0.75rem;border-bottom:1px solid color-mix(in srgb, var(--primary) 15%, transparent);cursor:pointer;transition:background-color .2s" onclick="
+        document.getElementById('sourceSwitchChoiceModal').remove();
+        state.currentSourceId = '${escapeHtml(sourceId)}';
+        const selectors = [document.getElementById('sourceSelect'), document.getElementById('advancedSourceSelect')];
+        selectors.forEach(s => { if (s) s.value = '${escapeHtml(sourceId)}'; });
+        loadMangaDetails('${escapeHtml(c.id)}');
+    " onmouseenter="this.style.backgroundColor='color-mix(in srgb, var(--primary) 10%, transparent)'" onmouseleave="this.style.backgroundColor=''">
+       ${c.cover ? `<img src="${escapeHtml(c.cover)}" style="width:40px;height:56px;object-fit:cover;border-radius:4px">` : `<div style="width:40px;height:56px;background:color-mix(in srgb, var(--primary) 15%, transparent);border-radius:4px"></div>`}
+       <div style="flex:1">
+         <div style="font-weight:600;font-size:1rem">${escapeHtml(c.title)}</div>
+         ${c.author ? `<div style="font-size:0.8rem;color:var(--text-muted)">${escapeHtml(c.author)}</div>` : ''}
+       </div>
+    </div>
+  `).join('');
+
+  modal.innerHTML = `
+    <div class="settings-content" style="max-width:500px">
+      <div class="settings-header">
+        <h2>Select Manga</h2>
+        <button class="btn secondary" id="closeSourceSwitchChoice">&#x2715;</button>
+      </div>
+      <div class="settings-body" style="padding:0;max-height:60vh;overflow-y:auto">
+        <div style="padding:1rem;font-size:0.9rem;color:var(--text-muted);border-bottom:1px solid color-mix(in srgb, var(--primary) 15%, transparent)">
+          Multiple results found for "<strong>${escapeHtml(title)}</strong>". Please choose the correct one:
+        </div>
+        ${rows}
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.getElementById('closeSourceSwitchChoice').onclick = () => modal.remove();
+}
+
 async function switchToSourceSearch(sourceId, title) {
   document.querySelectorAll(".source-switch-dropdown").forEach(d => d.classList.add("hidden"));
   if (!title) return;
@@ -248,6 +290,12 @@ async function switchToSourceSearch(sourceId, title) {
       showToast("Not found", `"${title}" not found in ${state.installedSources[sourceId]?.name || sourceId}`, "info");
       return;
     }
+    
+    if (chapterFiltered.length > 1) {
+      showSourceSwitchChoiceModal(sourceId, title, chapterFiltered);
+      return;
+    }
+
     // Switch source globally and open first result
     state.currentSourceId = sourceId;
     const selectors = [$("sourceSelect"), $("advancedSourceSelect")];

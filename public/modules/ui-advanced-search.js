@@ -43,6 +43,20 @@ const ADV_SOURCE_CAPABILITIES = {
     format: true,
     genres: true,
   },
+  kingofshojo: {
+    orderBy: false,
+    publicationStatus: false,
+    contentRating: false,
+    format: false,
+    genres: true,
+  },
+  vortexscans: {
+    orderBy: false,
+    publicationStatus: false,
+    contentRating: false,
+    format: false,
+    genres: false,
+  }
 };
 
 function getAdvancedSourceCapabilities(sourceId) {

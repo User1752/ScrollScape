@@ -145,41 +145,45 @@ async function _chapCount(sourceId, title) {
       _cleanTitle(titleStr),
     ].filter(Boolean))].slice(0, 4);
 
-    let best = null;
+    let candidatesFound = new Map();
 
     for (const q of queries) {
       const r = await _sourceSearch(sourceId, q);
       const candidates = (r?.results || []).slice(0, 8);
       for (const c of candidates) {
-        if (!c?.id) continue;
+        if (!c?.id || candidatesFound.has(c.id)) continue;
         const sim = _titleSimilarity(titleStr, c.title || '');
+        if (sim < MIN_SIM) continue;
+        
         let chapCount = Number.isFinite(Number(c.lastChapter)) ? Number(c.lastChapter) : null;
         if (chapCount === null) {
           chapCount = await _sourceChaptersCount(sourceId, c.id);
         }
 
-        const rank = sim * 1000 + (chapCount || 0);
-        if (sim < MIN_SIM) continue;
-
-        if (!best || rank > best.rank) {
-          best = {
-            rank,
-            chapCount,
-            mangaId: c.id,
-            cover: c.cover,
-            title: c.title || titleStr,
-          };
-        }
+        candidatesFound.set(c.id, {
+          rank: sim * 1000 + (chapCount || 0),
+          chapCount,
+          mangaId: c.id,
+          cover: c.cover,
+          title: c.title || titleStr
+        });
       }
-      if (best && best.chapCount !== null && best.chapCount > 0) break;
+      if ([...candidatesFound.values()].some(c => c.chapCount !== null && c.chapCount > 0)) {
+        break;
+      }
     }
 
-    if (!best) return null;
+    if (candidatesFound.size === 0) return null;
+    
+    const allCandidates = [...candidatesFound.values()].sort((a,b) => b.rank - a.rank);
+    const best = allCandidates[0];
+
     return {
       chapCount: best.chapCount,
       mangaId: best.mangaId,
       cover: best.cover,
       title: best.title,
+      allCandidates
     };
   } catch (_) { return null; }
 }
@@ -532,15 +536,33 @@ function _migrateShowStep3Table(modal, results, allSources) {
         return `<td style="${cellStyle}">${label}</td>`;
       }
 
+      let selectHtml = '';
+      if (info.allCandidates && info.allCandidates.length > 1) {
+        const options = info.allCandidates.map((c, i) => {
+           return `<option value="${escapeHtml(c.mangaId)}" ${i === 0 ? 'selected' : ''}>${escapeHtml(c.title)} (${c.chapCount !== null ? c.chapCount : '?'} ch)</option>`;
+        }).join('');
+        
+        selectHtml = `
+          <div style="margin-top:4px">
+            <select class="migrate-candidate-select" data-row-key="${escapeHtml(rowKey)}" data-target-source="${escapeHtml(sid)}" style="width:100%;max-width:180px;font-size:0.75rem;padding:2px;background:var(--bg-input);color:var(--text);border:1px solid color-mix(in srgb, var(--primary) 30%, transparent);border-radius:4px">
+              ${options}
+            </select>
+          </div>
+        `;
+      }
+
       return `<td style="${cellStyle}">
-        <label style="display:inline-flex;align-items:center;gap:0.55rem;cursor:pointer">
-          <input
-            type="checkbox"
-            class="migrate-target-chk migrate-chk"
-            data-row-key="${escapeHtml(rowKey)}"
-            data-target-source="${escapeHtml(sid)}"
-          >
-          <span>${label}${crown}</span>
+        <label style="display:inline-flex;align-items:center;gap:0.55rem;cursor:pointer;flex-direction:column;align-items:center">
+          <div style="display:flex;align-items:center;gap:0.55rem">
+            <input
+              type="checkbox"
+              class="migrate-target-chk migrate-chk"
+              data-row-key="${escapeHtml(rowKey)}"
+              data-target-source="${escapeHtml(sid)}"
+            >
+            <span>${label}${crown}</span>
+          </div>
+          ${selectHtml}
         </label>
       </td>`;
     }).join('');

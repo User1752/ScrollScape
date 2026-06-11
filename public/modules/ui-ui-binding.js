@@ -414,6 +414,8 @@ function applyCustomization(cfg) {
   var bgUrl      = cfg.bgUrl      || '';
   var bgDim      = cfg.bgDim      != null ? cfg.bgDim      : 0;
   var bgOpac     = cfg.bgOpac     != null ? cfg.bgOpac     : 0;
+  var bgPosX     = _sanitizeCustomPercent(cfg.bgPosX, 50);
+  var bgPosY     = _sanitizeCustomPercent(cfg.bgPosY, 50);
   var headerUrl  = cfg.headerUrl  || '';
   var headerDim  = cfg.headerDim  != null ? cfg.headerDim  : 0;
   var headerOpac = cfg.headerOpac != null ? cfg.headerOpac : 0;
@@ -422,9 +424,13 @@ function applyCustomization(cfg) {
   var charUrl    = cfg.charUrl    || '';
   var charDim    = cfg.charDim    != null ? cfg.charDim    : 0;
   var charDark   = cfg.charDark   != null ? cfg.charDark   : 0;
+  var charPosX   = _sanitizeCustomPercent(cfg.charPosX, 50);
+  var charPosY   = _sanitizeCustomPercent(cfg.charPosY, 50);
   var cornerUrl  = cfg.cornerUrl  || '';
   var cornerDim  = cfg.cornerDim  != null ? cfg.cornerDim  : 0;
   var cornerDark = cfg.cornerDark != null ? cfg.cornerDark : 0;
+  var cornerPosX = _sanitizeCustomPercent(cfg.cornerPosX, 50);
+  var cornerPosY = _sanitizeCustomPercent(cfg.cornerPosY, 50);
   var fontFamily = _sanitizeCustomFontFamily(cfg.fontFamily);
 
   var css = '';
@@ -451,7 +457,7 @@ function applyCustomization(cfg) {
     var bgLayer = document.createElement('div');
     bgLayer.id = 'custom-bg-layer';
     bgLayer.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;' +
-      "background:linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') center/cover fixed;" +
+      "background:linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') " + bgPosX + "% " + bgPosY + "%/cover fixed;" +
       'opacity:' + ((100 - bgOpac) / 100);
     document.body.appendChild(bgLayer);
   }
@@ -480,8 +486,8 @@ function applyCustomization(cfg) {
   if (charUrl) {
     _mkOverlay(
       'custom-char',
-      'position:fixed;bottom:0;left:0;width:240px;height:100vh;pointer-events:none;overflow:hidden;z-index:102;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.8) 0%,transparent 100%);mask-image:linear-gradient(to top,rgba(0,0,0,.8) 0%,transparent 100%)',
-      'position:absolute;bottom:0;left:50%;transform:translateX(-50%);height:90vh;width:auto;object-fit:contain',
+      'position:fixed;bottom:0;left:0;width:240px;height:100vh;pointer-events:none;overflow:hidden;z-index:102',
+      'position:absolute;left:' + charPosX + '%;top:' + charPosY + '%;width:100%;height:auto;max-height:90vh;object-fit:contain;transform:translate(-' + charPosX + '%,-' + charPosY + '%);-webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,rgba(0,0,0,0.08) 12%,rgba(0,0,0,0.24) 26%,rgba(0,0,0,0.52) 40%,rgba(0,0,0,0.8) 54%,rgba(0,0,0,1) 68%,rgba(0,0,0,1) 100%);mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,rgba(0,0,0,0.08) 12%,rgba(0,0,0,0.24) 26%,rgba(0,0,0,0.52) 40%,rgba(0,0,0,0.8) 54%,rgba(0,0,0,1) 68%,rgba(0,0,0,1) 100%);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%',
       (100 - charDim) / 100, charUrl, 1 - charDark / 100
     );
   }
@@ -490,7 +496,7 @@ function applyCustomization(cfg) {
     _mkOverlay(
       'custom-corner',
       'position:fixed;bottom:0;left:0;width:240px;height:210px;border-radius:0 12px 0 0;pointer-events:none;overflow:hidden;z-index:101;background:rgba(0,0,0,0.18);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 42%);mask-image:linear-gradient(to bottom,transparent 0%,black 42%)',
-      'position:absolute;bottom:0;left:0;width:100%;height:100%;object-fit:cover',
+      'position:absolute;bottom:0;left:0;width:100%;height:100%;object-fit:cover;object-position:' + cornerPosX + '% ' + cornerPosY + '%',
       (100 - cornerDim) / 100, cornerUrl, 1 - cornerDark / 100
     );
   }
@@ -582,10 +588,14 @@ function renderCustomizeView() {
   var bgu = escapeHtml(active.bgUrl || '');
 
   var bd  = active.bgDim     || 0;
+  var bpx = _sanitizeCustomPercent(active.bgPosX, 50);
+  var bpy = _sanitizeCustomPercent(active.bgPosY, 50);
 
   var cu  = escapeHtml(active.charUrl   || '');
 
   var cd  = active.charDim   || 0;
+  var cpx = _sanitizeCustomPercent(active.charPosX, 50);
+  var cpy = _sanitizeCustomPercent(active.charPosY, 50);
 
   var hu  = escapeHtml(active.headerUrl || '');
 
@@ -598,6 +608,8 @@ function renderCustomizeView() {
   var cou = escapeHtml(active.cornerUrl || '');
 
   var cod = active.cornerDim || 0;
+  var copx = _sanitizeCustomPercent(active.cornerPosX, 50);
+  var copy = _sanitizeCustomPercent(active.cornerPosY, 50);
 
   var bgo  = active.bgOpac     || 0;
 
@@ -609,13 +621,13 @@ function renderCustomizeView() {
 
 
 
-  var prevBg  = bgu ? "background:linear-gradient(rgba(0,0,0," + (bd/100) + "),rgba(0,0,0," + (bd/100) + ")),url('" + bgu + "') center/cover"  : '';
+  var prevBg  = bgu ? "background:linear-gradient(rgba(0,0,0," + (bd/100) + "),rgba(0,0,0," + (bd/100) + ")),url('" + bgu + "') " + bpx + "% " + bpy + "%/cover"  : '';
 
-  var prevCh  = cu  ? "background:url('" + cu + "') center top/contain no-repeat" : '';
+  var prevCh  = cu  ? "background:url('" + cu + "') " + cpx + "% " + cpy + "%/contain no-repeat" : '';
 
   var prevHdr = hu  ? "background:linear-gradient(rgba(0,0,0," + (hd/100) + "),rgba(0,0,0," + (hd/100) + ")),url('" + hu + "') " + hpx + "% " + hpy + "%/cover no-repeat" : '';
 
-  var prevCor = cou ? "background:url('" + cou + "') center/cover no-repeat" : '';
+  var prevCor = cou ? "background:url('" + cou + "') " + copx + "% " + copy + "%/cover no-repeat" : '';
   var activeFont = _sanitizeCustomFontFamily(active.fontFamily);
   var fontOptionsHtml = CUSTOM_FONT_OPTIONS.map(function(opt) {
     var selected = opt.value === activeFont ? ' selected' : '';
@@ -654,6 +666,10 @@ function renderCustomizeView() {
           '<input id="customBgDim" class="customize-slider" type="range" min="0" max="95" value="' + bd + '">' +
           '<label class="customize-label">' + escapeHtml(tr('customization.transparency')) + ': <span id="customBgOpacVal">' + bgo + '</span>%</label>' +
           '<input id="customBgOpac" class="customize-slider" type="range" min="0" max="95" value="' + bgo + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.focusX')) + ': <span id="customBgPosXVal">' + bpx + '</span>%</label>' +
+          '<input id="customBgPosX" class="customize-slider" type="range" min="0" max="100" value="' + bpx + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.focusY')) + ': <span id="customBgPosYVal">' + bpy + '</span>%</label>' +
+          '<input id="customBgPosY" class="customize-slider" type="range" min="0" max="100" value="' + bpy + '">' +
         '</div>' +
 
         '<div class="customize-card">' +
@@ -666,6 +682,10 @@ function renderCustomizeView() {
           '<input id="customCharDark" class="customize-slider" type="range" min="0" max="95" value="' + chd + '">' +
           '<label class="customize-label">' + escapeHtml(tr('customization.transparency')) + ': <span id="customCharDimVal">' + cd + '</span>%</label>' +
           '<input id="customCharDim" class="customize-slider" type="range" min="0" max="95" value="' + cd + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.focusX')) + ': <span id="customCharPosXVal">' + cpx + '</span>%</label>' +
+          '<input id="customCharPosX" class="customize-slider" type="range" min="0" max="100" value="' + cpx + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.focusY')) + ': <span id="customCharPosYVal">' + cpy + '</span>%</label>' +
+          '<input id="customCharPosY" class="customize-slider" type="range" min="0" max="100" value="' + cpy + '">' +
         '</div>' +
 
         '<div class="customize-card">' +
@@ -694,6 +714,10 @@ function renderCustomizeView() {
           '<input id="customCornerDark" class="customize-slider" type="range" min="0" max="95" value="' + cod2 + '">' +
           '<label class="customize-label">' + escapeHtml(tr('customization.transparency')) + ': <span id="customCornerDimVal">' + cod + '</span>%</label>' +
           '<input id="customCornerDim" class="customize-slider" type="range" min="0" max="95" value="' + cod + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.focusX')) + ': <span id="customCornerPosXVal">' + copx + '</span>%</label>' +
+          '<input id="customCornerPosX" class="customize-slider" type="range" min="0" max="100" value="' + copx + '">' +
+          '<label class="customize-label">' + escapeHtml(tr('customization.focusY')) + ': <span id="customCornerPosYVal">' + copy + '</span>%</label>' +
+          '<input id="customCornerPosY" class="customize-slider" type="range" min="0" max="100" value="' + copy + '">' +
         '</div>' +
 
         '<div class="customize-card palette-card">' +
@@ -784,9 +808,13 @@ function renderCustomizeView() {
     var bgUrl      = document.getElementById('customBgUrl').value.trim();
     var bgDim      = +document.getElementById('customBgDim').value;
     var bgOpac     = +document.getElementById('customBgOpac').value;
+    var bgPosX     = _sanitizeCustomPercent(document.getElementById('customBgPosX').value, 50);
+    var bgPosY     = _sanitizeCustomPercent(document.getElementById('customBgPosY').value, 50);
     var charUrl    = document.getElementById('customCharUrl').value.trim();
     var charDark   = +document.getElementById('customCharDark').value;
     var charDim    = +document.getElementById('customCharDim').value;
+    var charPosX   = _sanitizeCustomPercent(document.getElementById('customCharPosX').value, 50);
+    var charPosY   = _sanitizeCustomPercent(document.getElementById('customCharPosY').value, 50);
     var headerUrl  = document.getElementById('customHeaderUrl').value.trim();
     var headerDim  = +document.getElementById('customHeaderDim').value;
     var headerOpac = +document.getElementById('customHeaderOpac').value;
@@ -795,6 +823,8 @@ function renderCustomizeView() {
     var cornerUrl  = document.getElementById('customCornerUrl').value.trim();
     var cornerDark = +document.getElementById('customCornerDark').value;
     var cornerDim  = +document.getElementById('customCornerDim').value;
+    var cornerPosX = _sanitizeCustomPercent(document.getElementById('customCornerPosX').value, 50);
+    var cornerPosY = _sanitizeCustomPercent(document.getElementById('customCornerPosY').value, 50);
     var paletteColor = (document.getElementById('cpHexInput') ? document.getElementById('cpHexInput').value.trim() : '') || '';
     var fontFamily = _sanitizeCustomFontFamily(document.getElementById('customFontFamily').value);
     var btnHexEl   = document.getElementById('btnCpHexInput');
@@ -804,21 +834,27 @@ function renderCustomizeView() {
 
     document.getElementById('customBgDimVal').textContent      = bgDim;
     document.getElementById('customBgOpacVal').textContent     = bgOpac;
+    document.getElementById('customBgPosXVal').textContent     = bgPosX;
+    document.getElementById('customBgPosYVal').textContent     = bgPosY;
     document.getElementById('customCharDarkVal').textContent   = charDark;
     document.getElementById('customCharDimVal').textContent    = charDim;
+    document.getElementById('customCharPosXVal').textContent   = charPosX;
+    document.getElementById('customCharPosYVal').textContent   = charPosY;
     document.getElementById('customHeaderDimVal').textContent  = headerDim;
     document.getElementById('customHeaderOpacVal').textContent = headerOpac;
     document.getElementById('customHeaderPosXVal').textContent = headerPosX;
     document.getElementById('customHeaderPosYVal').textContent = headerPosY;
     document.getElementById('customCornerDarkVal').textContent = cornerDark;
     document.getElementById('customCornerDimVal').textContent  = cornerDim;
+    document.getElementById('customCornerPosXVal').textContent = cornerPosX;
+    document.getElementById('customCornerPosYVal').textContent = cornerPosY;
 
     var p = function(n) { return document.getElementById(n); };
-    p('previewBg').style.background     = bgUrl ? "linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') center/cover" : '';
+    p('previewBg').style.background     = bgUrl ? "linear-gradient(rgba(0,0,0," + (bgDim/100) + "),rgba(0,0,0," + (bgDim/100) + ")),url('" + bgUrl + "') " + bgPosX + "% " + bgPosY + "%/cover" : '';
 
     // Left Column — apply darkness (brightness filter) and transparency (opacity)
     var charPrev = p('previewChar');
-    charPrev.style.background = charUrl ? "url('" + charUrl + "') center top/contain no-repeat" : '';
+    charPrev.style.background = charUrl ? "url('" + charUrl + "') " + charPosX + "% " + charPosY + "%/contain no-repeat" : '';
     charPrev.style.opacity    = charUrl ? String((100 - charDim)  / 100) : '';
     charPrev.style.filter     = charUrl ? 'brightness(' + (1 - charDark / 100) + ')' : '';
 
@@ -826,12 +862,12 @@ function renderCustomizeView() {
 
     // Corner Card — apply darkness (brightness filter) and transparency (opacity)
     var cornerPrev = p('previewCorner');
-    cornerPrev.style.background = cornerUrl ? "url('" + cornerUrl + "') center/cover no-repeat" : '';
+    cornerPrev.style.background = cornerUrl ? "url('" + cornerUrl + "') " + cornerPosX + "% " + cornerPosY + "%/cover no-repeat" : '';
     cornerPrev.style.opacity    = cornerUrl ? String((100 - cornerDim)  / 100) : '';
     cornerPrev.style.filter     = cornerUrl ? 'brightness(' + (1 - cornerDark / 100) + ')' : '';
 
     var currentCustom = getActiveCustom() || {};
-    var cfg = Object.assign({}, currentCustom, { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, charUrl: charUrl, charDark: charDark, charDim: charDim, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, headerPosX: headerPosX, headerPosY: headerPosY, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, paletteColor: paletteColor, fontFamily: fontFamily, buttonColor: buttonColor, accentColor: accentColor });
+    var cfg = Object.assign({}, currentCustom, { bgUrl: bgUrl, bgDim: bgDim, bgOpac: bgOpac, bgPosX: bgPosX, bgPosY: bgPosY, charUrl: charUrl, charDark: charDark, charDim: charDim, charPosX: charPosX, charPosY: charPosY, headerUrl: headerUrl, headerDim: headerDim, headerOpac: headerOpac, headerPosX: headerPosX, headerPosY: headerPosY, cornerUrl: cornerUrl, cornerDark: cornerDark, cornerDim: cornerDim, cornerPosX: cornerPosX, cornerPosY: cornerPosY, paletteColor: paletteColor, fontFamily: fontFamily, buttonColor: buttonColor, accentColor: accentColor });
 
     // Auto-apply every change from customization controls.
     setActiveCustom(cfg);
@@ -846,7 +882,7 @@ function renderCustomizeView() {
 
 
 
-  ['customBgUrl','customBgDim','customBgOpac','customCharUrl','customCharDark','customCharDim','customHeaderUrl','customHeaderDim','customHeaderOpac','customHeaderPosX','customHeaderPosY','customCornerUrl','customCornerDark','customCornerDim','customFontFamily','btnCpHexInput','accentHexInput','accentColorInput'].forEach(function(id) {
+  ['customBgUrl','customBgDim','customBgOpac','customBgPosX','customBgPosY','customCharUrl','customCharDark','customCharDim','customCharPosX','customCharPosY','customHeaderUrl','customHeaderDim','customHeaderOpac','customHeaderPosX','customHeaderPosY','customCornerUrl','customCornerDark','customCornerDim','customCornerPosX','customCornerPosY','customFontFamily','btnCpHexInput','accentHexInput','accentColorInput'].forEach(function(id) {
 
     var el = document.getElementById(id);
 
