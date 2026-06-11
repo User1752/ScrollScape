@@ -291,7 +291,7 @@ function showSettings() {
               </div>
               <div class="setting-group">
                 <button class="btn secondary" id="btnGoToThemeShop" style="display:flex; gap:8px; justify-content:center; align-items:center; width:100%;">
-                  🛒 ${t('nav.shop')}
+                  Shop: ${t('nav.shop')}
                 </button>
               </div>
             </div>
@@ -953,7 +953,7 @@ function showSettings() {
               color: ${r.ok ? 'var(--color-success)' : 'var(--color-danger)'};
               flex-shrink: 0;
               margin-top: 1px;
-            ">${r.ok ? '✓' : '✗'}</span>
+            ">${r.ok ? 'OK' : 'FAIL'}</span>
             <div style="flex:1;min-width:0">
               <span style="font-weight:600;color:var(--color-text)">${escapeHtml(r.name || r.id)}</span>
               <span style="color:var(--color-text-muted);font-size:0.82em;margin-left:6px">(${escapeHtml(r.id)})</span>

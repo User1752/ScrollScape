@@ -67,19 +67,208 @@ async function anilistSearchMedia(title) {
   return data?.data?.Media?.id || null;
 }
 
-async function anilistSyncProgress(mangaTitle, chapterNum) {
-  if (!_alToken() || !state.settings.anilistAutoSync) return;
+let _alStartupProgressSyncRunning = false;
+let _alStartupProgressSyncDone = false;
+const _alFinalizeInFlightByManga = new Map();
+
+function _normalizeProgressNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  }
+
+  const raw = String(value || '').trim();
+  if (!raw) return 0;
+
+  const direct = parseInt(raw, 10);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  const m = raw.match(/(\d+(?:\.\d+)?)/);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+function _resolveSourceIdForManga(mangaId, fallback = '') {
+  const id = String(mangaId || '').trim();
+  if (!id) return fallback;
+  const fromFav = (state.favorites || []).find(m => String(m?.id || '') === id && m?.sourceId);
+  return fromFav?.sourceId || fallback;
+}
+
+async function _anilistReadProgressByMediaId(mediaId) {
+  const id = Number(mediaId || 0);
+  if (!id) return 0;
+  const data = await anilistGQL(
+    'query ($id: Int) { Media(id: $id, type: MANGA) { mediaListEntry { progress } } }',
+    { id }
+  );
+  if (data?.errors?.length) throw new Error(data.errors[0]?.message || 'AniList read progress failed');
+  return _normalizeProgressNumber(data?.data?.Media?.mediaListEntry?.progress);
+}
+
+async function _anilistWriteProgressByMediaId(mediaId, progress) {
+  const id = Number(mediaId || 0);
+  const p = _normalizeProgressNumber(progress);
+  if (!id || p <= 0) return;
+  const data = await anilistGQL(
+    'mutation ($m: Int, $p: Int) { SaveMediaListEntry(mediaId: $m, status: CURRENT, progress: $p) { id progress } }',
+    { m: id, p }
+  );
+  if (data?.errors?.length) throw new Error(data.errors[0]?.message || 'AniList write progress failed');
+}
+
+async function _resolveAniListMediaIdForManga(mangaId, mangaTitle) {
+  const linked = _alGetLink(mangaId);
+  if (linked) return Number(linked);
+  const mediaId = await anilistSearchMedia(mangaTitle);
+  if (mediaId && mangaId) _alSetLink(mangaId, Number(mediaId));
+  return Number(mediaId || 0);
+}
+
+async function _syncLocalUpToAniListIfHigher({ mangaId, sourceId, remoteProgress, localProgress }) {
+  const remote = _normalizeProgressNumber(remoteProgress);
+  const local = _normalizeProgressNumber(localProgress);
+  if (remote <= local) return { updated: 0 };
+  if (!mangaId || !sourceId || sourceId === 'anilist') return { updated: 0 };
+  return _syncTrackerProgressToLocal(mangaId, sourceId, remote);
+}
+
+async function _reconcileAniListProgress({ mangaId, mangaTitle, sourceId, localProgressCandidate = 0 }) {
+  if (!_alToken() || !state.settings.anilistAutoSync) return { ok: false, skipped: true };
+
+  const mediaId = await _resolveAniListMediaIdForManga(mangaId, mangaTitle);
+  if (!mediaId) return { ok: false, skipped: true, reason: 'missing-media-id' };
+
+  const localProgress = Math.max(
+    _normalizeProgressNumber(state.highestReadChapter?.[mangaId]),
+    _normalizeProgressNumber(localProgressCandidate)
+  );
+  const remoteProgress = _normalizeProgressNumber(await _anilistReadProgressByMediaId(mediaId));
+  const mergedProgress = Math.max(localProgress, remoteProgress);
+
+  if (remoteProgress > localProgress) {
+    await _syncLocalUpToAniListIfHigher({
+      mangaId,
+      sourceId,
+      remoteProgress,
+      localProgress,
+    });
+  }
+
+  if (localProgress > remoteProgress) {
+    await _anilistWriteProgressByMediaId(mediaId, mergedProgress);
+  }
+
+  return { ok: true, mediaId, localProgress, remoteProgress, mergedProgress };
+}
+
+async function anilistSyncProgress(mangaTitle, chapterNum, context = {}) {
+  const mangaId = context.mangaId || state.currentManga?.id || '';
+  const sourceId = context.sourceId || state.currentSourceId || _resolveSourceIdForManga(mangaId, '');
+  const candidate = _normalizeProgressNumber(chapterNum);
+  if (!mangaTitle || !candidate) return;
   try {
-    const mediaId = await anilistSearchMedia(mangaTitle);
-    if (!mediaId) return;
-    const progress = parseInt(chapterNum, 10);
-    if (isNaN(progress) || progress < 0) return;
-    await anilistGQL(
-      'mutation ($m: Int, $p: Int) { SaveMediaListEntry(mediaId: $m, status: CURRENT, progress: $p) { id } }',
-      { m: mediaId, p: progress }
-    );
+    await _reconcileAniListProgress({
+      mangaId,
+      mangaTitle,
+      sourceId,
+      localProgressCandidate: candidate,
+    });
   } catch (e) {
     dbg.warn(dbg.ERR_ANILIST, 'Sync failed', e);
+  }
+}
+
+async function anilistFinalizeCurrentChapterProgress() {
+  if (!_alToken() || !state.settings.anilistAutoSync) return;
+  const mangaId = String(state.currentManga?.id || '').trim();
+  const mangaTitle = String(state.currentManga?.title || '').trim();
+  if (!mangaId || !mangaTitle) return;
+
+  const chapterMeta = state.allChapters?.[state.currentChapterIndex] || null;
+  const candidate = Math.max(
+    _normalizeProgressNumber(chapterMeta?.chapter),
+    _normalizeProgressNumber(state.highestReadChapter?.[mangaId])
+  );
+  if (!candidate) return;
+
+  const inFlight = _alFinalizeInFlightByManga.get(mangaId);
+  if (inFlight && inFlight.progress >= candidate) {
+    return inFlight.promise;
+  }
+
+  const sourceId = _resolveSourceIdForManga(mangaId, state.currentSourceId || '');
+  const promise = _reconcileAniListProgress({
+    mangaId,
+    mangaTitle,
+    sourceId,
+    localProgressCandidate: candidate,
+  }).catch((e) => {
+    dbg.warn(dbg.ERR_ANILIST, 'Finalize sync failed', e);
+  }).finally(() => {
+    const cur = _alFinalizeInFlightByManga.get(mangaId);
+    if (cur?.promise === promise) _alFinalizeInFlightByManga.delete(mangaId);
+  });
+
+  _alFinalizeInFlightByManga.set(mangaId, { progress: candidate, promise });
+  return promise;
+}
+
+function anilistFlushPendingProgress() {
+  return anilistFinalizeCurrentChapterProgress();
+}
+
+async function anilistStartupReconcileProgress() {
+  if (_alStartupProgressSyncRunning || _alStartupProgressSyncDone) return;
+  if (!_alToken() || !state.settings.anilistAutoSync) return;
+
+  const links = (() => {
+    try { return JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}') || {}; }
+    catch (_) { return {}; }
+  })();
+
+  const targetsMap = new Map();
+  for (const fav of (state.favorites || [])) {
+    const mangaId = String(fav?.id || '').trim();
+    if (!mangaId) continue;
+    const linked = Number(fav?.anilistId || links[mangaId] || 0);
+    if (!linked) continue;
+    targetsMap.set(mangaId, {
+      mangaId,
+      mangaTitle: String(fav?.title || '').trim(),
+      sourceId: String(fav?.sourceId || ''),
+      localProgressCandidate: _normalizeProgressNumber(state.highestReadChapter?.[mangaId]),
+    });
+    if (!links[mangaId]) _alSetLink(mangaId, linked);
+  }
+
+  if (!targetsMap.size) {
+    _alStartupProgressSyncDone = true;
+    return;
+  }
+
+  _alStartupProgressSyncRunning = true;
+  try {
+    const targets = [...targetsMap.values()];
+    const concurrency = Math.min(3, Math.max(1, targets.length));
+    let idx = 0;
+
+    async function worker() {
+      while (idx < targets.length) {
+        const cur = targets[idx++];
+        try {
+          await _reconcileAniListProgress(cur);
+        } catch (e) {
+          dbg.warn(dbg.ERR_ANILIST, 'Startup progress sync failed for one manga', e);
+        }
+        await _sleep(110);
+      }
+    }
+
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    _alStartupProgressSyncDone = true;
+  } finally {
+    _alStartupProgressSyncRunning = false;
   }
 }
 

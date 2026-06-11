@@ -509,29 +509,21 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
 
     // Track highest chapter number read (for AniList progress auto-fill)
     const chNum = state.allChapters?.[chapterIndex]?.chapter;
-    if (chNum !== undefined && !isNaN(Number(chNum)) && Number(chNum) > 0) {
+    const chNumText = String(chNum ?? '').trim();
+    const chNumParsed = Number.isFinite(Number(chNumText))
+      ? Number(chNumText)
+      : (() => {
+          const m = chNumText.match(/(\d+(?:\.\d+)?)/);
+          return m ? Number(m[1]) : NaN;
+        })();
+    if (Number.isFinite(chNumParsed) && chNumParsed > 0) {
       const _mId = state.currentManga.id;
-      state.highestReadChapter[_mId] = Math.max(state.highestReadChapter[_mId] || 0, Number(chNum));
+      state.highestReadChapter[_mId] = Math.max(state.highestReadChapter[_mId] || 0, chNumParsed);
     }
     _markReadBackwardsToChapterIndex(state.currentManga.id, chapterIndex, chapterId);
     state.readerSessionStart = Date.now();
 
-    // AniList: sync progress when a chapter is loaded (treated as "read")
-    if (chNum !== undefined && state.currentManga?.title) {
-      const _linkedId = _alGetLink(state.currentManga.id);
-      if (_linkedId && _alToken()) {
-        // Direct update using saved link — no title search needed
-        const _prog = parseInt(chNum, 10);
-        if (!isNaN(_prog) && _prog > 0) {
-          anilistGQL(
-            'mutation ($m: Int, $p: Int) { SaveMediaListEntry(mediaId: $m, status: CURRENT, progress: $p) { id progress } }',
-            { m: _linkedId, p: _prog }
-          ).catch(e => dbg.warn(dbg.ERR_ANILIST, 'Auto-sync failed', e));
-        }
-      } else {
-        anilistSyncProgress(state.currentManga.title, chNum).catch(() => {});
-      }
-    }
+    // AniList sync now runs when a reading session is finalized (chapter switch/close).
 
     api("/api/history/add", {
       method: "POST",

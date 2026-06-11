@@ -764,7 +764,7 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
       }
     }
     if (semSourceWarn) {
-      parts.push('⚠️ Alguns mangas migrados de "sem source" não tinham progresso/status para copiar.');
+      parts.push('Warning: Alguns mangas migrados de "sem source" não tinham progresso/status para copiar.');
     }
 
     showToast('Migration complete', parts.join(', '), (res.failed || skipped || semSourceWarn) ? 'warning' : 'success');

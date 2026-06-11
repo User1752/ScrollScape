@@ -159,7 +159,7 @@ function createSourceLoaderCore({ safeId, fetchJson, readStore, writeStore } = {
           installedAt: new Date().toISOString(),
         };
       } catch (e) {
-        console.warn(`⚠ Auto-install failed for ${id}:`, e.message);
+        console.warn(`[WARN] Auto-install failed for ${id}:`, e.message);
       }
     }));
 

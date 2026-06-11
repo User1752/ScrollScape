@@ -33,6 +33,13 @@
   }
   
   await refreshState();
+
+  // Reconcile chapter progress with AniList at startup in background.
+  // If AniList has higher progress, local read state is advanced to match.
+  anilistStartupReconcileProgress().catch((e) => {
+    dbg.warn(dbg.ERR_ANILIST, 'Startup progress reconcile failed', e);
+  });
+
   bindUI();
   
   // Initialize Feather icons for static HTML

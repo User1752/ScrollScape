@@ -137,10 +137,10 @@ function createSourceHealthCheckService({ readStore, loadSourceFromFile }) {
     console.log(`[HealthCheck] Sources: ${ok.length} OK, ${failing.length} failing.`);
 
     for (const r of ok) {
-      console.log(`[HealthCheck]   ✓ ${r.name} (${r.id})`);
+      console.log(`[HealthCheck]   [OK] ${r.name} (${r.id})`);
     }
     for (const r of failing) {
-      console.warn(`[HealthCheck]   ✗ ${r.name} (${r.id}): ${r.error}`);
+      console.warn(`[HealthCheck]   [FAIL] ${r.name} (${r.id}): ${r.error}`);
     }
   }
 

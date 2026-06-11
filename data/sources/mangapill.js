@@ -1,11 +1,23 @@
 const cheerio = require('cheerio');
 
 const BASE = 'https://mangapill.com';
+const FETCH_TIMEOUT_MS = 12_000;
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Referer': BASE
 };
+
+function isChallengeBody(text) {
+  const s = String(text || '').toLowerCase();
+  if (!s.trim()) return true;
+  return s.includes('just a moment') ||
+    s.includes('attention required') ||
+    s.includes('cloudflare') ||
+    s.includes('captcha') ||
+    s.includes('access denied') ||
+    s.includes('too many requests');
+}
 
 // Route all image URLs through the server proxy so the CDN receives the right Referer
 function proxyImg(url) {
@@ -25,7 +37,11 @@ function extractMangaId(href = '') {
 }
 
 async function getHtml(url) {
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await fetch(url, {
+    headers: HEADERS,
+    redirect: 'follow',
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+  });
   if (!res.ok) throw new Error(`MangaPill fetch error: ${res.status} ${url}`);
   return res.text();
 }
@@ -235,6 +251,36 @@ module.exports = {
     author: 'scraper',
     supportsTrending: false,
     supportsPopularAllTime: true
+  },
+
+  /**
+   * Lightweight connectivity check used by the health check service.
+   * Uses one fast request so health probes do not trigger heavy enrichment.
+   */
+  async healthCheck() {
+    try {
+      const res = await fetch(`${BASE}/`, {
+        headers: HEADERS,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (res.status === 429) {
+        return { ok: false, temporarilyUnavailable: true, error: 'HTTP 429 (rate limited)' };
+      }
+      if (!res.ok) {
+        return { ok: false, error: `HTTP ${res.status}` };
+      }
+      const text = await res.text();
+      if (isChallengeBody(text)) {
+        return { ok: false, temporarilyUnavailable: true, error: 'Cloudflare challenge / empty response' };
+      }
+      return { ok: true };
+    } catch (e) {
+      if (e.name === 'AbortError' || e.name === 'TimeoutError') {
+        return { ok: false, temporarilyUnavailable: true, error: 'Connection timed out' };
+      }
+      return { ok: false, temporarilyUnavailable: true, error: e.message };
+    }
   },
 
   async search(query, page = 1, orderBy = '', filters = {}) {
