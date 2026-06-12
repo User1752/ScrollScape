@@ -16,7 +16,7 @@
 }
 
 .settings-content {
-  background: color-mix(in srgb, var(--bg-secondary) 94%, #05070d);
+  background: color-mix(in srgb, var(--bg-secondary) 94%, var(--bg-surface-elevated-alt));
   border-radius: 18px;
   width: min(940px, 97vw);
   max-height: 90vh;
@@ -165,7 +165,7 @@
 /* ── Input ───────────────────────────────────────────────────────────────── */
 .input {
   padding: 0.6rem 0.78rem;
-  background: color-mix(in srgb, var(--bg-tertiary) 90%, #0a1220);
+  background: color-mix(in srgb, var(--bg-tertiary) 90%, var(--bg-surface-elevated));
   border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
   border-radius: 8px;
   color: var(--text-primary);
@@ -176,7 +176,18 @@
 .input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 28%, transparent);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.input:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 /* ── Toggle switch ───────────────────────────────────────────────────────── */
@@ -197,7 +208,7 @@
   position: relative;
   width: 46px;
   height: 26px;
-  background: color-mix(in srgb, var(--bg-tertiary) 80%, #101a2f);
+  background: color-mix(in srgb, var(--bg-tertiary) 80%, var(--bg-surface-elevated));
   border-radius: 13px;
   flex-shrink: 0;
   transition: background 0.25s ease;

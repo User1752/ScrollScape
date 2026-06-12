@@ -11,15 +11,19 @@ const reviewService = createReviewService({
   writeStore,
 });
 
+const { requireValidIdParam, requireValidIdBody } = require('../middleware/validation');
+
 /**
  * @param {import('express').Router} router
  */
 function registerReviewRoutes(router) {
-  router.get('/api/reviews/:mangaId', asyncHandler(async (req, res) => {
+  router.get('/api/reviews/:mangaId', requireValidIdParam('mangaId'), asyncHandler(async (req, res) => {
     res.json(await reviewService.getReviews(req.params.mangaId));
   }));
 
-  router.post('/api/reviews', asyncHandler(async (req, res) => {
+  router.post('/api/reviews', requireValidIdBody('mangaId'), asyncHandler(async (req, res) => {
+    // Should validate mangaId in body too, but let's assume service handles it or we could add validateBodyId
+    // The plan said "cobrindo endpoints com gaps atuais".
     res.json(await reviewService.addReview(req.body || {}));
   }));
 
@@ -27,11 +31,11 @@ function registerReviewRoutes(router) {
     res.json(await reviewService.getRatings());
   }));
 
-  router.post('/api/ratings/clear', asyncHandler(async (req, res) => {
+  router.post('/api/ratings/clear', requireValidIdBody('mangaId'), asyncHandler(async (req, res) => {
     res.json(await reviewService.clearRating(req.body || {}));
   }));
 
-  router.delete('/api/ratings/:mangaId', asyncHandler(async (req, res) => {
+  router.delete('/api/ratings/:mangaId', requireValidIdParam('mangaId'), asyncHandler(async (req, res) => {
     res.json(await reviewService.removeRatingById(req.params.mangaId));
   }));
 }

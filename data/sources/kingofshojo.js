@@ -236,8 +236,7 @@ module.exports = {
     const html = await getHtml(url).catch(() => null);
     if (!html) return { results: [], hasNextPage: false };
     const $ = cheerio.load(html);
-    let results = parseCards($);
-    results = await enrichListMetadata(results);
+    const results = parseCards($);
     return { results, hasNextPage: hasNextPage($, results.length) };
   },
 
@@ -286,7 +285,7 @@ module.exports = {
       const html = await getHtml(url).catch(() => null);
       if (!html) continue;
       const $ = cheerio.load(html);
-      const results = await enrichListMetadata(parseCards($));
+      const results = parseCards($);
       if (results.length > 0) {
         return { results, hasNextPage: hasNextPage($, results.length) };
       }

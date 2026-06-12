@@ -4,14 +4,32 @@
 // ============================================================================
 
 function showSettings() {
-    let initializingSettingsModal = true;
+  let initializingSettingsModal = true;
   const modal = document.createElement("div");
   modal.className = "settings-modal";
+  
+  const _origSave = window.saveSettings;
+  const saveSettings = () => {
+    if (_origSave) _origSave();
+    const ind = document.getElementById('settingsSavedIndicator');
+    if (ind) {
+      ind.style.opacity = '1';
+      if (ind._to) clearTimeout(ind._to);
+      ind._to = setTimeout(() => { ind.style.opacity = '0'; }, 2000);
+    }
+  };
+
   modal.innerHTML = `
     <div class="settings-content">
       <div class="settings-header">
-        <h2>Settings</h2>
-        <button class="btn secondary" id="closeSettings">&#x2715;</button>
+        <div style="display:flex;align-items:center;gap:12px;flex:1">
+          <h2>Settings</h2>
+          <span id="settingsSavedIndicator" style="opacity:0;transition:opacity 0.3s;color:var(--color-success);font-size:0.85em;font-weight:600">✓ Saved</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="settingsSearchInput" class="input" placeholder="Search settings..." autocomplete="off" style="padding:4px 8px;font-size:0.9em;width:160px">
+          <button class="btn secondary" id="closeSettings">&#x2715;</button>
+        </div>
       </div>
       <div class="settings-layout">
 
@@ -30,7 +48,10 @@ function showSettings() {
           <!-- Reading tab -->
           <div class="settings-tab active" id="tab-reading">
             <div class="settings-section-card">
-              <p class="settings-section-title">Reading Mode</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Reading Mode</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="readingMode,autoWebtoonDetect,autoLoadNextChapter,webtoonTurnButtonsEnabled,webtoonTurnButtonPlacement,pageFlipAnimation,panWideImages,lineSharpness">Reset</button>
+              </div>
               <div class="setting-group">
                 <label for="modeSelect">Default reading direction</label>
                 <select id="modeSelect" class="input">
@@ -98,7 +119,10 @@ function showSettings() {
               </div>
                 </div>
             <div class="settings-section-card">
-              <p class="settings-section-title">Chapter Behaviour</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Chapter Behaviour</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="skipReadChapters,skipDuplicates">Reset</button>
+              </div>
               <div class="setting-group">
                 <label class="toggle-label">
                   <span class="toggle-text">Hide read chapters</span>
@@ -117,7 +141,10 @@ function showSettings() {
               </div>
             </div>
             <div class="settings-section-card">
-              <p class="settings-section-title">Auto Scroll</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Auto Scroll</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="autoScrollPointSpeeds">Reset</button>
+              </div>
               <div class="setting-group">
                 <p class="setting-description" style="margin:0 0 0.5rem 0">Set the speed used by each auto-scroll level (points 1 to 5).</p>
                 <div id="autoScrollPointSpeedGrid" class="auto-scroll-point-grid">
@@ -146,7 +173,10 @@ function showSettings() {
           <!-- Library tab -->
           <div class="settings-tab" id="tab-library">
             <div class="settings-section-card">
-              <p class="settings-section-title">Appearance</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Appearance</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="displayMode,showCompactInfo,mangasPerRow,overlays,showLibrarySourceBadge,showHomeSearch,homeSourceMode,homeSelectedSourceIds,hideNsfw,statusBadgeLocation,showChaptersLeft,hideLibraryStatusAndChapters">Reset</button>
+              </div>
               <div class="setting-group">
                 <label for="displayModeSelect">Display mode</label>
                 <select id="displayModeSelect" class="input">
@@ -274,7 +304,10 @@ function showSettings() {
               </div>
             </div>
             <div class="settings-section-card">
-              <p class="settings-section-title">Defaults</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Defaults</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="libraryDefaultStatusFilter">Reset</button>
+              </div>
               <div class="setting-group">
                 <label for="libraryDefaultStatusFilterSelect">Default status filter when opening Library</label>
                 <select id="libraryDefaultStatusFilterSelect" class="input">
@@ -323,7 +356,10 @@ function showSettings() {
 
             <!-- Reader Appearance card -->
             <div class="settings-section-card">
-              <p class="settings-section-title">Reader Appearance</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Reader Appearance</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="readerBackground,readerNoiseEnabled,readerNoiseSource,readerNoiseGifFile">Reset</button>
+              </div>
               <div class="setting-group" id="readerBgColorGroup" style="${state.settings.readerNoiseEnabled ? 'display:none' : ''}">
                 <label for="readerBgSelect">Background colour</label>
                 <select id="readerBgSelect" class="input">
@@ -363,7 +399,10 @@ function showSettings() {
 
             <!-- Library Appearance card -->
             <div class="settings-section-card">
-              <p class="settings-section-title">Library Appearance</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Library Appearance</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="libraryBookshelf3d">Reset</button>
+              </div>
               <div class="setting-group">
                 <label class="toggle-label">
                   <span class="toggle-text">3D Bookshelf</span>
@@ -378,7 +417,10 @@ function showSettings() {
           <!-- Tracking tab -->
           <div class="settings-tab" id="tab-tracking">
             <div class="settings-section-card">
-              <p class="settings-section-title">AniList</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">AniList</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="anilistAutoSync,anilistAutoImportOnConnect,anilistAutoCategorize">Reset</button>
+              </div>
               <div id="anilist-loggedout" ${_alToken() ? 'style="display:none"' : ''}>
                 <div class="setting-group">
                   <label for="anilistClientIdInput">AniList Client ID</label>
@@ -466,7 +508,10 @@ function showSettings() {
               <div class="setting-group">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
                   <p class="setting-description" style="margin:0">Errors logged by sources during normal operation.</p>
-                  <button class="btn secondary" id="btnClearErrorLog" style="white-space:nowrap;color:var(--color-danger)">Clear Log</button>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn secondary" id="btnCopyErrorLog" style="white-space:nowrap">Copy Log</button>
+                    <button class="btn secondary" id="btnClearErrorLog" style="white-space:nowrap;color:var(--color-danger)">Clear Log</button>
+                  </div>
                 </div>
               </div>
               <div id="errorLogResults">
@@ -481,6 +526,15 @@ function showSettings() {
                   <button class="btn primary" id="cheatRunBtn">Run</button>
                 </div>
                 <p class="setting-description">Available: <code>cls</code> — reset all AP &amp; achievements &nbsp;·&nbsp; <code>godmode</code> — add 500 AP &nbsp;·&nbsp; <code>lcls</code> — clear library</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Factory Reset</p>
+              <div class="setting-group">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <p class="setting-description" style="margin:0">Reset all application settings to their default values. This will not delete your library or reading history.</p>
+                  <button class="btn secondary" id="btnResetAllSettings" style="white-space:nowrap;color:var(--color-danger)">Reset All Settings</button>
+                </div>
               </div>
             </div>
           </div>
@@ -507,6 +561,114 @@ function showSettings() {
       if (window.initCustomSelects) initCustomSelects();
     };
   });
+
+  // Search filter logic
+  const searchInput = $("settingsSearchInput");
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      const cards = modal.querySelectorAll('.settings-section-card');
+      let firstVisibleTabBtn = null;
+      
+      cards.forEach(card => {
+        let cardHasMatch = false;
+        const groups = card.querySelectorAll('.setting-group');
+        groups.forEach(group => {
+          if (!q || group.textContent.toLowerCase().includes(q)) {
+            group.style.display = '';
+            cardHasMatch = true;
+          } else {
+            group.style.display = 'none';
+          }
+        });
+        
+        // Check title and descriptions
+        if (q && card.querySelector('.settings-section-title')?.textContent.toLowerCase().includes(q)) {
+          groups.forEach(group => group.style.display = '');
+          cardHasMatch = true;
+        }
+
+        // Always show title and reset button if there's a match, otherwise hide the whole card
+        card.style.display = (!q || cardHasMatch) ? '' : 'none';
+      });
+
+      // Show/hide tabs in sidebar if they have visible cards
+      modal.querySelectorAll('.settings-nav-item').forEach(navBtn => {
+        const tabId = navBtn.dataset.tab;
+        const tab = modal.querySelector('#' + tabId);
+        if (tab) {
+          const hasVisibleCards = Array.from(tab.querySelectorAll('.settings-section-card')).some(c => c.style.display !== 'none');
+          navBtn.style.display = hasVisibleCards ? '' : 'none';
+          if (hasVisibleCards && !firstVisibleTabBtn) firstVisibleTabBtn = navBtn;
+        }
+      });
+      
+      // If the currently active tab has no visible cards, switch to the first one that does
+      const activeNav = modal.querySelector('.settings-nav-item.active');
+      if (q && activeNav && activeNav.style.display === 'none' && firstVisibleTabBtn) {
+        firstVisibleTabBtn.click();
+      }
+    };
+  }
+
+  // Reset Section Handlers
+  modal.querySelectorAll('.reset-section-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (!confirm('Reset these settings to their default values?')) return;
+      const keys = btn.dataset.keys.split(',').map(k => k.trim());
+      if (typeof window.resetSettingsSection === 'function') {
+        window.resetSettingsSection(keys);
+      }
+      
+      // Re-render settings modal smoothly by closing and reopening
+      const curTab = modal.querySelector('.settings-nav-item.active')?.dataset?.tab;
+      modal.remove();
+      showSettings();
+      if (curTab) {
+        const nextTabBtn = document.querySelector(`.settings-nav-item[data-tab="${curTab}"]`);
+        if (nextTabBtn) nextTabBtn.click();
+      }
+      
+      // Update affected UI globally
+      if (typeof renderLibrary === 'function') renderLibrary();
+      if (typeof applyReaderBackground === 'function') applyReaderBackground();
+      if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+      if (typeof applyHomeSearchVisibility === 'function') applyHomeSearchVisibility();
+      if (typeof loadPopularToday === 'function') loadPopularToday();
+      if (typeof loadRecentlyAdded === 'function') loadRecentlyAdded();
+      if (typeof loadLatestUpdates === 'function') loadLatestUpdates();
+      
+      const ind = document.getElementById('settingsSavedIndicator');
+      if (ind) {
+        ind.style.opacity = '1';
+        if (ind._to) clearTimeout(ind._to);
+        ind._to = setTimeout(() => { ind.style.opacity = '0'; }, 2000);
+      }
+    };
+  });
+
+  const btnResetAll = $("btnResetAllSettings");
+  if (btnResetAll) {
+    btnResetAll.onclick = () => {
+      if (!confirm('Are you sure you want to reset ALL settings to their default values? This cannot be undone.')) return;
+      if (typeof window.resetSettingsSection === 'function' && typeof DEFAULT_SETTINGS !== 'undefined') {
+        window.resetSettingsSection(Object.keys(DEFAULT_SETTINGS));
+      } else {
+        localStorage.removeItem("scrollscapeSettings");
+        location.reload();
+        return;
+      }
+      
+      modal.remove();
+      showSettings();
+      const advancedTabBtn = document.querySelector(`.settings-nav-item[data-tab="tab-advanced"]`);
+      if (advancedTabBtn) advancedTabBtn.click();
+      
+      if (typeof renderLibrary === 'function') renderLibrary();
+      if (typeof applyReaderBackground === 'function') applyReaderBackground();
+      if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  }
 
   // Display mode select
   const displayModeSelect = $("displayModeSelect");
@@ -1055,6 +1217,25 @@ function showSettings() {
           loadErrorLog();
         } catch (e) {
           showToast('Error log', 'Failed to clear: ' + e.message, 'warning');
+        }
+      };
+    }
+
+    // Copy error log button
+    const btnCopyErrorLog = $('btnCopyErrorLog');
+    if (btnCopyErrorLog) {
+      btnCopyErrorLog.onclick = async () => {
+        try {
+          const data = await fetch('/api/error-log').then(r => r.json());
+          if (!data.entries || data.entries.length === 0) {
+            showToast('Error log', 'No errors to copy.', 'info');
+            return;
+          }
+          const text = JSON.stringify(data.entries, null, 2);
+          await navigator.clipboard.writeText(text);
+          showToast('Copied', 'Error log copied to clipboard.', 'success');
+        } catch (e) {
+          showToast('Error', 'Failed to copy log: ' + e.message, 'error');
         }
       };
     }

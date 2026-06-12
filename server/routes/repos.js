@@ -37,6 +37,8 @@ const repoService = createRepoService({
   sha1Short,
 });
 
+const { requireSafeUrlQuery } = require('../middleware/validation');
+
 /**
  * @param {import('express').Router} router
  */
@@ -46,10 +48,11 @@ function registerRepoRoutes(router) {
   }));
 
   router.post('/api/repos', asyncHandler(async (req, res) => {
+    // URL is checked inside repoService.addRepo
     res.json(await repoService.addRepo(req.body || {}));
   }));
 
-  router.delete('/api/repos', asyncHandler(async (req, res) => {
+  router.delete('/api/repos', requireSafeUrlQuery('url'), asyncHandler(async (req, res) => {
     res.json(await repoService.deleteRepo(req.query?.url));
   }));
 }

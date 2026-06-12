@@ -81,11 +81,12 @@ app.use(compression());                   // gzip all responses
 app.use(express.json({ limit: limits.jsonBodyLimit })); // parse JSON bodies
 
 // ── Security middleware ───────────────────────────────────────────────────────
-const { applySecurityHeaders, rateLimiter } = require('./server/middleware/security');
+const { applySecurityHeaders, rateLimiter, apiTimeout } = require('./server/middleware/security');
 applySecurityHeaders(app);
 // Rate-limit API endpoints: configured in limits.js
 // Static assets are excluded so the UI loads without restriction.
 app.use('/api', rateLimiter(limits.apiRateLimitWindowMs, limits.apiRateLimitMaxRequests));
+app.use('/api', apiTimeout(limits.sourceCallTimeoutMs || 30000));
 
 // ── Route registration ────────────────────────────────────────────────────────
 // ORDER MATTERS:

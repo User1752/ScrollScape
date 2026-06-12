@@ -88,6 +88,18 @@ if "!KILLED!"=="1" (
     echo   !BGRN![ OK ]!R!  Port !PORT! was already free.
 )
 
+if not exist "%ROOT%node_modules\" (
+    echo.
+    echo   !BCYN![ .. ]!R!  First run detected! Installing dependencies...
+    call npm install
+    if errorlevel 1 (
+        call :err "Failed to install dependencies" "Make sure npm is installed and in PATH."
+        pause
+        exit /b 1
+    )
+    echo   !BGRN![ OK ]!R!  Dependencies installed.
+)
+
 echo.
 call :status_box
 

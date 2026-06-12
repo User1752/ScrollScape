@@ -64,14 +64,14 @@
 }
 
 .library-chapters-left-badge--done {
-  color: #169c53;
-  background: color-mix(in srgb, #22c55e 14%, transparent);
-  border-color: color-mix(in srgb, #22c55e 28%, transparent);
+  color: var(--success-strong);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
 }
 
 [data-theme="light"] .chapter-completeness {
-  background: #FFFFFF;
-  border-color: #E0E0EC;
+  background: var(--light-surface);
+  border-color: var(--light-border);
 }
 
 /* ============================================================ */
@@ -192,8 +192,8 @@
   align-items: center;
   gap: 0.85rem;
   padding: 0.5rem 1.2rem;
-  background: rgba(0, 0, 0, 0.65);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-overlay-medium);
+  border-bottom: 1px solid var(--surface-stroke-soft);
   backdrop-filter: blur(4px);
   flex-wrap: wrap;
 }
@@ -203,7 +203,7 @@
 }
 
 .autoscroll-bar-label {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--text-on-dark-muted);
   font-size: 0.78rem;
   font-weight: 600;
   white-space: nowrap;
@@ -226,7 +226,7 @@
 
 .autoscroll-ticks span {
   font-size: 0.62rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-on-dark-subtle);
   text-align: center;
   width: 40px;
 }
@@ -237,7 +237,7 @@
   -webkit-appearance: none;
   appearance: none;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--surface-stroke-medium);
   outline: none;
   cursor: pointer;
 }

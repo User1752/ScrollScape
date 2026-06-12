@@ -5,8 +5,52 @@
 // Expose settings functions globally for non-module scripts
 window.saveSettings = saveSettings;
 window.loadSettings = loadSettings;
+window.resetSettingsSection = resetSettingsSection;
+
+const SETTINGS_VERSION = 1;
+
+const DEFAULT_SETTINGS = {
+  _version: SETTINGS_VERSION,
+  language: "en",
+  readingMode: "ltr",
+  libraryDefaultStatusFilter: "all",
+  libraryBookshelf3d: false,
+  skipReadChapters: false,
+  skipDuplicates: true,
+  panWideImages: false,
+  lineSharpness: 0,
+  hideNsfw: false,
+  showHomeSearch: true,
+  homeSourceMode: 'all',
+  homeSelectedSourceIds: [],
+  showLibrarySourceBadge: true,
+  showChaptersLeft: false,
+  statusBadgeLocation: 'cover',
+  anilistAutoSync: true,
+  anilistAutoImportOnConnect: false,
+  anilistAutoCategorize: true,
+  autoWebtoonDetect: true,
+  pageFlipAnimation: true,
+  displayMode: 'detailed',
+  showCompactInfo: false,
+  hideLibraryStatusAndChapters: false,
+  mangasPerRow: 6,
+  overlays: { downloaded: true, unread: true, local: true },
+  readerBackground: 'black',
+  webtoonTurnButtonsEnabled: true,
+  webtoonTurnButtonPlacement: 'corners',
+  autoLoadNextChapter: false,
+  readerNoiseEnabled: false,
+  readerNoiseIntensity: 50,
+  readerNoiseSource: 'generated',
+  readerNoiseGifFile: '',
+  autoScrollPointSpeeds: [0.2, 0.5, 1.0, 2.0, 3.5]
+};
+
 function deepMerge(target, source) {
   for (const key in source) {
+    if (!target.hasOwnProperty(key)) continue; // Drop orphan keys
+
     if (
       source[key] && typeof source[key] === 'object' && !Array.isArray(source[key]) && target[key] && typeof target[key] === 'object'
     ) {
@@ -18,28 +62,54 @@ function deepMerge(target, source) {
   return target;
 }
 
+function sanitizeSettings(rawSettings) {
+  const sanitized = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  if (!rawSettings || typeof rawSettings !== 'object') return sanitized;
+  
+  deepMerge(sanitized, rawSettings);
+  
+  // Migration & Validation Rules
+  if (sanitized.displayMode === 'comfortable') sanitized.displayMode = 'detailed';
+  if (typeof sanitized.showCompactInfo !== 'boolean') sanitized.showCompactInfo = false;
+  if (typeof sanitized.hideLibraryStatusAndChapters !== 'boolean') sanitized.hideLibraryStatusAndChapters = false;
+  if (typeof sanitized.mangasPerRow !== 'number' || sanitized.mangasPerRow < 5 || sanitized.mangasPerRow > 14) {
+    sanitized.mangasPerRow = 6;
+  }
+  if (typeof sanitized.showHomeSearch !== 'boolean') sanitized.showHomeSearch = true;
+  if (sanitized.homeSourceMode !== 'selected') sanitized.homeSourceMode = 'all';
+  if (!Array.isArray(sanitized.homeSelectedSourceIds)) sanitized.homeSelectedSourceIds = [];
+  
+  const speedDefaults = DEFAULT_SETTINGS.autoScrollPointSpeeds;
+  const savedSpeeds = Array.isArray(sanitized.autoScrollPointSpeeds) ? sanitized.autoScrollPointSpeeds : speedDefaults;
+  sanitized.autoScrollPointSpeeds = speedDefaults.map((fallback, idx) => {
+    const n = Number(savedSpeeds[idx]);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(12, Math.max(0.05, n));
+  });
+
+  sanitized._version = SETTINGS_VERSION;
+  return sanitized;
+}
+
+function resetSettingsSection(keys) {
+  if (!Array.isArray(keys)) keys = [keys];
+  keys.forEach(key => {
+    if (DEFAULT_SETTINGS[key] !== undefined) {
+      // Create deep copy of default value to avoid reference issues
+      state.settings[key] = JSON.parse(JSON.stringify(DEFAULT_SETTINGS[key]));
+    }
+  });
+  saveSettings();
+}
+
 function loadSettings() {
   try {
     const saved = localStorage.getItem("scrollscapeSettings");
-    if (saved) deepMerge(state.settings, JSON.parse(saved));
-    if (state.settings.displayMode === 'comfortable') state.settings.displayMode = 'detailed';
-    if (typeof state.settings.showCompactInfo !== 'boolean') state.settings.showCompactInfo = false;
-    if (typeof state.settings.hideLibraryStatusAndChapters !== 'boolean') state.settings.hideLibraryStatusAndChapters = false;
-    if (typeof state.settings.mangasPerRow !== 'number' || state.settings.mangasPerRow < 5 || state.settings.mangasPerRow > 14) {
-      state.settings.mangasPerRow = 6;
+    if (saved) {
+      state.settings = sanitizeSettings(JSON.parse(saved));
+    } else {
+      state.settings = sanitizeSettings(state.settings);
     }
-    if (typeof state.settings.showHomeSearch !== 'boolean') state.settings.showHomeSearch = true;
-    if (state.settings.homeSourceMode !== 'selected') state.settings.homeSourceMode = 'all';
-    if (!Array.isArray(state.settings.homeSelectedSourceIds)) state.settings.homeSelectedSourceIds = [];
-    const speedDefaults = [0.2, 0.5, 1.0, 2.0, 3.5];
-    const savedSpeeds = Array.isArray(state.settings.autoScrollPointSpeeds)
-      ? state.settings.autoScrollPointSpeeds
-      : speedDefaults;
-    state.settings.autoScrollPointSpeeds = speedDefaults.map((fallback, idx) => {
-      const n = Number(savedSpeeds[idx]);
-      if (!Number.isFinite(n)) return fallback;
-      return Math.min(12, Math.max(0.05, n));
-    });
 
     const readChaps = localStorage.getItem("scrollscapeReadChapters");
     if (readChaps) state.readChapters = new Set(JSON.parse(readChaps));

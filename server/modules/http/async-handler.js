@@ -1,5 +1,7 @@
 'use strict';
 
+const { recordError } = require('../error-logger');
+
 /**
  * Creates an async route wrapper with consistent error logging/response.
  */
@@ -21,8 +23,21 @@ function createAsyncHandler(tag = 'API', defaultStatus = 500, defaultMessage = '
         ...(isExpected ? {} : { stack: err?.stack }),
       });
 
+      if (!isExpected) {
+        let area = tag.toLowerCase();
+        if (req?.params?.id) area = req.params.id;
+        else if (req?.originalUrl?.includes('/api/proxy-image')) area = 'proxy-image';
+
+        recordError({
+          code: `HTTP-${status}`,
+          area,
+          message: err?.message || defaultMessage,
+          details: { url: req?.originalUrl }
+        }).catch(() => {});
+      }
+
       if (res.headersSent) return;
-      res.status(status).json({ error: err?.message || defaultMessage });
+      res.status(status).json({ ok: false, error: err?.message || defaultMessage });
     }
   };
 }

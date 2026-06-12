@@ -1,4 +1,4 @@
-﻿/**
+/**
  * security.js — Express security middleware for ScrollScape
  *
  * This module registers two sets of middleware:
@@ -105,7 +105,8 @@ function rateLimiter(windowMs = 600_000, maxPerWindow = 600) {
       p === '/api/lists' ||
       p === '/api/popular-all' ||
       p === '/api/anilist/sync-meta' ||
-      p === '/api/local/list'
+      p === '/api/local/list' ||
+      p === '/api/proxy-image'
     )) {
       return next();
     }
@@ -136,4 +137,23 @@ function rateLimiter(windowMs = 600_000, maxPerWindow = 600) {
   };
 }
 
-module.exports = { applySecurityHeaders, rateLimiter };
+// ── Timeout middleware ───────────────────────────────────────────────────────
+
+/**
+ * Creates an Express middleware that sets a timeout for the request.
+ * If the response isn't sent within the timeout, it sends a 504 Gateway Timeout.
+ * @param {number} timeoutMs 
+ * @returns {import('express').RequestHandler}
+ */
+function apiTimeout(timeoutMs = 15000) {
+  return function (req, res, next) {
+    res.setTimeout(timeoutMs, () => {
+      if (!res.headersSent) {
+        res.status(504).json({ error: 'Request timeout' });
+      }
+    });
+    next();
+  };
+}
+
+module.exports = { applySecurityHeaders, rateLimiter, apiTimeout };

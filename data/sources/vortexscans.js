@@ -1,7 +1,7 @@
 const cheerio = require('cheerio');
 
 const BASE = 'https://vortexscans.org';
-const FETCH_TIMEOUT_MS = 12_000;
+const FETCH_TIMEOUT_MS = 25_000;
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -261,6 +261,10 @@ function extractChaptersFromSerializedState(html, mangaId) {
     });
   }
 
+  // ScrollScape expects newest chapters first (index 0 = newest).
+  // VortexScans serialized state is usually oldest to newest.
+  entries.sort((a, b) => Number(b.chapter) - Number(a.chapter));
+
   return entries;
 }
 
@@ -277,7 +281,7 @@ module.exports = {
   async search(query, page = 1, orderBy = '', filters = {}) {
     const url = `${BASE}/series?page=${page}&q=${encodeURIComponent(query)}`;
     const html = await getHtml(url).catch(() => null);
-    if (!html) return { results: [], hasNextPage: false };
+    if (!html) return { results: [], hasNextPage: false, temporarilyUnavailable: true };
     const $ = cheerio.load(html);
     const results = parseCards($);
     return { results, hasNextPage: results.length >= 10 };
@@ -410,6 +414,9 @@ module.exports = {
         });
       }
     });
+
+    // ScrollScape expects newest first. If DOM is oldest to newest, reverse it.
+    chapters.reverse();
 
     return { chapters };
   },

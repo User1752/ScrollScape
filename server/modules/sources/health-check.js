@@ -71,9 +71,8 @@ function createSourceHealthCheckService({ readStore, loadSourceFromFile }) {
           if (!result || typeof result !== 'object') {
             return { id, name, ok: false, error: 'healthCheck() did not return an object.' };
           }
-          // temporarilyUnavailable = site is up but blocked/rate-limited; module is healthy.
           if (result.temporarilyUnavailable) {
-            return { id, name, ok: true, note: result.error || 'Temporarily unavailable' };
+            return { id, name, ok: false, error: result.error || 'Temporarily unavailable' };
           }
           return { id, name, ok: result.ok !== false };
         }
@@ -90,13 +89,11 @@ function createSourceHealthCheckService({ readStore, loadSourceFromFile }) {
           : searchProbe;
 
         // Expected shape: { results: Array, hasNextPage: boolean }
-        // temporarilyUnavailable: true means the site is reachable but currently
-        // rate-limited or behind Cloudflare — the module itself is healthy.
         if (!result || typeof result !== 'object') {
           return { id, name, ok: false, error: 'search() did not return an object.' };
         }
         if (result.temporarilyUnavailable) {
-          return { id, name, ok: true, note: 'Site temporarily unavailable (rate-limited or Cloudflare)' };
+          return { id, name, ok: false, error: 'Site temporarily unavailable (rate-limited or Cloudflare)' };
         }
         if (!Array.isArray(result.results)) {
           return { id, name, ok: false, error: 'search() did not return { results: [] }.' };

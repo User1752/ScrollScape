@@ -76,25 +76,29 @@ const sourceDispatchService = createSourceDispatchService({
   timeoutMs: SOURCE_CALL_TIMEOUT,
 });
 
+const { requireValidIdParam } = require('../middleware/validation');
+
 /**
  * @param {import('express').Router} router
  */
 function registerSourceRoutes(router) {
   // ── POST /api/sources/install ──────────────────────────────────────────────
   router.post('/api/sources/install', asyncHandler(async (req, res) => {
+    // ID comes in body, sourceLifecycleService.installById validates internally
     const result = await sourceLifecycleService.installById(req.body?.id);
     res.json(result);
   }));
 
   // ── POST /api/sources/uninstall ────────────────────────────────────────────
   router.post('/api/sources/uninstall', asyncHandler(async (req, res) => {
+    // ID comes in body, sourceLifecycleService.uninstallById validates internally
     const result = await sourceLifecycleService.uninstallById(req.body?.id);
     res.json(result);
   }));
 
   // ── POST /api/source/:id/:method ────────────────────────────────────────────
   // Whitelisted methods only — arbitrary method names are rejected.
-  router.post('/api/source/:id/:method', asyncHandler(async (req, res) => {
+  router.post('/api/source/:id/:method', requireValidIdParam('id'), asyncHandler(async (req, res) => {
     const { id, method } = req.params;
     const body = req.body || {};
 
