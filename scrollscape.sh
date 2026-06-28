@@ -109,22 +109,75 @@ cleanup() {
   fi
 }
 
+install_node() {
+  local NODE_VER="v20.15.0"
+  local ARCH=""
+  case "$(uname -m)" in
+    x86_64) ARCH="x64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *) 
+      err "Unsupported architecture" "Cannot automatically install Node.js for $(uname -m)."
+      read -rp "Press Enter to exit..."
+      exit 1
+      ;;
+  esac
+
+  local OS="linux"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS="darwin"
+  fi
+
+  local URL="https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-${OS}-${ARCH}.tar.gz"
+  local TAR_FILE="$ROOT_DIR/node.tar.gz"
+  
+  info_line "Downloading Node.js ${NODE_VER} for ${OS}-${ARCH}..."
+  mkdir -p "$ROOT_DIR/tools/node"
+  if command -v curl >/dev/null 2>&1; then
+    curl -#L "$URL" -o "$TAR_FILE"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --show-progress "$URL" -O "$TAR_FILE"
+  else
+    err "Cannot download Node.js" "Neither curl nor wget is installed."
+    read -rp "Press Enter to exit..."
+    exit 1
+  fi
+
+  info_line "Extracting Node.js..."
+  tar -xzf "$TAR_FILE" -C "$ROOT_DIR/tools/node" --strip-components=1
+  rm -f "$TAR_FILE"
+
+  ok_line "Node.js installed successfully."
+}
+
 main_flow() {
   banner
 
   info_line "Scanning for Node.js runtime environment..."
   NODE_EXE=""
-  if [ -x "$ROOT_DIR/tools/node/node" ]; then
+  if [ -x "$ROOT_DIR/tools/node/bin/node" ]; then
+    NODE_EXE="$ROOT_DIR/tools/node/bin/node"
+    export PATH="$ROOT_DIR/tools/node/bin:$PATH"
+  elif [ -x "$ROOT_DIR/tools/node/node" ]; then
+    # Legacy support in case it's extracted flat
     NODE_EXE="$ROOT_DIR/tools/node/node"
+    export PATH="$ROOT_DIR/tools/node:$PATH"
   elif command -v node >/dev/null 2>&1; then
-    NODE_EXE="node"
+    NODE_EXE="$(command -v node)"
   fi
 
   if [ -z "$NODE_EXE" ]; then
     echo
-    err "Node.js was not found" "Expected tools/node/node or a system node in PATH."
-    read -rp "Press Enter to exit..."
-    exit 1
+    info_line "Node.js not found. Installing automatically..."
+    install_node
+    
+    if [ -x "$ROOT_DIR/tools/node/bin/node" ]; then
+      NODE_EXE="$ROOT_DIR/tools/node/bin/node"
+      export PATH="$ROOT_DIR/tools/node/bin:$PATH"
+    else
+      err "Node.js installation failed" "Could not find node executable after install."
+      read -rp "Press Enter to exit..."
+      exit 1
+    fi
   fi
 
   NODE_VER=$("$NODE_EXE" --version 2>&1 || true)
