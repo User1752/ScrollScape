@@ -89,19 +89,20 @@ async function gql(query) {
         throw new Error('AllManga upstream returned HTML challenge page');
       }
 
-      if (json.errors) {
-        const msg = json.errors[0]?.message || 'Unknown AllManga API error';
-        throw new Error(msg);
-      }
-
       // New API responses may come encrypted in data.tobeparsed.
+      // Even if there are backend errors, sometimes tobeparsed is still valid.
       if (json.data?.tobeparsed) {
         const decoded = decodeTobeparsed(json.data.tobeparsed);
+        console.warn('[allmanga] decoded tobeparsed:', JSON.stringify(decoded).substring(0, 500));
         if (decoded.errors) {
           throw new Error(decoded.errors[0]?.message || 'Unknown AllManga API error (encrypted)');
         }
-        // tobeparsed may decode to { data: ... } or directly to payload.
         return decoded.data ?? decoded;
+      }
+
+      if (json.errors) {
+        const msg = json.errors[0]?.message || 'Unknown AllManga API error';
+        throw new Error(msg);
       }
 
       return json.data;
@@ -443,10 +444,10 @@ module.exports = {
   async pages(chapterId) {
     // chapterId = "MANGAID/chapter-NUM-sub" or "-raw"
     console.warn('[allmanga] pages() — chapterId recebido:', chapterId);
-    let parts = chapterId.match(/^(.+?)\/chapter-([\d.]+)-(sub|raw)$/);
+    let parts = chapterId.match(/^(.+?)\/chapter-(.+)-(sub|raw)$/);
     if (!parts) {
       // Fallback for old saved chapters que sempre terminavam em -sub
-      const oldParts = chapterId.match(/^(.+?)\/chapter-([\d.]+).*$/);
+      const oldParts = chapterId.match(/^(.+?)\/chapter-(.+?)(?:-sub|-raw)?$/);
       if (!oldParts) {
         console.warn('[allmanga] pages() — chapterId NÃO CASOU com nenhum padrão:', chapterId);
         throw new Error(`Invalid chapterId: ${chapterId}`);
@@ -462,6 +463,7 @@ module.exports = {
     const KNOWN_UPSTREAM_ERRORS = [
       "Cannot read property 'type' of undefined",
       'context is not defined',
+      "Cannot set properties of undefined (setting 'countryOfOrigin')"
     ];
 
     const tryFetch = async (translationType) => {
@@ -471,7 +473,19 @@ module.exports = {
         return (data?.chapterPages?.edges || [])[0] || null;
       } catch (err) {
         if (KNOWN_UPSTREAM_ERRORS.some(e => err.message?.includes(e))) {
-          return null; // AllManga backend is broken — suppress
+          const errMsg = 'O servidor do AllManga encontra-se temporariamente com problemas internos e não conseguiu carregar as páginas. Tenta novamente mais tarde ou utiliza outra fonte.';
+          try {
+            const { ALLMANGATO_INVALID_RESPONSE } = require('../../server/modules/errors/error-codes');
+            const { registerKnownError } = require('../../server/modules/errors/error-registry');
+            await registerKnownError({
+              logPath: require('path').resolve(__dirname, '../..', 'data', 'error-log.json'),
+              code: ALLMANGATO_INVALID_RESPONSE,
+              area: 'allmanga',
+              message: `AllManga backend crashed for ${translationType} (${err.message}).`,
+              details: { chapterId, error: err.message }
+            });
+          } catch (e) {}
+          throw new Error(errMsg);
         }
         throw err;
       }
@@ -488,7 +502,7 @@ module.exports = {
       return { pages: [] };
     }
     // Logar o edge retornado para diagnóstico
-    console.warn('[allmanga] pages() — edge:', JSON.stringify(edge));
+    console.warn('[allmanga] pages() — edge:', JSON.stringify(edge).substring(0, 200));
     return this._processEdge(edge);
   },
 
