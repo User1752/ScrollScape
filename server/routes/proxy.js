@@ -9,9 +9,18 @@ const { createProxyService } = require('../modules/proxy/service');
 const asyncHandler = createAsyncHandler('PROXY');
 const proxyService = createProxyService({ isSafeUrl });
 
-async function sendProxyImageResponse(res, { contentType, cacheControl, body } = {}) {
+async function sendProxyImageResponse(res, { contentType, cacheControl, contentLength, body } = {}) {
   res.set('Content-Type', contentType);
   res.set('Cache-Control', cacheControl);
+
+  if (Number.isFinite(Number(contentLength)) && Number(contentLength) >= 0) {
+    res.set('Content-Length', String(contentLength));
+  }
+
+  if (Buffer.isBuffer(body)) {
+    res.end(body);
+    return;
+  }
 
   const nodeStream = Readable.fromWeb(body);
   await pipeline(nodeStream, res);

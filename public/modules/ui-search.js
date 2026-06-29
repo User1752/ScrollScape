@@ -530,6 +530,36 @@ async function searchGoogleCoverChoices(query, page = 1, count = 14) {
   };
 }
 
+async function openAniListForManga(title) {
+  const tab = window.open('about:blank', '_blank');
+  if (!tab) {
+    showToast('Pop-up Blocked', 'Please allow pop-ups to open AniList.', 'error');
+    return;
+  }
+  tab.document.write('<body style="background:#1a1a2e;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><h2>Searching AniList...</h2></body>');
+  try {
+    const data = await anilistGQL(
+      `query ($search: String) {
+        Page(page: 1, perPage: 1) {
+          media(search: $search, type: MANGA, sort: SEARCH_MATCH) {
+            id
+          }
+        }
+      }`,
+      { search: title }
+    );
+    const id = data?.data?.Page?.media?.[0]?.id;
+    if (id) {
+      tab.location.href = `https://anilist.co/manga/${id}`;
+    } else {
+      tab.location.href = `https://anilist.co/search/manga?search=${encodeURIComponent(title)}`;
+    }
+  } catch (e) {
+    tab.location.href = `https://anilist.co/search/manga?search=${encodeURIComponent(title)}`;
+  }
+}
+window.openAniListForManga = openAniListForManga;
+
 function openMangaCoverPicker(manga, options = {}) {
   const mangaId = String(manga?.id || '');
   const sourceId = String(options.sourceId || manga?.sourceId || state.currentSourceId || '');
@@ -773,13 +803,9 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
           <div class="manga-meta">
             ${result.status ? `<span class="badge badge-${result.status === 'ongoing' ? 'success' : 'secondary'}">${escapeHtml(result.status)}</span>` : ""}
             ${result.year   ? `<span class="badge">${escapeHtml(String(result.year))}</span>` : ""}
+            <span class="badge" title="Current Source">${escapeHtml(state.installedSources[state.currentSourceId]?.name || state.currentSourceId)}</span>
             <span class="source-switch-wrap">
-              <span class="badge badge-source source-switch-btn" id="sourceSwitchBtn" onclick="toggleSourceSwitchDropdown(event)" title="Switch source">${escapeHtml(state.installedSources[state.currentSourceId]?.name || state.currentSourceId)} ▾</span>
-              <div class="source-switch-dropdown hidden" id="sourceSwitchDropdown">
-                ${Object.values(state.installedSources).filter(s => s.id !== state.currentSourceId).map(s =>
-                  `<button class="source-switch-item" onclick="switchToSourceSearch('${escapeHtml(s.id)}','${escapeHtml(result.title.replace(/'/g, "\\'"))}')">${escapeHtml(s.name)}</button>`
-                ).join('')}
-              </div>
+              <span class="badge badge-source source-switch-btn" id="sourceSwitchBtn" onclick="showMigrateModalForManga(state.currentManga)" title="Migrate this manga to another source">Migrate ▾</span>
             </span>
             <span class="badge badge-adaptation-check" id="adaptationCheckBtn" onclick="checkAnimeAdaptation('${escapeHtml(result.title.replace(/'/g, "\\'"))}')">Check</span>
           </div>
@@ -888,15 +914,20 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
     $("trackerBtn").onclick = () => showTrackerModal(result);
     const detailCoverTrigger = $("details")?.querySelector('.cover-picker-trigger');
     if (detailCoverTrigger) {
-      detailCoverTrigger.title = 'Left click or right click to change cover';
+      detailCoverTrigger.title = 'Left click: AniList | Right click: Change Cover';
+      const hint = detailCoverTrigger.querySelector('.cover-anilist-hint');
+      if (hint) {
+        hint.textContent = 'AniList (RMB: Cover)';
+        hint.style.fontSize = '0.75rem';
+      }
       detailCoverTrigger.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        openMangaCoverPicker(result, {
-          sourceId: state.currentSourceId,
-          sourceCover: result._sourceCover,
-          currentCover: result.cover,
-        });
+        if (typeof window.openAniListForManga === 'function') {
+          window.openAniListForManga(result.title);
+        } else {
+          window.open('https://anilist.co/search/manga?search=' + encodeURIComponent(result.title), '_blank');
+        }
       });
       detailCoverTrigger.addEventListener('contextmenu', (e) => {
         e.preventDefault();

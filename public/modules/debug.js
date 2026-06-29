@@ -218,7 +218,7 @@ const dbg = (() => {
         <span class="dbg-head-count" id="dbg-head-count"></span>
         <button class="dbg-btn" id="dbg-copy-btn">Copy</button>
         <button class="dbg-btn" id="dbg-clear-btn">Clear</button>
-        <button class="dbg-btn" id="dbg-close-btn">✕</button>
+        <button class="dbg-btn" id="dbg-close-btn">X</button>
       </div>
       <div class="dbg-body" id="dbg-body"></div>
     `;
@@ -232,7 +232,7 @@ const dbg = (() => {
       if (navigator.clipboard) {
         navigator.clipboard.writeText(txt).then(() => {
           const btn = el.querySelector('#dbg-copy-btn');
-          btn.textContent = '✓ Copied';
+          btn.textContent = 'Copied';
           setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
         });
       }

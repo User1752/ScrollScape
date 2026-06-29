@@ -41,6 +41,7 @@ const { loadSourceFromFile } = require('../sourceLoader');
 const { createAsyncHandler } = require('../modules/http/async-handler');
 const { streamJobProgress } = require('../modules/http/job-progress-sse');
 const { createLocalService } = require('../modules/local/service');
+const { requireValidIdParam } = require('../middleware/validation');
 
 // Injected via configure()
 let LOCAL_DIR = '';
@@ -105,7 +106,7 @@ function registerLocalRoutes(router) {
   }));
 
   // ── GET /api/local/:mangaId/thumb ──────────────────────────────────────────
-  router.get('/api/local/:mangaId/thumb', asyncHandler(async (req, res) => {
+  router.get('/api/local/:mangaId/thumb', requireValidIdParam('mangaId'), asyncHandler(async (req, res) => {
     const target = await localService.getThumbnailTarget(req.params.mangaId);
     if (!target) return res.status(404).end();
     res.redirect(target);
@@ -114,6 +115,7 @@ function registerLocalRoutes(router) {
   // ── POST /api/local/:mangaId/cover ─────────────────────────────────────────
   router.post(
     '/api/local/:mangaId/cover',
+    requireValidIdParam('mangaId'),
     express.raw({ type: 'image/*', limit: '5mb' }),
     asyncHandler(async (req, res) => {
       res.json(await localService.updateLocalCover(req.params.mangaId, req.body));
@@ -121,7 +123,7 @@ function registerLocalRoutes(router) {
   );
 
   // ── DELETE /api/local/:mangaId ─────────────────────────────────────────────
-  router.delete('/api/local/:mangaId', asyncHandler(async (req, res) => {
+  router.delete('/api/local/:mangaId', requireValidIdParam('mangaId'), asyncHandler(async (req, res) => {
     res.json(await localService.deleteLocalManga(req.params.mangaId));
   }));
 

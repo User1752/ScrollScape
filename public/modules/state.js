@@ -84,6 +84,7 @@ const state = {
     readerNoiseIntensity: 50,
     readerNoiseSource: 'generated',
     readerNoiseGifFile: '',
+    autoScrollPointSpeeds: [0.2, 0.5, 1.0, 2.0, 3.5],
   },
 
   // ── Reading status & analytics ────────────────────────────────────────────

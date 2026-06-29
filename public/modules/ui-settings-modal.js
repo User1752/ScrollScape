@@ -4,14 +4,32 @@
 // ============================================================================
 
 function showSettings() {
-    let initializingSettingsModal = true;
+  let initializingSettingsModal = true;
   const modal = document.createElement("div");
   modal.className = "settings-modal";
+  
+  const _origSave = window.saveSettings;
+  const saveSettings = () => {
+    if (_origSave) _origSave();
+    const ind = document.getElementById('settingsSavedIndicator');
+    if (ind) {
+      ind.style.opacity = '1';
+      if (ind._to) clearTimeout(ind._to);
+      ind._to = setTimeout(() => { ind.style.opacity = '0'; }, 2000);
+    }
+  };
+
   modal.innerHTML = `
     <div class="settings-content">
       <div class="settings-header">
-        <h2>Settings</h2>
-        <button class="btn secondary" id="closeSettings">&#x2715;</button>
+        <div style="display:flex;align-items:center;gap:12px;flex:1">
+          <h2>Settings</h2>
+          <span id="settingsSavedIndicator" style="opacity:0;transition:opacity 0.3s;color:var(--color-success);font-size:0.85em;font-weight:600">✓ Saved</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="settingsSearchInput" class="input" placeholder="Search settings..." autocomplete="off" style="padding:4px 8px;font-size:0.9em;width:160px">
+          <button class="btn secondary" id="closeSettings">&#x2715;</button>
+        </div>
       </div>
       <div class="settings-layout">
 
@@ -30,9 +48,12 @@ function showSettings() {
           <!-- Reading tab -->
           <div class="settings-tab active" id="tab-reading">
             <div class="settings-section-card">
-              <p class="settings-section-title">Reading Mode</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Reading Mode</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="readingMode,autoWebtoonDetect,autoLoadNextChapter,webtoonTurnButtonsEnabled,webtoonTurnButtonPlacement,pageFlipAnimation,panWideImages,lineSharpness">Reset</button>
+              </div>
               <div class="setting-group">
-                <label>Default reading direction</label>
+                <label for="modeSelect">Default reading direction</label>
                 <select id="modeSelect" class="input">
                   <option value="ltr"     ${state.settings.readingMode === "ltr"     ? "selected" : ""}>Left to Right</option>
                   <option value="rtl"     ${state.settings.readingMode === "rtl"     ? "selected" : ""}>Right to Left (Manga)</option>
@@ -63,7 +84,7 @@ function showSettings() {
                 </label>
               </div>
               <div class="setting-group">
-                <label>Webtoon button placement</label>
+                <label for="webtoonTurnButtonPlacementSelect">Webtoon button placement</label>
                 <select id="webtoonTurnButtonPlacementSelect" class="input">
                   <option value="bottom"  ${(state.settings.webtoonTurnButtonPlacement || 'corners') === 'bottom' ? 'selected' : ''}>Bottom center</option>
                   <option value="corners" ${(state.settings.webtoonTurnButtonPlacement || 'corners') === 'corners' ? 'selected' : ''}>Bottom corners</option>
@@ -87,7 +108,7 @@ function showSettings() {
                 <p class="setting-description">Allows horizontal scrolling on double-page spreads.</p>
               </div>
               <div class="setting-group">
-                <label>Line Sharpness</label>
+                <label for="sharpnessSelect">Line Sharpness</label>
                 <select id="sharpnessSelect" class="input">
                   <option value="0" ${(state.settings.lineSharpness||0) === 0 ? 'selected' : ''}>Off</option>
                   <option value="1" ${(state.settings.lineSharpness||0) === 1 ? 'selected' : ''}>Subtle</option>
@@ -98,7 +119,10 @@ function showSettings() {
               </div>
                 </div>
             <div class="settings-section-card">
-              <p class="settings-section-title">Chapter Behaviour</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Chapter Behaviour</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="skipReadChapters,skipDuplicates">Reset</button>
+              </div>
               <div class="setting-group">
                 <label class="toggle-label">
                   <span class="toggle-text">Hide read chapters</span>
@@ -116,14 +140,45 @@ function showSettings() {
                 <p class="setting-description">Automatically advances past duplicates of the same chapter number</p>
               </div>
             </div>
+            <div class="settings-section-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Auto Scroll</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="autoScrollPointSpeeds">Reset</button>
+              </div>
+              <div class="setting-group">
+                <p class="setting-description" style="margin:0 0 0.5rem 0">Set the speed used by each auto-scroll level (points 1 to 5).</p>
+                <div id="autoScrollPointSpeedGrid" class="auto-scroll-point-grid">
+                  ${(() => {
+                    const defaults = [0.2, 0.5, 1.0, 2.0, 3.5];
+                    const raw = Array.isArray(state.settings.autoScrollPointSpeeds)
+                      ? state.settings.autoScrollPointSpeeds
+                      : defaults;
+                    const speeds = defaults.map((fallback, idx) => {
+                      const n = Number(raw[idx]);
+                      return Number.isFinite(n) ? Math.min(12, Math.max(0.05, n)) : fallback;
+                    });
+                    return speeds.map((v, i) => `
+                      <div class="auto-scroll-point-row">
+                        <label for="autoScrollPointSpeed${i + 1}">Point ${i + 1}</label>
+                        <input type="range" class="settings-speed-slider" id="autoScrollPointSpeed${i + 1}" min="0.05" max="12" step="0.05" value="${v.toFixed(2)}">
+                        <span id="autoScrollPointSpeed${i + 1}Label" class="auto-scroll-point-speed-label">${v.toFixed(2)} px/f</span>
+                      </div>
+                    `).join('');
+                  })()}
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Library tab -->
           <div class="settings-tab" id="tab-library">
             <div class="settings-section-card">
-              <p class="settings-section-title">Appearance</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Appearance</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="displayMode,showCompactInfo,mangasPerRow,overlays,showLibrarySourceBadge,showHomeSearch,homeSourceMode,homeSelectedSourceIds,hideNsfw,statusBadgeLocation,showChaptersLeft,hideLibraryStatusAndChapters">Reset</button>
+              </div>
               <div class="setting-group">
-                <label>Display mode</label>
+                <label for="displayModeSelect">Display mode</label>
                 <select id="displayModeSelect" class="input">
                   <option value="detailed" ${state.settings.displayMode === 'detailed' ? 'selected' : ''}>Detailed Grid</option>
                   <option value="compact" ${state.settings.displayMode === 'compact' ? 'selected' : ''}>Compact Grid</option>
@@ -139,7 +194,7 @@ function showSettings() {
                 <p class="setting-description">Show title and author below cover art when using Compact Grid mode.</p>
               </div>
               <div class="setting-group">
-                <label>Mangas per row</label>
+                <label for="mangasPerRowSelect">Mangas per row</label>
                 <select id="mangasPerRowSelect" class="input">
                   <option value="5" ${state.settings.mangasPerRow == 5 ? 'selected' : ''}>5</option>
                   <option value="6" ${state.settings.mangasPerRow == 6 ? 'selected' : ''}>6</option>
@@ -155,7 +210,7 @@ function showSettings() {
                 <p class="setting-description">Number of manga cards per row (grid modes only).</p>
               </div>
               <div class="setting-group">
-                <label>Overlay badges</label>
+                <p class="setting-description" style="margin:0 0 0.4rem 0;font-weight:600">Overlay badges</p>
                 <label class="toggle-label" style="margin-bottom:0.3em">
                   <span class="toggle-text">Downloaded Chapters</span>
                   <input type="checkbox" id="toggleOverlayDownloaded" ${state.settings.overlays?.downloaded !== false ? 'checked' : ''}>
@@ -190,7 +245,7 @@ function showSettings() {
                 <p class="setting-description">Shows or hides the Search Manga panel at the top of the Home page.</p>
               </div>
               <div class="setting-group">
-                <label>Home page source mode</label>
+                <label for="homeSourceModeSelect">Home page source mode</label>
                 <select id="homeSourceModeSelect" class="input">
                   <option value="all" ${state.settings.homeSourceMode !== 'selected' ? 'selected' : ''}>Show all installed sources</option>
                   <option value="selected" ${state.settings.homeSourceMode === 'selected' ? 'selected' : ''}>Only selected sources</option>
@@ -198,7 +253,7 @@ function showSettings() {
                 <p class="setting-description">Controls which sources are used in Home rows (Most Popular Today, Recently Added and Latest Updates)</p>
               </div>
               <div class="setting-group" id="homeSourceSelectionGroup" style="${state.settings.homeSourceMode === 'selected' ? '' : 'display:none'}">
-                <label>Sources visible on Home</label>
+                <p class="setting-description" style="margin:0 0 0.4rem 0;font-weight:600">Sources visible on Home</p>
                 <div id="homeSourceSelectionList">
                   ${(() => {
                     const ids = new Set(Array.isArray(state.settings.homeSelectedSourceIds) ? state.settings.homeSelectedSourceIds : []);
@@ -223,7 +278,7 @@ function showSettings() {
                 <p class="setting-description">Hides NSFW-related filters in Advanced Search and excludes NSFW-tagged titles from Library</p>
               </div>
               <div class="setting-group">
-                <label>Reading status badge location</label>
+                <label for="statusBadgeLocationSelect">Reading status badge location</label>
                 <select id="statusBadgeLocationSelect" class="input">
                   <option value="cover" ${(state.settings.statusBadgeLocation || 'cover') === 'cover' ? 'selected' : ''}>On cover (top-left)</option>
                   <option value="info" ${state.settings.statusBadgeLocation === 'info' ? 'selected' : ''}>Below title</option>
@@ -249,9 +304,12 @@ function showSettings() {
               </div>
             </div>
             <div class="settings-section-card">
-              <p class="settings-section-title">Defaults</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Defaults</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="libraryDefaultStatusFilter">Reset</button>
+              </div>
               <div class="setting-group">
-                <label>Default status filter when opening Library</label>
+                <label for="libraryDefaultStatusFilterSelect">Default status filter when opening Library</label>
                 <select id="libraryDefaultStatusFilterSelect" class="input">
                   <option value="all" ${state.settings.libraryDefaultStatusFilter === 'all' ? 'selected' : ''}>All Manga</option>
                   <option value="reading" ${state.settings.libraryDefaultStatusFilter === 'reading' ? 'selected' : ''}>Reading</option>
@@ -278,7 +336,7 @@ function showSettings() {
             <div class="settings-section-card">
               <p class="settings-section-title">${t('settings.uiThemeTitle')}</p>
               <div class="setting-group">
-                <label>${t('settings.uiThemeTitle')}</label>
+                <label for="uiThemeSelect">${t('settings.uiThemeTitle')}</label>
                 <select id="uiThemeSelect" class="input">
                   ${SHOP_THEMES.map(theme => {
                     const isOwned = getPurchasedThemes().includes(theme.id);
@@ -291,16 +349,19 @@ function showSettings() {
               </div>
               <div class="setting-group">
                 <button class="btn secondary" id="btnGoToThemeShop" style="display:flex; gap:8px; justify-content:center; align-items:center; width:100%;">
-                  🛒 ${t('nav.shop')}
+                  Shop: ${t('nav.shop')}
                 </button>
               </div>
             </div>
 
             <!-- Reader Appearance card -->
             <div class="settings-section-card">
-              <p class="settings-section-title">Reader Appearance</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Reader Appearance</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="readerBackground,readerNoiseEnabled,readerNoiseSource,readerNoiseGifFile">Reset</button>
+              </div>
               <div class="setting-group" id="readerBgColorGroup" style="${state.settings.readerNoiseEnabled ? 'display:none' : ''}">
-                <label>Background colour</label>
+                <label for="readerBgSelect">Background colour</label>
                 <select id="readerBgSelect" class="input">
                   <option value="black" ${(state.settings.readerBackground||'black') === 'black' ? 'selected' : ''}>Black</option>
                   <option value="dark"  ${(state.settings.readerBackground||'black') === 'dark'  ? 'selected' : ''}>Dark</option>
@@ -320,14 +381,14 @@ function showSettings() {
               </div>
               <div id="readerWallpaperOptions" style="${state.settings.readerNoiseEnabled ? '' : 'display:none'}">
                 <div class="setting-group">
-                  <label>Wallpaper type</label>
+                  <label for="readerNoiseSourceSelect">Wallpaper type</label>
                   <select id="readerNoiseSourceSelect" class="input">
                     <option value="generated" ${(state.settings.readerNoiseSource||'generated')==='generated'?'selected':''}>Film grain (generated)</option>
                     <option value="gif"        ${(state.settings.readerNoiseSource||'generated')==='gif'       ?'selected':''}>GIF / image file</option>
                   </select>
                 </div>
                 <div class="setting-group" id="readerNoiseGifGroup" style="${(state.settings.readerNoiseSource||'generated')==='gif'?'':'display:none'}">
-                  <label>Wallpaper file</label>
+                  <label for="readerNoiseGifFileSelect">Wallpaper file</label>
                   <select id="readerNoiseGifFileSelect" class="input">
                     <option value="">— loading… —</option>
                   </select>
@@ -338,7 +399,10 @@ function showSettings() {
 
             <!-- Library Appearance card -->
             <div class="settings-section-card">
-              <p class="settings-section-title">Library Appearance</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Library Appearance</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="libraryBookshelf3d">Reset</button>
+              </div>
               <div class="setting-group">
                 <label class="toggle-label">
                   <span class="toggle-text">3D Bookshelf</span>
@@ -353,10 +417,13 @@ function showSettings() {
           <!-- Tracking tab -->
           <div class="settings-tab" id="tab-tracking">
             <div class="settings-section-card">
-              <p class="settings-section-title">AniList</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">AniList</p>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="anilistAutoSync,anilistAutoImportOnConnect,anilistAutoCategorize">Reset</button>
+              </div>
               <div id="anilist-loggedout" ${_alToken() ? 'style="display:none"' : ''}>
                 <div class="setting-group">
-                  <label>AniList Client ID</label>
+                  <label for="anilistClientIdInput">AniList Client ID</label>
                   <input type="text" id="anilistClientIdInput" class="input" value="${escapeHtml(_alClientId())}" placeholder="e.g. 23361" autocomplete="off" spellcheck="false">
                   <p class="setting-description">
                     Register a free app at <strong>anilist.co/settings/developer</strong> and set the
@@ -441,7 +508,10 @@ function showSettings() {
               <div class="setting-group">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
                   <p class="setting-description" style="margin:0">Errors logged by sources during normal operation.</p>
-                  <button class="btn secondary" id="btnClearErrorLog" style="white-space:nowrap;color:var(--color-danger)">Clear Log</button>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn secondary" id="btnCopyErrorLog" style="white-space:nowrap">Copy Log</button>
+                    <button class="btn secondary" id="btnClearErrorLog" style="white-space:nowrap;color:var(--color-danger)">Clear Log</button>
+                  </div>
                 </div>
               </div>
               <div id="errorLogResults">
@@ -456,6 +526,15 @@ function showSettings() {
                   <button class="btn primary" id="cheatRunBtn">Run</button>
                 </div>
                 <p class="setting-description">Available: <code>cls</code> — reset all AP &amp; achievements &nbsp;·&nbsp; <code>godmode</code> — add 500 AP &nbsp;·&nbsp; <code>lcls</code> — clear library</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Factory Reset</p>
+              <div class="setting-group">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <p class="setting-description" style="margin:0">Reset all application settings to their default values. This will not delete your library or reading history.</p>
+                  <button class="btn secondary" id="btnResetAllSettings" style="white-space:nowrap;color:var(--color-danger)">Reset All Settings</button>
+                </div>
               </div>
             </div>
           </div>
@@ -482,6 +561,114 @@ function showSettings() {
       if (window.initCustomSelects) initCustomSelects();
     };
   });
+
+  // Search filter logic
+  const searchInput = $("settingsSearchInput");
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      const cards = modal.querySelectorAll('.settings-section-card');
+      let firstVisibleTabBtn = null;
+      
+      cards.forEach(card => {
+        let cardHasMatch = false;
+        const groups = card.querySelectorAll('.setting-group');
+        groups.forEach(group => {
+          if (!q || group.textContent.toLowerCase().includes(q)) {
+            group.style.display = '';
+            cardHasMatch = true;
+          } else {
+            group.style.display = 'none';
+          }
+        });
+        
+        // Check title and descriptions
+        if (q && card.querySelector('.settings-section-title')?.textContent.toLowerCase().includes(q)) {
+          groups.forEach(group => group.style.display = '');
+          cardHasMatch = true;
+        }
+
+        // Always show title and reset button if there's a match, otherwise hide the whole card
+        card.style.display = (!q || cardHasMatch) ? '' : 'none';
+      });
+
+      // Show/hide tabs in sidebar if they have visible cards
+      modal.querySelectorAll('.settings-nav-item').forEach(navBtn => {
+        const tabId = navBtn.dataset.tab;
+        const tab = modal.querySelector('#' + tabId);
+        if (tab) {
+          const hasVisibleCards = Array.from(tab.querySelectorAll('.settings-section-card')).some(c => c.style.display !== 'none');
+          navBtn.style.display = hasVisibleCards ? '' : 'none';
+          if (hasVisibleCards && !firstVisibleTabBtn) firstVisibleTabBtn = navBtn;
+        }
+      });
+      
+      // If the currently active tab has no visible cards, switch to the first one that does
+      const activeNav = modal.querySelector('.settings-nav-item.active');
+      if (q && activeNav && activeNav.style.display === 'none' && firstVisibleTabBtn) {
+        firstVisibleTabBtn.click();
+      }
+    };
+  }
+
+  // Reset Section Handlers
+  modal.querySelectorAll('.reset-section-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (!confirm('Reset these settings to their default values?')) return;
+      const keys = btn.dataset.keys.split(',').map(k => k.trim());
+      if (typeof window.resetSettingsSection === 'function') {
+        window.resetSettingsSection(keys);
+      }
+      
+      // Re-render settings modal smoothly by closing and reopening
+      const curTab = modal.querySelector('.settings-nav-item.active')?.dataset?.tab;
+      modal.remove();
+      showSettings();
+      if (curTab) {
+        const nextTabBtn = document.querySelector(`.settings-nav-item[data-tab="${curTab}"]`);
+        if (nextTabBtn) nextTabBtn.click();
+      }
+      
+      // Update affected UI globally
+      if (typeof renderLibrary === 'function') renderLibrary();
+      if (typeof applyReaderBackground === 'function') applyReaderBackground();
+      if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+      if (typeof applyHomeSearchVisibility === 'function') applyHomeSearchVisibility();
+      if (typeof loadPopularToday === 'function') loadPopularToday();
+      if (typeof loadRecentlyAdded === 'function') loadRecentlyAdded();
+      if (typeof loadLatestUpdates === 'function') loadLatestUpdates();
+      
+      const ind = document.getElementById('settingsSavedIndicator');
+      if (ind) {
+        ind.style.opacity = '1';
+        if (ind._to) clearTimeout(ind._to);
+        ind._to = setTimeout(() => { ind.style.opacity = '0'; }, 2000);
+      }
+    };
+  });
+
+  const btnResetAll = $("btnResetAllSettings");
+  if (btnResetAll) {
+    btnResetAll.onclick = () => {
+      if (!confirm('Are you sure you want to reset ALL settings to their default values? This cannot be undone.')) return;
+      if (typeof window.resetSettingsSection === 'function' && typeof DEFAULT_SETTINGS !== 'undefined') {
+        window.resetSettingsSection(Object.keys(DEFAULT_SETTINGS));
+      } else {
+        localStorage.removeItem("scrollscapeSettings");
+        location.reload();
+        return;
+      }
+      
+      modal.remove();
+      showSettings();
+      const advancedTabBtn = document.querySelector(`.settings-nav-item[data-tab="tab-advanced"]`);
+      if (advancedTabBtn) advancedTabBtn.click();
+      
+      if (typeof renderLibrary === 'function') renderLibrary();
+      if (typeof applyReaderBackground === 'function') applyReaderBackground();
+      if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  }
 
   // Display mode select
   const displayModeSelect = $("displayModeSelect");
@@ -550,6 +737,44 @@ function showSettings() {
       if (state.currentChapter) { showReader(); renderPage(); }
     };
   }
+  const ensureAutoScrollSpeedConfig = () => {
+    const defaults = [0.2, 0.5, 1.0, 2.0, 3.5];
+    const raw = Array.isArray(state.settings.autoScrollPointSpeeds)
+      ? state.settings.autoScrollPointSpeeds
+      : defaults;
+    state.settings.autoScrollPointSpeeds = defaults.map((fallback, idx) => {
+      const n = Number(raw[idx]);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.min(12, Math.max(0.05, n));
+    });
+  };
+  ensureAutoScrollSpeedConfig();
+
+  const bindAutoScrollPointSpeed = (point) => {
+    const input = $(`autoScrollPointSpeed${point}`);
+    const label = $(`autoScrollPointSpeed${point}Label`);
+    if (!input || !label) return;
+    const idx = point - 1;
+    const current = Number(state.settings.autoScrollPointSpeeds[idx] ?? input.value);
+    input.value = Number.isFinite(current) ? String(current) : String(input.value);
+    label.textContent = `${Number(input.value).toFixed(2)} px/f`;
+    input.oninput = (e) => {
+      const value = Math.min(12, Math.max(0.05, Number(e.target.value) || 0.05));
+      state.settings.autoScrollPointSpeeds[idx] = value;
+      label.textContent = `${value.toFixed(2)} px/f`;
+      saveSettings();
+      if (state.autoScroll?.enabled && Number(state.autoScroll.speed) === point) {
+        if (typeof stopAutoScroll === 'function') stopAutoScroll();
+        if (typeof startAutoScroll === 'function') startAutoScroll();
+      }
+    };
+  };
+  bindAutoScrollPointSpeed(1);
+  bindAutoScrollPointSpeed(2);
+  bindAutoScrollPointSpeed(3);
+  bindAutoScrollPointSpeed(4);
+  bindAutoScrollPointSpeed(5);
+
   $("sharpnessSelect").onchange = (e) => {
     state.settings.lineSharpness = parseInt(e.target.value, 10);
     saveSettings();
@@ -953,7 +1178,7 @@ function showSettings() {
               color: ${r.ok ? 'var(--color-success)' : 'var(--color-danger)'};
               flex-shrink: 0;
               margin-top: 1px;
-            ">${r.ok ? '✓' : '✗'}</span>
+            ">${r.ok ? 'OK' : 'FAIL'}</span>
             <div style="flex:1;min-width:0">
               <span style="font-weight:600;color:var(--color-text)">${escapeHtml(r.name || r.id)}</span>
               <span style="color:var(--color-text-muted);font-size:0.82em;margin-left:6px">(${escapeHtml(r.id)})</span>
@@ -992,6 +1217,25 @@ function showSettings() {
           loadErrorLog();
         } catch (e) {
           showToast('Error log', 'Failed to clear: ' + e.message, 'warning');
+        }
+      };
+    }
+
+    // Copy error log button
+    const btnCopyErrorLog = $('btnCopyErrorLog');
+    if (btnCopyErrorLog) {
+      btnCopyErrorLog.onclick = async () => {
+        try {
+          const data = await fetch('/api/error-log').then(r => r.json());
+          if (!data.entries || data.entries.length === 0) {
+            showToast('Error log', 'No errors to copy.', 'info');
+            return;
+          }
+          const text = JSON.stringify(data.entries, null, 2);
+          await navigator.clipboard.writeText(text);
+          showToast('Copied', 'Error log copied to clipboard.', 'success');
+        } catch (e) {
+          showToast('Error', 'Failed to copy log: ' + e.message, 'error');
         }
       };
     }

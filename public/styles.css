@@ -11,12 +11,29 @@
   --bg-dark: #0D0B0E;
   --bg-secondary: #16151D;
   --bg-tertiary: #222222;
+  --bg-surface-elevated: #121826;
+  --bg-surface-elevated-alt: #0f1726;
   --text-primary: #DDDDDD;
   --text-secondary: #999999;
+  --text-strong: #FFFFFF;
+  --text-on-dark-muted: rgba(255, 255, 255, 0.75);
+  --text-on-dark-subtle: rgba(255, 255, 255, 0.5);
   --border-color: #A2A2A2;
   --success: #00D084;
+  --success-strong: #169c53;
   --warning: #FFA500;
   --danger: #EF4444;
+  --surface-overlay-strong: rgba(0, 0, 0, 0.72);
+  --surface-overlay-medium: rgba(0, 0, 0, 0.65);
+  --surface-overlay-soft: rgba(0, 0, 0, 0.3);
+  --surface-stroke-soft: rgba(255, 255, 255, 0.1);
+  --surface-stroke-medium: rgba(255, 255, 255, 0.25);
+  --focus-ring: color-mix(in srgb, var(--primary) 32%, transparent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --light-surface: #FFFFFF;
+  --light-border: #E0E0EC;
   --blue-status: var(--primary);
 }
 

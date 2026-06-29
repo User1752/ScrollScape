@@ -36,31 +36,24 @@
 
 ## Quick Start
 
-### Windows — Docker (recommended)
+### Windows
 ```bat
 ScrollScape.bat
 ```
-Double-click the bat file. It will start Docker Desktop if needed, build the container, and open `http://localhost:3000` automatically.
+Double-click the `.bat` file. It will automatically install dependencies via `npm` on its first run, start the Node.js server in the background, and open a menu with restart/quit options.
 
-### Linux / macOS — Docker
+### Linux / macOS (Docker)
 ```bash
 chmod +x scrollscape.sh
 ./scrollscape.sh
 ```
+Run the `.sh` script. It will automatically start Docker if needed, build the container with all dependencies, and open `http://localhost:3000`.
 
-### Any platform — Node.js
+### Any platform — Manual Node.js
 ```bash
 npm install
 node server.js
 # Open http://localhost:3000
-```
-
-### Android (Termux)
-```bash
-pkg update && pkg install nodejs git
-git clone <repo> ScrollScape && cd ScrollScape
-npm install && node server.js
-# Open http://localhost:3000 in your mobile browser
 ```
 
 ---

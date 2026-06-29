@@ -121,6 +121,15 @@ async function recordReadingSession() {
         duration: Math.round(duration * 10) / 10
       })
     });
+  } catch (e) { /* non-fatal */ }
+
+  try {
+    if (typeof anilistFinalizeCurrentChapterProgress === 'function') {
+      await anilistFinalizeCurrentChapterProgress();
+    }
+  } catch (e) { /* non-fatal */ }
+
+  try {
     await checkAndUnlockAchievements();
   } catch (e) { /* non-fatal */ }
 }

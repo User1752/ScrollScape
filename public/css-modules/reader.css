@@ -99,7 +99,7 @@ body.reader-open::-webkit-scrollbar {
 }
 
 .btn-close {
-  background: white;
+  background: var(--text-strong);
   border: none;
   width: 36px;
   height: 36px;
@@ -110,12 +110,12 @@ body.reader-open::-webkit-scrollbar {
 }
 
 .btn-close:hover {
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: color-mix(in srgb, var(--text-strong) 85%, transparent);
 }
 
 .reader-title {
   flex: 0 1 auto;
-  color: white;
+  color: var(--text-strong);
   font-weight: 700;
   font-size: 0.98rem;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
@@ -150,9 +150,9 @@ body.reader-open::-webkit-scrollbar {
   width: 34px;
   height: 72px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid color-mix(in srgb, var(--text-strong) 28%, transparent);
   background: rgba(22, 22, 32, 0.9);
-  color: #fff;
+  color: var(--text-strong);
   font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
@@ -186,7 +186,7 @@ body.reader-open::-webkit-scrollbar {
   width: 310px;
   max-width: 88vw;
   background: linear-gradient(180deg, rgba(17, 17, 24, 0.96) 0%, rgba(10, 10, 15, 0.95) 100%);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid color-mix(in srgb, var(--text-strong) 8%, transparent);
   box-shadow: -8px 0 20px rgba(0, 0, 0, 0.35);
   padding: 1rem;
   display: flex;
@@ -206,15 +206,15 @@ body.reader-open::-webkit-scrollbar {
 }
 
 .reader-sidebar-section {
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid color-mix(in srgb, var(--text-strong) 9%, transparent);
   border-radius: 10px;
   padding: 0.8rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--text-strong) 3%, transparent);
 }
 
 .reader-sidebar-heading {
   margin: 0 0 0.55rem 0;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-on-dark-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 0.72rem;
@@ -226,14 +226,14 @@ body.reader-open::-webkit-scrollbar {
   flex-direction: column;
   align-items: stretch;
   gap: 0.5rem;
-  color: white;
+  color: var(--text-strong);
 }
 
 .btn-nav {
   padding: 0.55rem 0.9rem;
-  background-color: rgba(255, 255, 255, 0.12);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background-color: color-mix(in srgb, var(--text-strong) 12%, transparent);
+  color: var(--text-strong);
+  border: 1px solid color-mix(in srgb, var(--text-strong) 30%, transparent);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
@@ -243,8 +243,15 @@ body.reader-open::-webkit-scrollbar {
 }
 
 .btn-nav:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
+  background-color: color-mix(in srgb, var(--text-strong) 25%, transparent);
+  border-color: color-mix(in srgb, var(--text-strong) 50%, transparent);
+}
+
+.btn-nav:focus-visible,
+.btn-close:focus-visible,
+.reader-sidebar-arrow:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .btn-nav:disabled {
@@ -256,7 +263,7 @@ body.reader-open::-webkit-scrollbar {
   font-size: 0.83rem;
   min-width: 100px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in srgb, var(--text-strong) 90%, transparent);
 }
 
 .reader-content {

@@ -408,7 +408,7 @@ function renderLibrary() {
     // Downloaded Chapters overlay (exemplo: badge se houver capítulos baixados)
     let downloadedBadge = '';
     if (overlays.downloaded !== false && manga.downloadedChapters && manga.downloadedChapters.length > 0) {
-      downloadedBadge = `<div class="library-card-overlay-badge downloaded" title="Downloaded Chapters">⬇️</div>`;
+      downloadedBadge = `<div class="library-card-overlay-badge downloaded" title="Downloaded Chapters">DL</div>`;
     }
     // Unread Chapters overlay (exemplo: badge se houver capítulos não lidos)
     let unreadBadge = '';
@@ -418,7 +418,7 @@ function renderLibrary() {
     // Local Source overlay (exemplo: badge se for local)
     let localBadge = '';
     if (overlays.local !== false && manga.sourceId === 'local') {
-      localBadge = `<div class="library-card-overlay-badge local" title="Local Source">📁</div>`;
+      localBadge = `<div class="library-card-overlay-badge local" title="Local Source">LOCAL</div>`;
     }
     const statusBadge = status && badgeLoc !== 'info' && !state.settings.hideLibraryStatusAndChapters
       ? `<div class="library-card-status status-badge-${status}">${statusLabel(status).split(' ')[0]}</div>`

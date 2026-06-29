@@ -68,6 +68,7 @@ async function _sourceSearch(sourceId, query) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, page: 1 }),
+    signal: AbortSignal.timeout(8000)
   }).then(res => res.json());
 }
 
@@ -123,6 +124,7 @@ async function _sourceChaptersCount(sourceId, mangaId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mangaId }),
+      signal: AbortSignal.timeout(8000)
     }).then(res => res.json());
     const ch = r?.chapters || [];
     return Array.isArray(ch) ? ch.length : null;
@@ -591,9 +593,9 @@ function _migrateShowStep3Table(modal, results, allSources) {
       <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:0.75rem">
         Chapter counts show the top search result per source.
         <span style="color:#7cfc88">Green / *</span> = most chapters.
-        Current source highlighted in <span style="color:var(--primary)">purple</span>. Only one checkbox per manga row.
+        Current source is <span style="color:var(--primary);font-weight:600">highlighted</span>. Only one checkbox per manga row.
       </p>
-      <div style="overflow-x:auto;max-height:78vh;overflow-y:auto;border:1px solid color-mix(in srgb, var(--primary) 16%, transparent);border-radius:10px">
+      <div style="overflow-x:auto;min-height:45vh;max-height:78vh;overflow-y:auto;border:1px solid color-mix(in srgb, var(--primary) 16%, transparent);border-radius:10px">
         <table style="width:100%;border-collapse:collapse;min-width:900px">
           <thead style="position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:1">
             <tr style="border-bottom:1px solid color-mix(in srgb, var(--primary) 20%, transparent)">
@@ -612,8 +614,8 @@ function _migrateShowStep3Table(modal, results, allSources) {
 
   const contentEl = modal.querySelector('.settings-content');
   if (contentEl) {
-    contentEl.style.width = 'min(98vw, 1320px)';
-    contentEl.style.maxWidth = '1320px';
+    contentEl.style.width = 'min(98vw, 1600px)';
+    contentEl.style.maxWidth = '1600px';
     contentEl.style.maxHeight = '96vh';
   }
 
@@ -764,7 +766,7 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
       }
     }
     if (semSourceWarn) {
-      parts.push('⚠️ Alguns mangas migrados de "sem source" não tinham progresso/status para copiar.');
+      parts.push('Warning: Alguns mangas migrados de "sem source" não tinham progresso/status para copiar.');
     }
 
     showToast('Migration complete', parts.join(', '), (res.failed || skipped || semSourceWarn) ? 'warning' : 'success');

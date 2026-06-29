@@ -4,9 +4,27 @@
 
 const DEFAULT_CUSTOM_THEME_HEX = '#913fe2';
 const DEFAULT_CUSTOM_THEME_HEX_UPPER = DEFAULT_CUSTOM_THEME_HEX.toUpperCase();
+let _alFlushLifecycleHandlersBound = false;
+
+function _bindAniListFlushLifecycleHandlers() {
+  if (_alFlushLifecycleHandlersBound) return;
+  _alFlushLifecycleHandlersBound = true;
+
+  const flush = () => {
+    if (typeof anilistFlushPendingProgress === 'function') {
+      anilistFlushPendingProgress().catch(() => {});
+    }
+  };
+
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush();
+  });
+}
 
 function bindUI() {
   initAdvancedFilters();
+  _bindAniListFlushLifecycleHandlers();
 
   // Sidebar toggle (mobile)
   const toggle   = $("sidebarToggle");
