@@ -1,6 +1,6 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # =============================================================================
-# scrollscape.sh — ScrollScape Docker launcher for Linux & macOS
+# scrollscape.sh — ScrollScape launcher for Linux & macOS
 # Usage: chmod +x scrollscape.sh && ./scrollscape.sh
 # =============================================================================
 
@@ -23,8 +23,9 @@ YLW='\033[33m'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=3000
-CONTAINER_STARTED=0
-COMPOSE_CMD=()
+NODE_PID=""
+
+cd "$ROOT_DIR"
 
 trap cleanup EXIT INT TERM
 
@@ -37,8 +38,8 @@ banner() {
   echo -e "  ${GRY}|${R}   ${BOLD}${BPUR}/ ____|/ ____|${R}      ${BOLD}ScrollScape${R}                     ${GRY}|${R}"
   echo -e "  ${GRY}|${R}  ${BOLD}${PUR}| (___ | (___${R}        ${DIM}Linux / macOS Launcher${R}         ${GRY}|${R}"
   echo -e "  ${GRY}|${R}   ${BOLD}${PUR}\\___ \\ \\___ \\${R}                                     ${GRY}|${R}"
-  echo -e "  ${GRY}|${R}   ${DIM}${PUR}____) |____) |${R}      ${DIM}Docker-powered startup${R}        ${GRY}|${R}"
-  echo -e "  ${GRY}|${R}  ${DIM}${PUR}|_____/|_____/${R}       ${DIM}Same R / Q menu as Windows${R}     ${GRY}|${R}"
+  echo -e "  ${GRY}|${R}   ${DIM}${PUR}____) |____) |${R}      ${DIM}Current server.js flow${R}          ${GRY}|${R}"
+  echo -e "  ${GRY}|${R}  ${DIM}${PUR}|_____/|_____/${R}       ${DIM}Foreground logs & easy debug${R}    ${GRY}|${R}"
   echo -e "  ${GRY}|${R}                                                       ${GRY}|${R}"
   echo -e "  ${GRY}+=======================================================+${R}"
   echo
@@ -57,108 +58,43 @@ err() {
   echo -e "  ${GRY}+-------------------------------------------------------+${R}"
   echo -e "  ${GRY}|${R}    ${BRED}[ ERR ]${R}  ${BOLD}$1${R}"
   if [ -n "${2:-}" ]; then
-    echo -e "  ${GRY}|${R}    ${DIM}$2${R}"
+    echo -e "  ${GRY}|${R}    ${DIM}          $2${R}"
   fi
   echo -e "  ${GRY}+-------------------------------------------------------+${R}"
   echo
 }
 
 info_line() {
-  echo -e "  ${CYN}[ .. ]${R}  $1"
+  echo -e "  ${BCYN}[ .. ]${R}  $1"
 }
 
 ok_line() {
   echo -e "  ${BGRN}[ OK ]${R}  $1"
 }
 
-warn_line() {
-  echo -e "  ${YLW}[ ! ]${R}  $1"
-}
-
-detect_compose_cmd() {
-  if docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker compose)
-    return
-  fi
-
-  if command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker-compose)
-    return
-  fi
-
-  err "Docker Compose not found." "Install Docker Compose v2 or the docker-compose legacy binary."
-  exit 1
-}
-
-open_browser() {
-  local url="http://localhost:${PORT}"
-  case "$(uname -s)" in
-    Darwin)
-      open "$url" >/dev/null 2>&1 || true
-      ;;
-    Linux)
-      if command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "$url" >/dev/null 2>&1 &
-      elif command -v sensible-browser >/dev/null 2>&1; then
-        sensible-browser "$url" >/dev/null 2>&1 &
-      fi
-      ;;
-  esac
-}
-
-wait_for_docker() {
-  local tries=0
-  while ! docker info >/dev/null 2>&1; do
-    if (( tries >= 60 )); then
-      err "Docker daemon did not start in time." "Start Docker manually and re-run scrollscape.sh."
-      exit 1
+cleanup_port() {
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${PORT}/tcp" >/dev/null 2>&1 || true
+  elif command -v lsof >/dev/null 2>&1; then
+    local pids
+    pids=$(lsof -t -i tcp:${PORT} 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+      echo "$pids" | xargs kill -9 >/dev/null 2>&1 || true
     fi
-    sleep 1
-    ((tries+=1))
-  done
-}
-
-ensure_docker_running() {
-  if docker info >/dev/null 2>&1; then
-    return
   fi
-
-  warn_line "Docker daemon is not running."
-  case "$(uname -s)" in
-    Darwin)
-      info_line "Trying to open Docker Desktop..."
-      open -a Docker >/dev/null 2>&1 || true
-      ;;
-    Linux)
-      info_line "Trying to start the docker service..."
-      if command -v systemctl >/dev/null 2>&1; then
-        sudo -n systemctl start docker >/dev/null 2>&1 || true
-      fi
-      ;;
-  esac
-
-  wait_for_docker
 }
 
-compose_up() {
-  "${COMPOSE_CMD[@]}" -f "$ROOT_DIR/docker/docker-compose.yml" up -d --build
-}
-
-compose_down() {
-  "${COMPOSE_CMD[@]}" -f "$ROOT_DIR/docker/docker-compose.yml" down >/dev/null 2>&1 || true
-}
-
-cleanup() {
-  if (( CONTAINER_STARTED )); then
-    compose_down
-  fi
+start_node() {
+  export PORT="${PORT}"
+  export SCROLLSCAPE_LAUNCHER="1"
+  nohup "$NODE_EXE" server.js >/dev/null 2>&1 &
+  NODE_PID=$!
 }
 
 wait_for_port() {
   local tries=0
   while ! (echo > "/dev/tcp/127.0.0.1/${PORT}") >/dev/null 2>&1; do
     if (( tries >= 20 )); then
-      warn_line "Server did not respond in time."
       return 1
     fi
     sleep 1
@@ -167,33 +103,113 @@ wait_for_port() {
   return 0
 }
 
-start_flow() {
+cleanup() {
+  if [ -n "$NODE_PID" ]; then
+    kill "$NODE_PID" >/dev/null 2>&1 || true
+  fi
+}
+
+install_node() {
+  local NODE_VER="v20.15.0"
+  local ARCH=""
+  case "$(uname -m)" in
+    x86_64) ARCH="x64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *) 
+      err "Unsupported architecture" "Cannot automatically install Node.js for $(uname -m)."
+      read -rp "Press Enter to exit..."
+      exit 1
+      ;;
+  esac
+
+  local OS="linux"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS="darwin"
+  fi
+
+  local URL="https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-${OS}-${ARCH}.tar.gz"
+  local TAR_FILE="$ROOT_DIR/node.tar.gz"
+  
+  info_line "Downloading Node.js ${NODE_VER} for ${OS}-${ARCH}..."
+  mkdir -p "$ROOT_DIR/tools/node"
+  if command -v curl >/dev/null 2>&1; then
+    curl -#L "$URL" -o "$TAR_FILE"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --show-progress "$URL" -O "$TAR_FILE"
+  else
+    err "Cannot download Node.js" "Neither curl nor wget is installed."
+    read -rp "Press Enter to exit..."
+    exit 1
+  fi
+
+  info_line "Extracting Node.js..."
+  tar -xzf "$TAR_FILE" -C "$ROOT_DIR/tools/node" --strip-components=1
+  rm -f "$TAR_FILE"
+
+  ok_line "Node.js installed successfully."
+}
+
+main_flow() {
   banner
-  info_line "Scanning for Docker runtime environment..."
-  detect_compose_cmd
-  ensure_docker_running
 
-  ok_line "Using Docker Compose command: ${COMPOSE_CMD[*]}"
+  info_line "Scanning for Node.js runtime environment..."
+  NODE_EXE=""
+  if [ -x "$ROOT_DIR/tools/node/bin/node" ]; then
+    NODE_EXE="$ROOT_DIR/tools/node/bin/node"
+    export PATH="$ROOT_DIR/tools/node/bin:$PATH"
+  elif [ -x "$ROOT_DIR/tools/node/node" ]; then
+    # Legacy support in case it's extracted flat
+    NODE_EXE="$ROOT_DIR/tools/node/node"
+    export PATH="$ROOT_DIR/tools/node:$PATH"
+  elif command -v node >/dev/null 2>&1; then
+    NODE_EXE="$(command -v node)"
+  fi
+
+  if [ -z "$NODE_EXE" ]; then
+    echo
+    info_line "Node.js not found. Installing automatically..."
+    install_node
+    
+    if [ -x "$ROOT_DIR/tools/node/bin/node" ]; then
+      NODE_EXE="$ROOT_DIR/tools/node/bin/node"
+      export PATH="$ROOT_DIR/tools/node/bin:$PATH"
+    else
+      err "Node.js installation failed" "Could not find node executable after install."
+      read -rp "Press Enter to exit..."
+      exit 1
+    fi
+  fi
+
+  NODE_VER=$("$NODE_EXE" --version 2>&1 || true)
+  ok_line "Using Node.js ${NODE_VER}"
+  
+  info_line "Clearing stale node listener on port ${PORT} if present..."
+  cleanup_port
+  ok_line "Port ${PORT} is free."
+
+  if [ ! -d "$ROOT_DIR/node_modules" ]; then
+    echo
+    info_line "First run detected! Installing dependencies..."
+    if ! npm install; then
+      err "Failed to install dependencies" "Make sure npm is installed and in PATH."
+      read -rp "Press Enter to exit..."
+      exit 1
+    fi
+    ok_line "Dependencies installed."
+  fi
+
   echo
   status_box
-  info_line "Building image and starting container..."
 
-  if ! compose_up; then
-    err "Failed to start container." "Check Docker output above and try again."
+  info_line "Starting server daemon..."
+  start_node
+  if [ -z "$NODE_PID" ] || ! kill -0 "$NODE_PID" 2>/dev/null; then
+    err "Failed to start server" "Could not launch server.js in background."
+    read -rp "Press Enter to exit..."
     exit 1
   fi
 
-  CONTAINER_STARTED=1
-
-  if ! wait_for_port; then
-    err "ScrollScape did not become ready." "The container started, but port ${PORT} is not responding yet."
-    exit 1
-  fi
-
-  echo
-  status_box
-  info_line "Opening browser at http://localhost:${PORT} ..."
-  open_browser
+  wait_for_port || true
 }
 
 menu_loop() {
@@ -201,38 +217,29 @@ menu_loop() {
     echo
     echo -e "  ${GRY}+-------------------------------------------------------+${R}"
     echo -e "  ${GRY}|${R}   ${BOLD}${BPUR}R${R}  ${WHT}Restart & refresh                                ${GRY}|${R}"
-    echo -e "  ${GRY}|${R}   ${BOLD}${BPUR}Q${R}  ${WHT}Quit                                              ${GRY}|${R}"
+    echo -e "  ${GRY}|${R}   ${BOLD}${BPUR}Q${R}  ${WHT}Quit                                             ${GRY}|${R}"
     echo -e "  ${GRY}+-------------------------------------------------------+${R}"
+    
     IFS= read -rsn1 choice || choice="q"
-    echo
-
-    case "${choice,,}" in
-      r)
+    
+    case "$choice" in
+      r|R)
         banner
         info_line "Restarting server..."
-        compose_down
-        CONTAINER_STARTED=0
-        start_flow
+        cleanup
+        cleanup_port
+        main_flow
         ;;
-      q)
+      q|Q)
+        echo
         info_line "Stopping ScrollScape..."
         exit 0
         ;;
       *)
-        warn_line "Press R to restart or Q to quit."
         ;;
     esac
   done
 }
 
-main() {
-  if ! command -v docker >/dev/null 2>&1; then
-    err "Docker not found." "Install it from https://docs.docker.com/get-docker/"
-    exit 1
-  fi
-
-  start_flow
-  menu_loop
-}
-
-main "$@"
+main_flow
+menu_loop
