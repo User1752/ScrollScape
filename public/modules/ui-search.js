@@ -188,7 +188,15 @@ window.search = async function search(page = 1) {
       body: JSON.stringify({ query, page })
     });
     const rawResults = result.results || [];
-    const results = rawResults.filter(m => !(state.settings.hideNsfw && isNsfwManga(m)));
+    const blacklist = state.settings.genreBlacklist || [];
+    const results = rawResults.filter(m => {
+      if (state.settings.hideNsfw && isNsfwManga(m)) return false;
+      if (blacklist.length > 0 && Array.isArray(m.genres)) {
+        const lowerGenres = m.genres.map(g => typeof g === 'string' ? g.toLowerCase() : '');
+        if (lowerGenres.some(g => blacklist.includes(g))) return false;
+      }
+      return true;
+    });
     const chapterFiltered = await _filterMangaWithoutChapters(results, state.currentSourceId);
     const hasNextPage = result.hasNextPage || false;
     state.searchHasNextPage = hasNextPage;

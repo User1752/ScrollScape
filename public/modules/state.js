@@ -76,6 +76,7 @@ const state = {
       unread: true,
       local: true,
     },
+    showBookSpine: true,
     readerBackground: 'black',
     webtoonTurnButtonsEnabled: true,
     webtoonTurnButtonPlacement: 'corners',

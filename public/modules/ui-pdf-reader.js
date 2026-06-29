@@ -145,7 +145,7 @@ async function renderPDFSpread(isRTL, noFade = false) {
     <div class="book-reader-wrap" id="bookReaderWrap">
       <div class="book-spread" id="bookSpread">
         <div class="book-side book-left"  id="bookLeft"></div>
-        <div class="book-spine"></div>
+        ${state.settings.showBookSpine !== false ? '<div class="book-spine"></div>' : ''}
         <div class="book-side book-right" id="bookRight"></div>
       </div>
     </div>`;

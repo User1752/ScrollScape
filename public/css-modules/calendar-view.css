@@ -181,6 +181,20 @@
   font-style: italic;
 }
 
+/* volume base */
+.cal-release-item--volume {
+  border: 1px solid rgba(156, 39, 176, 0.4);
+  background: rgba(156, 39, 176, 0.15);
+}
+.cal-release-item--volume:hover {
+  background: rgba(156, 39, 176, 0.3);
+  border-color: rgba(156, 39, 176, 0.8);
+}
+.cal-release-item--volume .cal-release-chap {
+  color: #e1bee7;
+  font-weight: 700;
+}
+
 /* confidence levels — floor raised so low-conf items stay legible */
 .cal-release-item--conf-high    { opacity: 1.00; }
 .cal-release-item--conf-medium  { opacity: 0.82; border-style: dashed; }

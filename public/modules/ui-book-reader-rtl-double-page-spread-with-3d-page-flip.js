@@ -229,7 +229,7 @@ function renderBookSpread() {
     <div class="book-reader-wrap" id="bookReaderWrap" ${wrapZoomStyle}>
       <div class="book-spread" id="bookSpread">
         <div class="book-side book-left" id="bookLeft">${leftHtml}</div>
-        <div class="book-spine"></div>
+        ${state.settings.showBookSpine !== false ? '<div class="book-spine"></div>' : ''}
         <div class="book-side book-right" id="bookRight">${rightHtml}</div>
         ${overlayHtml}
       </div>

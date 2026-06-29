@@ -358,7 +358,15 @@ function showSettings() {
             <div class="settings-section-card">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <p class="settings-section-title" style="margin-bottom:0">Reader Appearance</p>
-                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="readerBackground,readerNoiseEnabled,readerNoiseSource,readerNoiseGifFile">Reset</button>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="readerBackground,readerNoiseEnabled,readerNoiseSource,readerNoiseGifFile,showBookSpine">Reset</button>
+              </div>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text" data-i18n="settings.showBookSpine">${t('settings.showBookSpine')}</span>
+                  <input type="checkbox" id="showBookSpineToggle" ${state.settings.showBookSpine !== false ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description" data-i18n="settings.showBookSpineDesc">${t('settings.showBookSpineDesc')}</p>
               </div>
               <div class="setting-group" id="readerBgColorGroup" style="${state.settings.readerNoiseEnabled ? 'display:none' : ''}">
                 <label for="readerBgSelect">Background colour</label>
@@ -410,6 +418,18 @@ function showSettings() {
                   <span class="toggle-slider"></span>
                 </label>
                 <p class="setting-description">Shows library cards in a 3D bookshelf with depth effect</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <p class="settings-section-title" style="margin-bottom:0">Library Sync</p>
+              </div>
+              <div class="setting-group">
+                <p class="setting-description">Manually check all sources and Anime-Planet for status updates (Ongoing, Completed, Hiatus, Cancelled).</p>
+                <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                  <button class="btn primary" id="btnSyncLibraryStatus">Sync Library Status</button>
+                  <span id="syncLibraryStatusResult" style="font-size:0.8rem; color:var(--color-success)"></span>
+                </div>
               </div>
             </div>
           </div>
@@ -526,6 +546,14 @@ function showSettings() {
                   <button class="btn primary" id="cheatRunBtn">Run</button>
                 </div>
                 <p class="setting-description">Available: <code>cls</code> — reset all AP &amp; achievements &nbsp;·&nbsp; <code>godmode</code> — add 500 AP &nbsp;·&nbsp; <code>lcls</code> — clear library</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Genre Blacklist</p>
+              <div class="setting-group">
+                <label for="genreBlacklistInput">Blacklisted Genres (comma separated)</label>
+                <input type="text" id="genreBlacklistInput" class="input" placeholder="e.g. yaoi, doujinshi, harem" autocomplete="off" spellcheck="false" value="${escapeHtml((state.settings.genreBlacklist || []).join(', '))}"></input>
+                <p class="setting-description">Manga containing these genres will be hidden from Search and Discover.</p>
               </div>
             </div>
             <div class="settings-section-card">
@@ -817,6 +845,15 @@ function showSettings() {
       state.settings.readerBackground = e.target.value;
       saveSettings();
       applyReaderBackground();
+    };
+  }
+
+  const showBookSpineToggle = $('showBookSpineToggle');
+  if (showBookSpineToggle) {
+    showBookSpineToggle.onchange = (e) => {
+      state.settings.showBookSpine = e.target.checked;
+      saveSettings();
+      if (state.currentChapter) { showReader(); renderPage(); }
     };
   }
 
@@ -1260,6 +1297,19 @@ function showSettings() {
     if (e.key === 'Enter') { await runCheatCommand($('cheatInput').value); $('cheatInput').value = ''; }
   };
 
+  const genreBlacklistInput = $('genreBlacklistInput');
+  if (genreBlacklistInput) {
+    genreBlacklistInput.onchange = (e) => {
+      const val = e.target.value || '';
+      const list = val.split(/[,|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+      state.settings.genreBlacklist = list;
+      saveSettings();
+      if (typeof applyAdvancedSearchNsfwVisibility === 'function') {
+        applyAdvancedSearchNsfwVisibility();
+      }
+    };
+  }
+
   $("clearReadBtn").onclick = async () => {
     if (confirm("Clear all reading history?")) {
       try { await fetch("/api/history/clear", { method: "DELETE" }); } catch (_) {}
@@ -1275,6 +1325,38 @@ function showSettings() {
       showToast("Reading history cleared", "", "info");
     }
   };
+
+  const btnSyncLibraryStatus = $("btnSyncLibraryStatus");
+  if (btnSyncLibraryStatus) {
+    btnSyncLibraryStatus.onclick = async () => {
+      const resSpan = $("syncLibraryStatusResult");
+      btnSyncLibraryStatus.disabled = true;
+      btnSyncLibraryStatus.textContent = "Syncing...";
+      if (resSpan) resSpan.textContent = "";
+
+      try {
+        const response = await fetch("/api/library/sync-status", { method: "POST" });
+        const data = await response.json();
+        
+        if (data.ok) {
+          if (resSpan) resSpan.textContent = `Updated ${data.updated} mangas.`;
+          showToast("Sync Complete", `Updated status for ${data.updated} mangas.`, "success");
+          if (data.updated > 0) {
+            renderLibrary(); // Re-render to show updated badges if any
+          }
+        } else {
+          if (resSpan) resSpan.textContent = "Sync failed.";
+          showToast("Sync Failed", data.error || "Unknown error occurred.", "error");
+        }
+      } catch (err) {
+        if (resSpan) resSpan.textContent = "Error.";
+        showToast("Sync Error", err.message, "error");
+      } finally {
+        btnSyncLibraryStatus.disabled = false;
+        btnSyncLibraryStatus.textContent = "Sync Library Status";
+      }
+    };
+  }
 
   // ── AniList settings handlers ──────────────────────────────────────────────
   const alClientInput = $('anilistClientIdInput');

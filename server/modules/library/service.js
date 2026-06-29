@@ -1,8 +1,9 @@
 'use strict';
 
 const { createLibraryContentService } = require('./content-service');
+const { checkAnimePlanetHiatus } = require('./ap-hiatus');
 
-function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl }) {
+function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loadSourceFromFile }) {
   const contentService = createLibraryContentService({ readStore, writeStore, safeManga, isSafeUrl });
 
   function normSourceId(s) {
@@ -425,6 +426,65 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl }) {
     return contentService.clearLibrary();
   }
 
+  async function syncLibraryStatus() {
+    const store = await readStore();
+    const favorites = store.favorites || [];
+    if (favorites.length === 0) return { ok: true, updated: 0 };
+
+    let updated = 0;
+
+    for (const fav of favorites) {
+      if (!fav.sourceId || !fav.id || fav.sourceId === 'unknown') continue;
+      
+      let sourceStatus = null;
+      try {
+        const src = loadSourceFromFile(fav.sourceId);
+        if (src && src.mangaDetails) {
+          // Add a tiny delay to prevent flooding sources like MangaDex
+          await new Promise(r => setTimeout(r, 200));
+          const details = await src.mangaDetails(fav.id);
+          if (details && details.status) {
+             sourceStatus = details.status.toLowerCase().trim();
+          }
+        }
+      } catch (err) {
+        console.warn(`[SyncStatus] Failed to fetch details for ${fav.title}:`, err.message);
+      }
+
+      let newStatus = sourceStatus || fav.status || 'ongoing';
+      
+      // If the source says it's ongoing or we don't know, check Anime-Planet to see if it's on Hiatus
+      if (newStatus === 'ongoing' && fav.title) {
+        // Add a delay to avoid AP rate limits
+        await new Promise(r => setTimeout(r, 500));
+        const isHiatus = await checkAnimePlanetHiatus(fav.title);
+        if (isHiatus) {
+          newStatus = 'hiatus';
+        }
+      }
+
+      const statusMap = {
+        'ongoing': 'ongoing', 'publishing': 'ongoing', 'releasing': 'ongoing', 'serializing': 'ongoing',
+        'completed': 'completed', 'finished': 'completed', 'end': 'completed',
+        'hiatus': 'hiatus', 'on hiatus': 'hiatus', 'on_hiatus': 'hiatus',
+        'cancelled': 'cancelled', 'dropped': 'cancelled',
+      };
+      
+      const normalizedStatus = statusMap[newStatus] || newStatus;
+
+      if (fav.status !== normalizedStatus) {
+        fav.status = normalizedStatus;
+        fav.updatedAt = new Date().toISOString();
+        updated++;
+      }
+    }
+
+    if (updated > 0) {
+      await writeStore(store);
+    }
+    return { ok: true, updated };
+  }
+
   return {
     getLibrary,
     addToLibrary,
@@ -441,6 +501,7 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl }) {
     getAniListSyncMeta,
     migrateLibrary,
     clearLibrary,
+    syncLibraryStatus,
   };
 }
 

@@ -221,8 +221,16 @@ async function _loadMultiSourceHomeList(method, perSourceLimit = 7, totalLimit =
         _homeRequestTimeout(),
       ]);
       if (!result) return [];
+      const blacklist = state.settings.genreBlacklist || [];
       return (result.results || [])
-        .filter(m => !(state.settings.hideNsfw && isNsfwManga(m)))
+        .filter(m => {
+          if (state.settings.hideNsfw && isNsfwManga(m)) return false;
+          if (blacklist.length > 0 && Array.isArray(m.genres)) {
+            const lowerGenres = m.genres.map(g => typeof g === 'string' ? g.toLowerCase() : '');
+            if (lowerGenres.some(g => blacklist.includes(g))) return false;
+          }
+          return true;
+        })
         .slice(0, perSourceLimit)
         .map(m => ({
           ...m,

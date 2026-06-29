@@ -4,6 +4,7 @@ const { safeManga, isSafeUrl } = require('../helpers');
 const { readStore, writeStore } = require('../store');
 const { createAsyncHandler } = require('../modules/http/async-handler');
 const { createLibraryService } = require('../modules/library/service');
+const { loadSourceFromFile } = require('../sourceLoader');
 
 const asyncHandler = createAsyncHandler('LIBRARY');
 
@@ -12,6 +13,7 @@ const libraryService = createLibraryService({
   writeStore,
   safeManga,
   isSafeUrl,
+  loadSourceFromFile,
 });
 
 /**
@@ -20,6 +22,10 @@ const libraryService = createLibraryService({
 function registerLibraryRoutes(router) {
   router.get('/api/library', asyncHandler(async (_req, res) => {
     res.json(await libraryService.getLibrary());
+  }));
+
+  router.post('/api/library/sync-status', asyncHandler(async (_req, res) => {
+    res.json(await libraryService.syncLibraryStatus());
   }));
 
   router.post('/api/library/add', asyncHandler(async (req, res) => {
@@ -79,4 +85,19 @@ function registerLibraryRoutes(router) {
   }));
 }
 
-module.exports = { registerLibraryRoutes };
+function startDailyLibrarySync() {
+  // Sync immediately on startup, then every 24 hours
+  setTimeout(() => {
+    libraryService.syncLibraryStatus().catch(err => {
+      console.warn('[LibrarySync] Background sync failed:', err.message);
+    });
+  }, 5000); // Wait 5 seconds after startup
+
+  setInterval(() => {
+    libraryService.syncLibraryStatus().catch(err => {
+      console.warn('[LibrarySync] Background sync failed:', err.message);
+    });
+  }, 24 * 60 * 60 * 1000);
+}
+
+module.exports = { registerLibraryRoutes, startDailyLibrarySync };

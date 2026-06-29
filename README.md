@@ -21,7 +21,9 @@
 | **Library migration** | Migrate manga between sources while preserving custom lists and reading status |
 | **Custom cover picker** | Change manga covers with a visual picker (AniList + installed sources), custom URL input, and Google Images shortcut. In Library: right-click card -> Change Cover. In manga details: click the cover. |
 | **AniList Tracker** | OAuth login, search & link manga, sync chapter progress / score / status / dates automatically |
-| **Release calendar** | Monthly calendar with confirmed releases and predicted chapter dates; confidence indicators (high/medium/low); chapter-offset correction for licensed manga |
+| **Release calendar** | Monthly calendar with confirmed releases via OtakuCalendar integration and predicted chapter dates; confidence indicators (high/medium/low); chapter-offset correction for licensed manga |
+| **Library Auto-Sync** | Automatically fetches real-time publication status (Ongoing, Completed, Hiatus, Cancelled) via Anime-Planet for all library manga every 24h |
+| **Genre Blacklist** | Filter out unwanted genres from Advanced Search, Discover, and Search results |
 | **Achievements** | Unlock achievements and spend AP on community themes |
 | **Analytics** | Daily streaks, time spent, chapter counts, genre overview with % bars (most/least read) |
 | **Recommendations** | Genre-based suggestions from your library |

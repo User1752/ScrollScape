@@ -5,7 +5,7 @@ function registerAppRoutes(app) {
   const { registerRepoRoutes } = require('./repos');
   const { registerLocalRoutes } = require('./local');
   const { registerSourceRoutes } = require('./sources');
-  const { registerLibraryRoutes } = require('./library');
+  const { registerLibraryRoutes, startDailyLibrarySync } = require('./library');
   const { registerDownloadRoutes } = require('./downloads');
   const { registerReviewRoutes } = require('./reviews');
   const { registerListRoutes } = require('./lists');
@@ -22,6 +22,7 @@ function registerAppRoutes(app) {
   registerLocalRoutes(app);
   registerSourceRoutes(app);
   registerLibraryRoutes(app);
+  startDailyLibrarySync();
   registerDownloadRoutes(app);
   registerReviewRoutes(app);
   registerListRoutes(app);

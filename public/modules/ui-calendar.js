@@ -93,6 +93,7 @@ async function renderCalendarView() {
   html += `<div class="cal-legend">
     <span class="cal-legend-item"><span class="cal-legend-swatch cal-legend-swatch--confirmed"></span>Confirmed</span>
     <span class="cal-legend-item"><span class="cal-legend-swatch cal-legend-swatch--predicted"></span>Predicted</span>
+    <span class="cal-legend-item"><span class="cal-legend-swatch cal-legend-swatch--volume" style="background:#9c27b0"></span>Volume</span>
     <span class="cal-legend-item"><span class="cal-legend-swatch cal-legend-swatch--low"></span>Low conf.</span>
     <span class="cal-legend-divider">·</span>
     <span class="cal-legend-conf"><span style="color:#4caf50">&#11044;</span> high <span style="color:#ff9800">&#9681;</span> med <span style="color:#f44336">&#9675;</span> low</span>
@@ -123,11 +124,18 @@ async function renderCalendarView() {
       const mid         = escapeHtml(rel.manga?.id || "");
       const sid         = escapeHtml(rel.manga?.sourceId || "");
       const isPredicted = rel.predicted === true;
+      const isVolume    = rel.isVolume === true;
       const confidence  = rel.confidence || 'low';
-      const chapLabel   = isPredicted ? `~ ${t("calendar.chapter")}${chap}` : `${t("calendar.chapter")}${chap}`;
+      let chapLabel;
+      if (isVolume) {
+        chapLabel = rel.chapter;
+      } else {
+        chapLabel = isPredicted ? `~ ${t("calendar.chapter")}${chap}` : `${t("calendar.chapter")}${chap}`;
+      }
       const confClass   = isPredicted ? ` cal-release-item--predicted cal-release-item--conf-${confidence}` : '';
       const hiddenClass = ri >= MAX_VISIBLE ? ' cal-release-hidden' : '';
-      const itemClass   = `cal-release-item${confClass}${hiddenClass}`;
+      const volumeClass = isVolume ? ' cal-release-item--volume' : '';
+      const itemClass   = `cal-release-item${confClass}${volumeClass}${hiddenClass}`;
       const confLabel   = isPredicted ? { high: '●', medium: '◑', low: '○' }[confidence] : '';
       const tooltip     = isPredicted
         ? `${title} — ${chapLabel} (${t("calendar.estimated")} · ${confidence} confidence)`

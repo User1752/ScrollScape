@@ -99,6 +99,7 @@ function updateAdvancedSearchFilterVisibility(sourceId = state.currentSourceId) 
 
 function applyAdvancedSearchNsfwVisibility() {
   const hideNsfw = state.settings.hideNsfw === true;
+  const blacklist = state.settings.genreBlacklist || [];
   let changed = false;
 
   const contentRatingGroup = $("advancedContentRatingGroup");
@@ -113,10 +114,16 @@ function applyAdvancedSearchNsfwVisibility() {
     changed = true;
   }
 
-  document.querySelectorAll('#genreGrid .genre-check[data-nsfw="1"]').forEach(label => {
-    label.style.display = hideNsfw ? "none" : "";
+  document.querySelectorAll('#genreGrid .genre-check').forEach(label => {
     const cb = label.querySelector('input[type="checkbox"]');
-    if (hideNsfw && cb?.checked) {
+    const isNsfw = label.dataset.nsfw === "1";
+    const val = (cb?.value || "").toLowerCase();
+    const isBlacklisted = blacklist.includes(val);
+
+    const shouldHide = (hideNsfw && isNsfw) || isBlacklisted;
+    label.style.display = shouldHide ? "none" : "";
+
+    if (shouldHide && cb?.checked) {
       cb.checked = false;
       changed = true;
     }
@@ -176,6 +183,15 @@ function _applyAdvFilters(results, query, selectedGenres, publicationStatus, con
 
   if (hideNsfw) {
     out = out.filter(m => !isNsfwManga(m));
+  }
+
+  const blacklist = state.settings.genreBlacklist || [];
+  if (blacklist.length > 0) {
+    out = out.filter(m => {
+      if (!Array.isArray(m.genres)) return true;
+      const lowerGenres = m.genres.map(g => typeof g === 'string' ? g.toLowerCase() : '');
+      return !lowerGenres.some(g => blacklist.includes(g));
+    });
   }
 
   if (query) {

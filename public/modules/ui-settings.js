@@ -44,7 +44,8 @@ const DEFAULT_SETTINGS = {
   readerNoiseIntensity: 50,
   readerNoiseSource: 'generated',
   readerNoiseGifFile: '',
-  autoScrollPointSpeeds: [0.2, 0.5, 1.0, 2.0, 3.5]
+  autoScrollPointSpeeds: [0.2, 0.5, 1.0, 2.0, 3.5],
+  genreBlacklist: []
 };
 
 function deepMerge(target, source) {
