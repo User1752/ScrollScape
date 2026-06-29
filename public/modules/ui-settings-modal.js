@@ -738,8 +738,10 @@ function showSettings() {
   $("modeSelect").onchange = (e) => {
     state.settings.readingMode = e.target.value;
     saveSettings();
-    location.reload();
-    if (state.currentChapter) { showReader(); renderPage(); }
+    if (state.currentChapter) { 
+      if (typeof showReader === 'function') showReader();
+      if (typeof renderPage === 'function') renderPage();
+    }
   };
   const webtoonTurnBtnSelect = $("webtoonTurnButtonPlacementSelect");
   if (webtoonTurnBtnSelect) {
