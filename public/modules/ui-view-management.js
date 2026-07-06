@@ -6,7 +6,7 @@ function setView(view, context = {}, replace = false) {
   // Update navigation manager
   navigationManager.navigateTo(view, context, replace);
 
-  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history", "achievements", "themes", "shop", "customize", "calendar"];
+  const ALL_VIEWS = ["discover", "library", "manga-details", "advanced-search", "analytics", "history", "achievements", "themes", "shop", "customize", "calendar", "system-health"];
   for (const v of ALL_VIEWS) {
     const el = $(`view-${v}`);
     if (el) el.classList.toggle("hidden", v !== view);
@@ -50,6 +50,8 @@ function setView(view, context = {}, replace = false) {
     renderCustomizeView();
   } else if (view === "calendar") {
     renderCalendarView();
+  } else if (view === "system-health") {
+    if (typeof renderSystemHealthPage === 'function') renderSystemHealthPage();
   } else if (view === "manga-details") {
     window.scrollTo({ top: 0, behavior: "instant" });
     // Restore context if available

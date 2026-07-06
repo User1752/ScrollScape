@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
   readingMode: "ltr",
   libraryDefaultStatusFilter: "all",
   libraryBookshelf3d: false,
+  libraryBookshelfTheme: 'classic',
   skipReadChapters: false,
   skipDuplicates: true,
   panWideImages: false,
@@ -79,6 +80,7 @@ function sanitizeSettings(rawSettings) {
   if (typeof sanitized.showHomeSearch !== 'boolean') sanitized.showHomeSearch = true;
   if (sanitized.homeSourceMode !== 'selected') sanitized.homeSourceMode = 'all';
   if (!Array.isArray(sanitized.homeSelectedSourceIds)) sanitized.homeSelectedSourceIds = [];
+  if (sanitized.libraryBookshelfTheme !== 'stripe-press') sanitized.libraryBookshelfTheme = 'classic';
   
   const speedDefaults = DEFAULT_SETTINGS.autoScrollPointSpeeds;
   const savedSpeeds = Array.isArray(sanitized.autoScrollPointSpeeds) ? sanitized.autoScrollPointSpeeds : speedDefaults;

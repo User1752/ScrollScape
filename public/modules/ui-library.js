@@ -226,6 +226,21 @@ function _sortLibrary(favs) {
   }
 }
 
+function _bookshelfCardStyle(mangaId, sourceId, theme = 'classic') {
+  const seedStr = `${String(mangaId || '')}:${String(sourceId || '')}`;
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i += 1) {
+    seed = (seed * 31 + seedStr.charCodeAt(i)) % 9973;
+  }
+  const classicTilt = ((seed % 9) - 4) * 0.7;
+  const stripeTilt = ((seed % 15) - 7) * 0.95;
+  const tilt = theme === 'stripe-press' ? stripeTilt : classicTilt;
+  const depth = (theme === 'stripe-press' ? 12 : 10) + (seed % 5);
+  const float = ((seed % 6) * 0.9).toFixed(2);
+  const phase = (seed % 7) * 0.26;
+  return ` style="--book-tilt:${tilt.toFixed(2)}deg;--book-depth:${depth}px;--book-float:${float}px;--book-phase:${phase.toFixed(2)}s"`;
+}
+
 function cycleLibrarySort() {
   const idx = LIBRARY_SORT_MODES.findIndex(m => m.key === _libSortMode);
   setLibrarySortMode(LIBRARY_SORT_MODES[(idx + 1) % LIBRARY_SORT_MODES.length].key);
@@ -235,7 +250,10 @@ function renderLibrary() {
   const grid = $("library");
   if (!grid) return;
   const bookshelf3dEnabled = state.settings.libraryBookshelf3d === true;
+  const bookshelfTheme = state.settings.libraryBookshelfTheme === 'stripe-press' ? 'stripe-press' : 'classic';
+  const isStripeShelf = bookshelf3dEnabled && bookshelfTheme === 'stripe-press';
   grid.classList.toggle('library-grid-bookshelf', bookshelf3dEnabled);
+  grid.classList.toggle('library-grid-bookshelf-stripe', bookshelf3dEnabled && bookshelfTheme === 'stripe-press');
 
   // === Display Mode & Grid Columns ===
   const displayMode = state.settings.displayMode || 'detailed';
@@ -394,7 +412,7 @@ function renderLibrary() {
     // Non-fatal.
   }
 
-  const favHTML = favs.map(manga => {
+  const favHTML = favs.map((manga, index) => {
     const key    = _libStatusKey(manga.id, manga.sourceId);
     const status = state.readingStatus[key]?.status;
     const badgeLoc = state.settings.statusBadgeLocation || 'cover';
@@ -449,9 +467,10 @@ function renderLibrary() {
 
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
     const coverUrl = normalizeImageUrl(manga.cover);
+    const bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, manga.sourceId, bookshelfTheme) : '';
 
     return `
-      <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}">
+      <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${bookshelf3dEnabled && bookshelfTheme === 'stripe-press' ? ' library-card-bookshelf-stripe' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
         <div class="library-card-cover">
           ${coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
           ${statusBadge}
@@ -467,7 +486,7 @@ function renderLibrary() {
         <div class="library-card-info">
           <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
           <p class="library-card-author">${escapeHtml(manga.author || "")}</p>
-          ${status && badgeLoc !== 'cover' && !state.settings.hideLibraryStatusAndChapters ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : ""}
+          ${isStripeShelf ? `<div class="library-card-inline-action"><button class="btn-read btn-read-inline">Continue Reading</button></div>` : (status && badgeLoc !== 'cover' && !state.settings.hideLibraryStatusAndChapters ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : "")}
           ${catChips ? `<div class="category-chips">${catChips}</div>` : ''}
           ${currentRating ? `<span class="card-score-badge">${currentRating}<span class="card-score-badge-max">/10</span></span>` : ""}
         </div>
@@ -477,12 +496,13 @@ function renderLibrary() {
   // Local manga section
   const localHTML = (filterVal === "all" && categoryFilter === "all" && trackerFilter === "all" && filteredLocalManga.length > 0)
     ? `<div class="local-section-header">&#128193; Local Manga</div>` +
-      filteredLocalManga.map(manga => {
+      filteredLocalManga.map((manga, index) => {
         const localRating = state.ratings[_libRatingKey(manga.id)] || 0;
         const localLastChapter = state.lastReadChapter?.[manga.id];
         const localBtnLabel = localLastChapter ? 'Continue Reading' : 'Read';
+        const bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, 'local', bookshelfTheme) : '';
         return `
-        <div class="library-card local-manga-card${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local" title="${escapeHtml(manga.title || '')}">
+        <div class="library-card local-manga-card${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${bookshelf3dEnabled && bookshelfTheme === 'stripe-press' ? ' library-card-bookshelf-stripe' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
           <div class="library-card-cover">
             <img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
             <div class="no-cover" style="display:none">&#128196;</div>

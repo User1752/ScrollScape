@@ -16,6 +16,7 @@ function registerAppRoutes(app) {
   const { registerThemePresetRoutes } = require('./theme-presets');
   const { registerCoverSearchRoutes } = require('./cover-search');
   const { registerHealthCheckRoutes } = require('./health-check');
+  const { registerSystemHealthRoutes } = require('./system-health');
 
   registerProxyRoutes(app);
   registerRepoRoutes(app);
@@ -33,6 +34,7 @@ function registerAppRoutes(app) {
   registerThemePresetRoutes(app);
   registerCoverSearchRoutes(app);
   registerHealthCheckRoutes(app);
+  registerSystemHealthRoutes(app);
 }
 
 module.exports = { registerAppRoutes };

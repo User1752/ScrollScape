@@ -86,18 +86,30 @@
 }
 
 .library-grid.library-grid-bookshelf {
-  perspective: 1400px;
-  perspective-origin: center 35%;
-  padding-bottom: 1.2rem;
+  perspective: 2100px;
+  perspective-origin: center 22%;
+  gap: 1rem 0.9rem;
+  align-items: end;
+  padding: 1rem 0.35rem 2.4rem;
+  background:
+    radial-gradient(circle at 50% -20%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 46%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-dark)) 0%, var(--bg-dark) 70%);
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--bg-tertiary));
 }
 
 .library-grid.library-grid-bookshelf::after {
   content: "";
   grid-column: 1 / -1;
-  height: 10px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(52, 36, 20, 0.12), rgba(128, 84, 46, 0.28), rgba(52, 36, 20, 0.12));
-  filter: blur(0.2px);
+  height: 16px;
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(121, 88, 49, 0.7), rgba(73, 51, 27, 0.86)),
+    repeating-linear-gradient(90deg, rgba(255, 214, 156, 0.08) 0 12px, rgba(36, 24, 12, 0.1) 12px 24px);
+  box-shadow:
+    0 6px 22px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 232, 201, 0.2),
+    inset 0 -2px 0 rgba(25, 15, 7, 0.45);
 }
 
 .library-card {
@@ -120,38 +132,267 @@
 }
 
 .library-card.library-card-bookshelf {
+  --book-tilt: 0deg;
+  --book-depth: 12px;
+  --book-shadow: rgba(0, 0, 0, 0.4);
   transform-style: preserve-3d;
   transform-origin: center bottom;
+  border-radius: 5px 10px 10px 5px;
+  border-color: color-mix(in srgb, var(--primary) 16%, var(--bg-tertiary));
+  overflow: visible;
+  transform: rotateY(var(--book-tilt));
+  box-shadow:
+    0 14px 20px var(--book-shadow),
+    0 2px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.library-card.library-card-bookshelf::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: calc(var(--book-depth) * -1);
+  width: var(--book-depth);
+  border-radius: 3px 0 0 3px;
+  background:
+    linear-gradient(180deg, rgba(232, 201, 164, 0.28), rgba(117, 80, 50, 0.72) 46%, rgba(51, 33, 17, 0.82)),
+    repeating-linear-gradient(180deg, rgba(255, 240, 219, 0.1) 0 2px, rgba(0, 0, 0, 0.08) 2px 4px);
+  transform-origin: right center;
+  transform: rotateY(-90deg);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.16);
+  pointer-events: none;
 }
 
 .library-card.library-card-bookshelf:hover {
-  transform: translateY(-10px) rotateX(6deg) rotateY(-7deg);
+  transform: translateY(-14px) rotateX(4deg) rotateY(calc(var(--book-tilt) * 1.2));
   box-shadow:
-    0 18px 38px rgba(28, 18, 10, 0.34),
-    0 8px 14px color-mix(in srgb, var(--primary) 24%, transparent);
+    0 26px 40px rgba(0, 0, 0, 0.45),
+    0 12px 18px color-mix(in srgb, var(--primary) 26%, transparent);
 }
 
 .library-card.library-card-bookshelf .library-card-cover {
-  transform: translateZ(14px);
-  transition: transform 0.3s ease;
+  transform: translateZ(calc(var(--book-depth) * 0.7));
+  border-radius: 5px 10px 10px 5px;
+  transition: transform 0.28s ease;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .library-card.library-card-bookshelf .library-card-info {
-  position: relative;
-  transform: translateZ(6px);
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 7;
+  padding: 0.55rem 0.6rem;
+  border-radius: 8px;
+  transform: translateZ(calc(var(--book-depth) + 3px)) translateY(6px);
+  background: linear-gradient(180deg, rgba(11, 12, 17, 0.82), rgba(7, 8, 11, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.24s ease;
 }
 
-.library-card.library-card-bookshelf .library-card-info::before {
+.library-card.library-card-bookshelf:hover .library-card-info {
+  opacity: 1;
+  transform: translateZ(calc(var(--book-depth) + 8px)) translateY(0);
+}
+
+.library-card.library-card-bookshelf .library-card-title {
+  color: #f2f2f6;
+  font-size: 0.82rem;
+  margin-bottom: 0;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.library-card.library-card-bookshelf .library-card-author,
+.library-card.library-card-bookshelf .category-chips,
+.library-card.library-card-bookshelf .card-score-badge {
+  display: none;
+}
+
+.library-card.library-card-bookshelf .library-card-overlay {
+  border-radius: 5px 10px 10px 5px;
+}
+
+.library-card.library-card-bookshelf .library-source-badge {
+  bottom: auto;
+  top: 8px;
+}
+
+.library-card.library-card-bookshelf .library-card-status,
+.library-card.library-card-bookshelf .library-card-chapters-count {
+  transform: translateZ(calc(var(--book-depth) + 4px));
+}
+
+/* Stripe Press inspired mode */
+.library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe {
+  perspective: 2600px;
+  perspective-origin: center 12%;
+  gap: 1.15rem 1rem;
+  padding: 1.2rem 0.4rem 3rem;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% -40%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-tertiary) 65%, black) 0%, color-mix(in srgb, var(--bg-dark) 84%, black) 56%, #09090b 100%);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--bg-tertiary));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 22px 60px rgba(0, 0, 0, 0.35);
+}
+
+.library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe::after {
+  height: 20px;
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(198, 148, 86, 0.52), rgba(69, 45, 23, 0.92)),
+    repeating-linear-gradient(90deg, rgba(255, 238, 209, 0.11) 0 9px, rgba(42, 26, 12, 0.22) 9px 18px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.56),
+    inset 0 1px 0 rgba(255, 240, 210, 0.26),
+    inset 0 -3px 0 rgba(35, 20, 9, 0.6);
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe {
+  --book-depth: max(12px, var(--book-depth));
+  border-radius: 4px 12px 12px 4px;
+  width: 78%;
+  min-width: 124px;
+  justify-self: center;
+  align-self: end;
+  transform: translateY(calc(var(--book-float, 0px) * -1)) rotateY(var(--book-tilt));
+  box-shadow:
+    0 20px 28px rgba(0, 0, 0, 0.5),
+    0 2px 0 rgba(255, 255, 255, 0.12) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.22) inset;
+  animation: stripe-book-float 5.6s ease-in-out infinite;
+  animation-delay: var(--book-phase, 0s);
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe::after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -7px;
-  width: 7px;
-  border-radius: 4px 0 0 4px;
-  background: linear-gradient(180deg, rgba(26, 18, 11, 0.6), rgba(12, 10, 7, 0.8));
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
+  left: 0;
+  right: 0;
+  bottom: -7px;
+  height: 8px;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(66, 44, 23, 0.76));
+  transform: translateZ(1px);
   pointer-events: none;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe:hover {
+  transform: translateY(calc(-12px - var(--book-float, 0px))) rotateX(7deg) rotateY(calc(var(--book-tilt) * 1.25));
+  box-shadow:
+    0 34px 52px rgba(0, 0, 0, 0.58),
+    0 14px 22px color-mix(in srgb, var(--primary) 32%, transparent);
+  animation-play-state: paused;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-cover {
+  border-radius: 4px 12px 12px 4px;
+  transform: translateZ(calc(var(--book-depth) * 0.92));
+  overflow: visible;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(112deg, rgba(255, 255, 255, 0.16) 0%, transparent 38%, rgba(0, 0, 0, 0.16) 100%);
+  pointer-events: none;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-cover::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  bottom: 6px;
+  width: 10px;
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(180deg, rgba(239, 232, 223, 0.7), rgba(195, 183, 171, 0.44), rgba(149, 129, 106, 0.5));
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.32);
+  transform: translateX(8px) rotateY(90deg);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-info {
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(8, 9, 13, 0.9), rgba(4, 5, 7, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-title {
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-overlay {
+  display: none;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-inline-action {
+  margin-top: 0.45rem;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .btn-read.btn-read-inline {
+  width: 100%;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe .local-section-header {
+  grid-column: 1 / -1;
+  margin: 0.2rem 0 0.8rem;
+  color: color-mix(in srgb, var(--primary) 46%, white 54%);
+}
+
+@keyframes stripe-book-float {
+  0% {
+    transform: translateY(calc(var(--book-float, 0px) * -1)) rotateY(var(--book-tilt));
+  }
+  50% {
+    transform: translateY(calc(var(--book-float, 0px) * -1 - 5px)) rotateY(calc(var(--book-tilt) * 1.06));
+  }
+  100% {
+    transform: translateY(calc(var(--book-float, 0px) * -1)) rotateY(var(--book-tilt));
+  }
+}
+
+@media (max-width: 900px) {
+  .library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe {
+    perspective: 1600px;
+    gap: 0.85rem 0.72rem;
+    padding: 0.9rem 0.25rem 2.2rem;
+  }
+
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe {
+    --book-depth: 10px;
+    width: 88%;
+    min-width: 92px;
+    animation-duration: 4.8s;
+  }
+}
+
+@media (max-width: 900px) {
+  .library-grid.library-grid-bookshelf {
+    perspective: 1300px;
+    gap: 0.8rem 0.7rem;
+    padding: 0.7rem 0.2rem 1.8rem;
+  }
+
+  .library-card.library-card-bookshelf {
+    --book-depth: 9px;
+  }
 }
 
 .library-card.library-card-selected {

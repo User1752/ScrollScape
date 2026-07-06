@@ -551,7 +551,7 @@ function applyCustomization(cfg) {
         '.manga-card-genre{background:rgba(' + rgbText + ',0.18)!important;}' +
         '[data-theme="light"] .manga-card-genre{background:rgba(' + rgbText + ',0.12)!important;color:var(--primary)!important;}' +
         '.library-card:hover{box-shadow:0 12px 30px rgba(' + rgbText + ',0.20)!important;}' +
-        '.library-card.library-card-bookshelf:hover{box-shadow:0 18px 38px rgba(28,18,10,0.34),0 8px 14px rgba(' + rgbText + ',0.20)!important;}' +
+        '.library-card.library-card-bookshelf:hover{box-shadow:0 26px 40px rgba(0,0,0,0.45),0 12px 18px rgba(' + rgbText + ',0.26)!important;}' +
         '.library-source-badge{border-color:rgba(' + rgbText + ',0.45)!important;color:color-mix(in srgb,' + accentColor + ' 40%,white 60%)!important;}' +
         '.btn-read:hover{box-shadow:0 8px 20px rgba(' + rgbText + ',0.40)!important;}';
     } else {

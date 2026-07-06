@@ -1,0 +1,162 @@
+/* ============================================================================
+   SYSTEM HEALTH PAGE
+============================================================================ */
+
+.system-health-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sh-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.sh-head h2 {
+  margin: 0;
+}
+
+.sh-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.sh-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.sh-card {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 10px;
+  padding: 0.8rem;
+}
+
+.sh-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.sh-status-badge,
+.sh-status-dot {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.is-pass {
+  color: var(--color-success);
+  background: var(--color-surface-muted, var(--color-surface));
+  border-color: var(--color-success);
+}
+
+.is-warning {
+  color: var(--color-warning);
+  background: var(--color-surface-muted, var(--color-surface));
+  border-color: var(--color-warning);
+}
+
+.is-fail {
+  color: var(--color-danger);
+  background: var(--color-surface-muted, var(--color-surface));
+  border-color: var(--color-danger);
+}
+
+.sh-caption {
+  margin: 0.5rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+}
+
+.sh-section {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  padding: 0.8rem;
+}
+
+.sh-section h3 {
+  margin: 0 0 0.7rem;
+}
+
+.sh-modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.7rem;
+}
+
+.sh-module-card {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-muted, var(--color-surface));
+  padding: 0.7rem;
+}
+
+.sh-module-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sh-module-label {
+  font-weight: 700;
+}
+
+.sh-module-id,
+.sh-module-details {
+  margin: 0.35rem 0 0;
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+}
+
+.sh-message {
+  margin: 0 0 0.5rem;
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-border);
+}
+
+.sh-message-warning {
+  border-left: 4px solid var(--color-warning);
+}
+
+.sh-message-error {
+  border-left: 4px solid var(--color-danger);
+}
+
+.sh-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.sh-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.sh-table th,
+.sh-table td {
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  padding: 0.48rem 0.42rem;
+  font-size: 0.86rem;
+  vertical-align: top;
+}
+
+.sh-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}

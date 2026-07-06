@@ -7,11 +7,23 @@ let nextAllowedAt = 0;
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Referer': BASE,
+  'Origin': BASE,
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'same-origin',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
   'Cache-Control': 'no-cache',
   'Pragma': 'no-cache'
 };
+
+const HEALTH_PROBE_PATHS = [
+  '/',
+  '/?search=one%20piece&search_by=book_name',
+  '/latest',
+];
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -54,7 +66,7 @@ function proxyImg(url) {
   return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
-async function getHtml(url, isPaginated = false) {
+async function getHtml(url, isPaginated = false, options = {}) {
   if (Date.now() < nextAllowedAt) {
     await sleep(nextAllowedAt - Date.now());
   }
@@ -64,7 +76,8 @@ async function getHtml(url, isPaginated = false) {
     await sleep(randomBetween(1400, 2200));
   }
 
-  const maxRetries = 5;
+  const maxRetries = Number.isFinite(options.maxRetries) ? Math.max(1, options.maxRetries) : 5;
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(1500, options.timeoutMs) : FETCH_TIMEOUT_MS;
   let lastError;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -78,7 +91,7 @@ async function getHtml(url, isPaginated = false) {
       const res = await fetch(url, {
         headers: HEADERS,
         redirect: 'follow',
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+        signal: AbortSignal.timeout(timeoutMs)
       });
 
       if (res.status === 429) {
@@ -383,7 +396,7 @@ module.exports = {
     const pageStr = page === 1 ? '' : `page/${page}/`;
     let html;
     try {
-      html = await getHtml(`${BASE}/new-manga${pageStr}`, page > 1);
+      html = await getHtml(`${BASE}/new-manga${pageStr}`, page > 1, { maxRetries: 2, timeoutMs: 9000 });
     } catch (err) {
       if (isRateLimitedError(err)) {
         return { results: [], hasNextPage: false, temporarilyUnavailable: true };
@@ -400,7 +413,7 @@ module.exports = {
     const pageStr = page === 1 ? '' : `page/${page}/`;
     let html;
     try {
-      html = await getHtml(`${BASE}/latest${pageStr}`, page > 1);
+      html = await getHtml(`${BASE}/latest${pageStr}`, page > 1, { maxRetries: 2, timeoutMs: 9000 });
     } catch (err) {
       if (isRateLimitedError(err)) {
         return { results: [], hasNextPage: false, temporarilyUnavailable: true };
@@ -441,30 +454,57 @@ module.exports = {
    * or { ok: false, temporarilyUnavailable: true, error } if blocked/unreachable.
    */
   async healthCheck() {
-    try {
-      const res = await fetch(`${BASE}/`, {
-        headers: HEADERS,
-        redirect: 'follow',
-        signal: AbortSignal.timeout(5_000),
-      });
-      if (res.status === 429) {
-        return { ok: false, temporarilyUnavailable: true, error: 'HTTP 429 (rate limited)' };
+    let timeoutHits = 0;
+    let challengeHits = 0;
+    let lastStatus = '';
+
+    for (const probePath of HEALTH_PROBE_PATHS) {
+      try {
+        const res = await fetch(`${BASE}${probePath}`, {
+          headers: {
+            ...HEADERS,
+            Referer: `${BASE}/`,
+          },
+          redirect: 'follow',
+          signal: AbortSignal.timeout(6_500),
+        });
+
+        if (res.status === 429) {
+          challengeHits += 1;
+          lastStatus = 'HTTP 429 (rate limited)';
+          continue;
+        }
+
+        if (!res.ok) {
+          lastStatus = `HTTP ${res.status}`;
+          continue;
+        }
+
+        const text = await res.text();
+        if (isRateLimitBody(text)) {
+          challengeHits += 1;
+          lastStatus = 'Cloudflare challenge / empty response';
+          continue;
+        }
+
+        return { ok: true };
+      } catch (e) {
+        if (e.name === 'AbortError' || e.name === 'TimeoutError') {
+          timeoutHits += 1;
+          lastStatus = 'Connection timed out';
+          continue;
+        }
+        lastStatus = e.message;
       }
-      if (!res.ok) {
-        return { ok: false, error: `HTTP ${res.status}` };
-      }
-      const text = await res.text();
-      if (isRateLimitBody(text)) {
-        return { ok: false, temporarilyUnavailable: true, error: 'Cloudflare challenge / empty response' };
-      }
-      return { ok: true };
-    } catch (e) {
-      // AbortError = timeout; treat as temporarily unavailable
-      if (e.name === 'AbortError' || e.name === 'TimeoutError') {
-        return { ok: false, temporarilyUnavailable: true, error: 'Connection timed out' };
-      }
-      return { ok: false, temporarilyUnavailable: true, error: e.message };
     }
+
+    if (challengeHits > 0) {
+      return { ok: false, temporarilyUnavailable: true, error: 'Cloudflare challenge / empty response' };
+    }
+    if (timeoutHits > 0) {
+      return { ok: false, temporarilyUnavailable: true, error: 'Connection timed out' };
+    }
+    return { ok: false, temporarilyUnavailable: true, error: lastStatus || 'Probe failed' };
   },
 
   async mangaDetails(mangaId) {

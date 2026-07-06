@@ -49,6 +49,7 @@ const state = {
     readingMode: "ltr",   // "ltr" | "rtl" | "webtoon"
     libraryDefaultStatusFilter: "all",
     libraryBookshelf3d: false,
+    libraryBookshelfTheme: 'classic',
     skipReadChapters: false,
     skipDuplicates: true,
     panWideImages: false,

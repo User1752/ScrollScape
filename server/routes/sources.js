@@ -41,6 +41,27 @@ const limits = require('../config/limits');
 
 const SOURCE_CALL_TIMEOUT = limits.sourceCallTimeoutMs;
 
+const LIST_METHODS = new Set([
+  'search',
+  'trending',
+  'recentlyAdded',
+  'latestUpdates',
+  'byGenres',
+  'authorSearch',
+]);
+
+function isTransientSourceError(err) {
+  const msg = String(err?.message || '').toLowerCase();
+  return msg.includes('timed out')
+    || msg.includes('timeout')
+    || msg.includes('rate limited')
+    || msg.includes('temporarily unavailable')
+    || msg.includes('cloudflare')
+    || msg.includes('challenge')
+    || msg.includes('econnreset')
+    || msg.includes('etimedout');
+}
+
 function withTimeout(promise, ms = SOURCE_CALL_TIMEOUT, label = 'source call') {
   return Promise.race([
     promise,
@@ -115,6 +136,15 @@ function registerSourceRoutes(router) {
       const result = await sourceDispatchService.dispatch({ id, method, body });
       res.json(result);
     } catch (e) {
+      if (LIST_METHODS.has(method) && isTransientSourceError(e)) {
+        return res.json({
+          results: [],
+          hasNextPage: false,
+          temporarilyUnavailable: true,
+          error: e.message,
+        });
+      }
+
       if (localService && body.mangaId) {
         if (method === 'mangaDetails') {
           const synthetic = await localService.getSyntheticMangaDetails(id, body.mangaId);

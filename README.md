@@ -30,6 +30,7 @@
 | **Bulk download** | Download entire series as CBZ archives |
 | **Animated wallpaper** | Reader background: generated film-grain (canvas) or your own GIF/WebP files |
 | **Immersive reader** | Scrollbars hidden during reading; auto-advance to next chapter; chapter prefetch; corner tap zones for chapter navigation |
+| **3D bookshelf styles** | Classic 3D shelf + experimental **Stripe Press 3D Books** style in Library Appearance settings |
 | **Custom themes** | Dark / light mode + community themes (Initial D, Dragon Ball Z, One Piece…) + save your own presets |
 | **i18n** | English & Portuguese; add more in `public/modules/i18n.js` |
 | **Debug panel** | `Ctrl+Shift+D` — in-app error log with categorised codes, copy-as-JSON, persistent mode |
