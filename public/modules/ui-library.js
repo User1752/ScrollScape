@@ -226,6 +226,32 @@ function _sortLibrary(favs) {
   }
 }
 
+function resolveSyntheticSpineData(manga, sourceId = '') {
+  const seedStr = `${String(manga?.id || '')}:${String(sourceId || '')}`;
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i += 1) {
+    seed = (seed * 33 + seedStr.charCodeAt(i)) % 15401;
+  }
+
+  const rawTitle = String(manga?.title || 'Untitled').trim() || 'Untitled';
+  const shortTitle = rawTitle.length > 34 ? `${rawTitle.slice(0, 34)}...` : rawTitle;
+  const sourceName = sourceId === 'local'
+    ? 'LOCAL'
+    : (state.installedSources[sourceId]?.name || sourceId || 'MANGA').toUpperCase();
+  const chapterCount = Number(state.chapterCountCache?.[manga?.id]);
+  const chapterMeta = Number.isFinite(chapterCount) && chapterCount > 0
+    ? `${chapterCount} CH`
+    : 'SHELF';
+  const accentHue = 14 + (seed % 28);
+
+  return {
+    title: shortTitle.toUpperCase(),
+    source: sourceName.slice(0, 10),
+    meta: chapterMeta,
+    accent: `hsl(${accentHue} 72% 58%)`
+  };
+}
+
 function _bookshelfCardStyle(mangaId, sourceId, theme = 'classic') {
   const seedStr = `${String(mangaId || '')}:${String(sourceId || '')}`;
   let seed = 0;
@@ -233,12 +259,30 @@ function _bookshelfCardStyle(mangaId, sourceId, theme = 'classic') {
     seed = (seed * 31 + seedStr.charCodeAt(i)) % 9973;
   }
   const classicTilt = ((seed % 9) - 4) * 0.7;
-  const stripeTilt = ((seed % 15) - 7) * 0.95;
+  const stripeTilt = ((seed % 17) - 8) * 1.05;
   const tilt = theme === 'stripe-press' ? stripeTilt : classicTilt;
-  const depth = (theme === 'stripe-press' ? 12 : 10) + (seed % 5);
+  let depth = (theme === 'stripe-press' ? 11 : 10) + (seed % 5);
+  if (theme === 'stripe-press') {
+    const chapterCountRaw = Number(state.chapterCountCache?.[mangaId]);
+    if (Number.isFinite(chapterCountRaw) && chapterCountRaw > 0) {
+      const clampedCount = Math.min(900, Math.max(1, chapterCountRaw));
+      const normalized = Math.log10(clampedCount + 1) / Math.log10(901);
+      depth = Math.round(14 + normalized * 16);
+    } else {
+      depth = 14 + (seed % 17);
+    }
+  }
   const float = ((seed % 6) * 0.9).toFixed(2);
   const phase = (seed % 7) * 0.26;
-  return ` style="--book-tilt:${tilt.toFixed(2)}deg;--book-depth:${depth}px;--book-float:${float}px;--book-phase:${phase.toFixed(2)}s"`;
+  const hue = 20 + (seed % 24);
+  const shadowStrength = (0.24 + ((seed % 7) * 0.03)).toFixed(2);
+  const pitch = (((seed % 9) - 4) * 0.36).toFixed(2);
+  const roll = (((seed % 11) - 5) * 0.26).toFixed(2);
+  const scale = (0.985 + (seed % 5) * 0.009).toFixed(3);
+  const pull = (12 + (seed % 10)).toFixed(2);
+  const spineAccent = `hsl(${18 + (seed % 24)} 68% 56%)`;
+  const spineColor = `hsl(${hue} 22% 36%)`;
+  return ` style="--book-tilt:${tilt.toFixed(2)}deg;--book-depth:${depth}px;--book-float:${float}px;--book-phase:${phase.toFixed(2)}s;--book-spine-color:${spineColor};--book-shadow-strength:${shadowStrength};--book-pitch:${pitch}deg;--book-roll:${roll}deg;--book-scale:${scale};--book-pull:${pull}px;--book-spine-accent:${spineAccent}"`;
 }
 
 function cycleLibrarySort() {
@@ -254,6 +298,7 @@ function renderLibrary() {
   const isStripeShelf = bookshelf3dEnabled && bookshelfTheme === 'stripe-press';
   grid.classList.toggle('library-grid-bookshelf', bookshelf3dEnabled);
   grid.classList.toggle('library-grid-bookshelf-stripe', bookshelf3dEnabled && bookshelfTheme === 'stripe-press');
+  grid.classList.toggle('interactive-manga-shelf', isStripeShelf);
 
   // === Display Mode & Grid Columns ===
   const displayMode = state.settings.displayMode || 'detailed';
@@ -267,7 +312,9 @@ function renderLibrary() {
   } else {
     grid.classList.add('library-grid-detailed');
   }
-  grid.style.gridTemplateColumns = `repeat(${mangasPerRow}, minmax(0, 1fr))`;
+  grid.style.gridTemplateColumns = isStripeShelf
+    ? 'repeat(auto-fill, minmax(72px, 90px))'
+    : `repeat(${mangasPerRow}, minmax(0, 1fr))`;
 
   _syncLibrarySelectionWithFavorites();
   _updateLibrarySortLabel();
@@ -468,11 +515,32 @@ function renderLibrary() {
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
     const coverUrl = normalizeImageUrl(manga.cover);
     const bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, manga.sourceId, bookshelfTheme) : '';
+    const spineData = resolveSyntheticSpineData(manga, manga.sourceId || '');
+    const coverMarkup = coverUrl && !coverUrl.endsWith('.pdf')
+      ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">`
+      : (manga.cover
+          ? '<div class="no-cover book3d-placeholder"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">NO COVER</span></div>'
+          : '<div class="no-cover book3d-placeholder"><span class="book3d-placeholder-icon">?</span><span class="book3d-placeholder-label">UNKNOWN</span></div>');
+    const premiumBookMarkup = `
+      <div class="book3d">
+        <div class="book3d-case"></div>
+        <div class="book3d-shadow"></div>
+        <div class="book3d-spine">
+          <span class="book3d-spine-title">${escapeHtml(spineData.title)}</span>
+          <span class="book3d-spine-meta">${escapeHtml(spineData.meta)}</span>
+        </div>
+        <div class="book3d-pages"></div>
+        <div class="book3d-cover">
+          ${coverMarkup}
+          <div class="book3d-shine"></div>
+        </div>
+        <div class="book3d-label" aria-hidden="true">${escapeHtml(spineData.source)}</div>
+      </div>`;
 
     return `
       <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${bookshelf3dEnabled && bookshelfTheme === 'stripe-press' ? ' library-card-bookshelf-stripe' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
         <div class="library-card-cover">
-          ${coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
+          ${isStripeShelf ? premiumBookMarkup : (coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>'))}
           ${statusBadge}
           ${chaptersLeftBadge}
           ${sourceLabel}
@@ -486,7 +554,7 @@ function renderLibrary() {
         <div class="library-card-info">
           <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
           <p class="library-card-author">${escapeHtml(manga.author || "")}</p>
-          ${isStripeShelf ? `<div class="library-card-inline-action"><button class="btn-read btn-read-inline">Continue Reading</button></div>` : (status && badgeLoc !== 'cover' && !state.settings.hideLibraryStatusAndChapters ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : "")}
+          ${isStripeShelf ? `<div class="library-card-inline-action"><button class="btn-read btn-read-inline">${btnLabel}</button></div>` : (status && badgeLoc !== 'cover' && !state.settings.hideLibraryStatusAndChapters ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : "")}
           ${catChips ? `<div class="category-chips">${catChips}</div>` : ''}
           ${currentRating ? `<span class="card-score-badge">${currentRating}<span class="card-score-badge-max">/10</span></span>` : ""}
         </div>
@@ -501,18 +569,38 @@ function renderLibrary() {
         const localLastChapter = state.lastReadChapter?.[manga.id];
         const localBtnLabel = localLastChapter ? 'Continue Reading' : 'Read';
         const bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, 'local', bookshelfTheme) : '';
+        const localTypeLabel = escapeHtml((manga.type || 'local').toUpperCase());
+        const localSpineData = resolveSyntheticSpineData(manga, 'local');
+        const localBookMarkup = `
+          <div class="book3d">
+            <div class="book3d-case"></div>
+            <div class="book3d-shadow"></div>
+            <div class="book3d-spine">
+              <span class="book3d-spine-title">${escapeHtml(localSpineData.title)}</span>
+              <span class="book3d-spine-meta">${escapeHtml(localTypeLabel)}</span>
+            </div>
+            <div class="book3d-pages"></div>
+            <div class="book3d-cover">
+              <img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <div class="no-cover book3d-placeholder" style="display:none"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">${localTypeLabel}</span></div>
+              <div class="book3d-shine"></div>
+            </div>
+            <div class="book3d-label" aria-hidden="true">LOCAL</div>
+          </div>`;
         return `
         <div class="library-card local-manga-card${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${bookshelf3dEnabled && bookshelfTheme === 'stripe-press' ? ' library-card-bookshelf-stripe' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
           <div class="library-card-cover">
-            <img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="no-cover" style="display:none">&#128196;</div>
-            <div class="local-badge">${escapeHtml((manga.type || 'local').toUpperCase())}</div>
+            ${isStripeShelf
+              ? localBookMarkup
+              : `<img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="no-cover" style="display:none">&#128196;</div>`}
+            <div class="local-badge">${localTypeLabel}</div>
             <button class="local-delete-btn" data-manga-id="${escapeHtml(manga.id)}" title="Delete local manga">&#128465;</button>
             <div class="library-card-overlay"><button class="btn-read">${localBtnLabel}</button></div>
           </div>
           <div class="library-card-info">
             <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
-            <p class="library-card-author">${escapeHtml((manga.type || 'local').toUpperCase())}</p>
+            <p class="library-card-author">${localTypeLabel}</p>
+            ${isStripeShelf ? `<div class="library-card-inline-action"><button class="btn-read btn-read-inline">${localBtnLabel}</button></div>` : ''}
             ${localRating ? `<span class="card-score-badge">${localRating}<span class="card-score-badge-max">/10</span></span>` : ""}
           </div>
         </div>`;
@@ -525,6 +613,42 @@ function renderLibrary() {
   }
 
   grid.innerHTML = favHTML + localHTML;
+
+  async function _openShelfMangaDirectly(mangaId, sourceForOpen, cardTitle = '') {
+    const lastChapterId = state.lastReadChapter?.[mangaId];
+    const lastPageIndex = lastChapterId
+      ? (state.lastReadPages?.[`${mangaId}:${lastChapterId}`] || 0)
+      : 0;
+    try {
+      showToast(lastChapterId ? 'Resuming...' : 'Opening...', '', 'info');
+      const result = await api(`/api/source/${sourceForOpen}/mangaDetails`, {
+        method: 'POST',
+        body: JSON.stringify({ mangaId })
+      });
+      state.currentManga = result;
+
+      const cr = await api(`/api/source/${sourceForOpen}/chapters`, {
+        method: 'POST',
+        body: JSON.stringify({ mangaId })
+      });
+      state.allChapters = cr.chapters || [];
+      state.chapterCountCache[mangaId] = state.allChapters.length;
+      saveSettings();
+
+      if (!state.allChapters.length) return false;
+
+      let idx = -1;
+      if (lastChapterId) idx = state.allChapters.findIndex(c => c.id === lastChapterId);
+      if (idx < 0) idx = 0;
+
+      const ch = state.allChapters[idx];
+      await loadChapter(ch.id, ch.name || `Chapter ${ch.chapter || idx + 1}`, idx, idx === 0 ? 0 : lastPageIndex);
+      return true;
+    } catch (err) {
+      showToast('Error', err.message, 'error');
+      return false;
+    }
+  }
 
   grid.querySelectorAll(".library-card:not(.local-manga-card)").forEach(card => {
     const mangaId  = card.dataset.mangaId;
@@ -568,42 +692,15 @@ function renderLibrary() {
         showToast("Source switched", srcName, "info");
       }
 
-      // "Continue Reading" overlay button — jump directly to last chapter + page
-      if (e.target.closest(".btn-read") && state.lastReadChapter?.[mangaId]) {
-        const lastChapterId = state.lastReadChapter[mangaId];
-        const lastPageIndex = state.lastReadPages?.[`${mangaId}:${lastChapterId}`] || 0;
-        try {
-          showToast("Resuming...", "", "info");
-          // Load manga details silently so state.currentManga is populated
-          const sourceForOpen = resolvedSourceId || state.currentSourceId;
-          const result = await api(`/api/source/${sourceForOpen}/mangaDetails`, {
-            method: "POST",
-            body: JSON.stringify({ mangaId })
-          });
-          state.currentManga = result;
-          // Load chapters so state.allChapters is populated
-          const cr = await api(`/api/source/${sourceForOpen}/chapters`, {
-            method: "POST",
-            body: JSON.stringify({ mangaId })
-          });
-          state.allChapters = cr.chapters || [];
-          state.chapterCountCache[mangaId] = state.allChapters.length;
-          saveSettings();
-          const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
-          if (idx >= 0) {
-            const ch = state.allChapters[idx];
-            await loadChapter(lastChapterId, ch.name || `Chapter ${ch.chapter || idx + 1}`, idx, lastPageIndex);
-          } else {
-            // Chapter no longer exists — fall back to detail page
-            await loadMangaDetails(mangaId, "library", cardTitle, false, sourceForOpen);
-          }
-        } catch (err) {
-          showToast("Error", err.message, "error");
-        }
-        return;
+      const sourceForOpen = resolvedSourceId || state.currentSourceId;
+      const clickedReadButton = !!e.target.closest('.btn-read');
+      const shouldTryDirectOpen = clickedReadButton || isStripeShelf;
+      if (shouldTryDirectOpen) {
+        const opened = await _openShelfMangaDirectly(mangaId, sourceForOpen, cardTitle);
+        if (opened) return;
       }
 
-      await loadMangaDetails(mangaId, "library", cardTitle, false, resolvedSourceId || state.currentSourceId);
+      await loadMangaDetails(mangaId, "library", cardTitle, false, sourceForOpen);
       if (!state.currentSourceId) state.currentSourceId = prevSource;
     };
   });
@@ -614,35 +711,11 @@ function renderLibrary() {
       if (e.target.closest(".local-delete-btn")) return;
       state.currentSourceId = "local";
 
-      // "Continue Reading" — jump directly to last chapter + page
-      if (e.target.closest(".btn-read") && state.lastReadChapter?.[mangaId]) {
-        const lastChapterId = state.lastReadChapter[mangaId];
-        const lastPageIndex = state.lastReadPages?.[`${mangaId}:${lastChapterId}`] || 0;
-        try {
-          showToast("Resuming...", "", "info");
-          const result = await api(`/api/source/local/mangaDetails`, {
-            method: "POST",
-            body: JSON.stringify({ mangaId })
-          });
-          state.currentManga = result;
-          const cr = await api(`/api/source/local/chapters`, {
-            method: "POST",
-            body: JSON.stringify({ mangaId })
-          });
-          state.allChapters = cr.chapters || [];
-          state.chapterCountCache[mangaId] = state.allChapters.length;
-          saveSettings();
-          const idx = state.allChapters.findIndex(c => c.id === lastChapterId);
-          if (idx >= 0) {
-            const ch = state.allChapters[idx];
-            await loadChapter(lastChapterId, ch.name || `Chapter ${ch.chapter || idx + 1}`, idx, lastPageIndex);
-          } else {
-            await loadMangaDetails(mangaId, "library");
-          }
-        } catch (err) {
-          showToast("Error", err.message, "error");
-        }
-        return;
+      const clickedReadButton = !!e.target.closest('.btn-read');
+      const shouldTryDirectOpen = clickedReadButton || isStripeShelf;
+      if (shouldTryDirectOpen) {
+        const opened = await _openShelfMangaDirectly(mangaId, 'local');
+        if (opened) return;
       }
 
       await loadMangaDetails(mangaId, "library");

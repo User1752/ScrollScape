@@ -423,9 +423,9 @@ function showSettings() {
                 <label for="libraryBookshelfThemeSelect">Bookshelf style</label>
                 <select id="libraryBookshelfThemeSelect" class="input">
                   <option value="classic" ${(state.settings.libraryBookshelfTheme || 'classic') === 'classic' ? 'selected' : ''}>Classic 3D Shelf</option>
-                  <option value="stripe-press" ${state.settings.libraryBookshelfTheme === 'stripe-press' ? 'selected' : ''}>Stripe Press 3D Books</option>
+                  <option value="stripe-press" ${state.settings.libraryBookshelfTheme === 'stripe-press' ? 'selected' : ''}>Interactive Manga Shelf</option>
                 </select>
-                <p class="setting-description">Stripe Press mode uses a dramatic floating 3D bookshelf style inspired by webgpu showcase aesthetics.</p>
+                <p class="setting-description">Interactive shelf mode aligns manga as physical volumes and pulls them forward on hover with visible synthetic spines.</p>
               </div>
             </div>
             <div class="settings-section-card">
