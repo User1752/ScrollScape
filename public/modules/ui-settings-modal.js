@@ -424,6 +424,7 @@ function showSettings() {
                 <select id="libraryBookshelfThemeSelect" class="input">
                   <option value="classic" ${(state.settings.libraryBookshelfTheme || 'classic') === 'classic' ? 'selected' : ''}>Classic 3D Shelf</option>
                   <option value="stripe-press" ${state.settings.libraryBookshelfTheme === 'stripe-press' ? 'selected' : ''}>Interactive Manga Shelf</option>
+                  <option value="bookshelf-2-5d" ${state.settings.libraryBookshelfTheme === 'bookshelf-2-5d' ? 'selected' : ''}>Bookshelf View 2.5D</option>
                 </select>
                 <p class="setting-description">Interactive shelf mode aligns manga as physical volumes and pulls them forward on hover with visible synthetic spines.</p>
               </div>
@@ -1006,8 +1007,8 @@ function showSettings() {
         bookshelfThemeGroup.style.display = e.target.checked ? '' : 'none';
       }
       if (e.target.checked && (!state.settings.libraryBookshelfTheme || state.settings.libraryBookshelfTheme === 'classic')) {
-        state.settings.libraryBookshelfTheme = 'stripe-press';
-        if (bookshelfThemeSelect) bookshelfThemeSelect.value = 'stripe-press';
+        state.settings.libraryBookshelfTheme = 'bookshelf-2-5d';
+        if (bookshelfThemeSelect) bookshelfThemeSelect.value = 'bookshelf-2-5d';
       }
       saveSettings();
       renderLibrary();
@@ -1016,7 +1017,8 @@ function showSettings() {
 
   if (bookshelfThemeSelect) {
     bookshelfThemeSelect.onchange = (e) => {
-      state.settings.libraryBookshelfTheme = e.target.value === 'stripe-press' ? 'stripe-press' : 'classic';
+      const validThemes = ['stripe-press', 'bookshelf-2-5d'];
+      state.settings.libraryBookshelfTheme = validThemes.includes(e.target.value) ? e.target.value : 'classic';
       saveSettings();
       renderLibrary();
     };

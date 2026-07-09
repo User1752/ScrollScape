@@ -1,0 +1,292 @@
+/* ── CARD: a largura da lombada, não da capa ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe {
+  width: 100%;
+  min-width: 0;
+  max-width: 28px;
+  justify-self: center;
+  align-self: end;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  z-index: 1;
+  transform: translateY(0);
+  transform-origin: center bottom;
+  transition: transform 0.22s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe::before,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe::after {
+  display: none;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe:hover,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe:focus-within {
+  z-index: 38;
+  transform: translateY(-8px);
+}
+
+/* ── COVER WRAPPER: mesmo tamanho do card (lombada) ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-cover {
+  position: relative;
+  width: 100%;
+  background: transparent;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── BOOK3D: container relativo, largura = lombada ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d {
+  position: relative;
+  width: 100%;
+  transform: none !important;
+  transition: none;
+}
+
+/* ── SPINE: a lombada fina — nenhuma imagem, nenhum texto ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-spine {
+  width: 100%;
+  height: 160px;
+  border-radius: 3px 5px 5px 3px;
+  background:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--book-spine-color, #7a5f45) 55%, black 45%) 0%,
+      color-mix(in srgb, var(--book-spine-color, #7a5f45) 82%, white 18%) 30%,
+      color-mix(in srgb, var(--book-spine-color, #7a5f45) 90%, white 10%) 60%,
+      color-mix(in srgb, var(--book-spine-color, #7a5f45) 64%, black 36%) 100%
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255,255,255,0.04) 0 1px,
+      transparent 1px 3px
+    );
+  box-shadow:
+    inset -2px 0 3px rgba(255,255,255,0.18),
+    inset 1px 0 2px rgba(0,0,0,0.22),
+    2px 0 6px rgba(0,0,0,0.38),
+    -1px 0 3px rgba(0,0,0,0.22);
+  display: block;
+  flex-shrink: 0;
+}
+
+/* ── COVER PREVIEW: ancorado ao livro, surge no hover ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px) scale(0.94);
+  width: 130px;
+  aspect-ratio: 3 / 4.5;
+  border-radius: 4px 8px 8px 4px;
+  overflow: hidden;
+  background: var(--bg-secondary, #1a1a2e);
+  box-shadow:
+    0 12px 28px rgba(0,0,0,0.72),
+    0 2px 0 rgba(255,255,255,0.08) inset,
+    0 -1px 0 rgba(0,0,0,0.3) inset;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.22s cubic-bezier(.2,.8,.24,1);
+  z-index: 50;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe:hover .book3d-cover-preview,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe:focus-within .book3d-cover-preview {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: none;
+  filter: none;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview .book3d-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
+/* ── SHADOW abaixo da lombada ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-shadow {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  bottom: -8px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.06) 72%, transparent 100%);
+  filter: blur(0.8px);
+  opacity: 0.7;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe:hover .book3d-shadow,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe:focus-within .book3d-shadow {
+  opacity: 0.92;
+  transform: scaleX(1.22);
+}
+
+/* ── SOURCE LABEL: abaixo da lombada, sempre visível ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-label {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-size: 0.46rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--text-secondary) 78%, #f0ece4);
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0.88;
+  margin-top: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+/* ── PLACEHOLDER (sem imagem de capa) ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-placeholder-icon {
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-placeholder-label {
+  font-size: 0.44rem;
+  opacity: 0.8;
+}
+
+/* ── ESCONDER tudo o que não pertence ao modo lombada ── */
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-info,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-inline-action,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .btn-read.btn-read-inline,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-overlay,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-source-badge,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-status,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .library-card-chapters-count,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-case,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-pages,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-shine,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview-cta,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-spine-title,
+.library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-spine-meta {
+  display: none !important;
+}
+
+/* ── LOCAL SECTION HEADER ── */
+.library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe .local-section-header {
+  grid-column: 1 / -1;
+  margin: 0.08rem 0 0.55rem;
+  color: color-mix(in srgb, var(--primary) 44%, white 56%);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1200px) {
+  .library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe {
+    grid-template-columns: repeat(auto-fill, minmax(16px, 26px)) !important;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe {
+    max-width: 26px;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-spine {
+    height: 152px;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview {
+    width: 118px;
+  }
+}
+
+@media (max-width: 900px) {
+  .library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe {
+    grid-template-columns: repeat(auto-fill, minmax(14px, 22px)) !important;
+    gap: 0.5rem 6px;
+    padding: 0.7rem 0.3rem 2rem;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe {
+    max-width: 22px;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-spine {
+    height: 140px;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview {
+    width: 104px;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-label {
+    font-size: 0.4rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .library-grid.library-grid-bookshelf.library-grid-bookshelf-stripe {
+    grid-template-columns: repeat(auto-fill, minmax(12px, 18px)) !important;
+    gap: 0.4rem 4px;
+    padding: 0.5rem 0.2rem 1.6rem;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe {
+    max-width: 18px;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-spine {
+    height: 120px;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview {
+    width: 90px;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe:active .book3d-cover-preview {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe:active {
+    z-index: 38;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe,
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-cover-preview,
+  .library-card.library-card-bookshelf.library-card-bookshelf-stripe .book3d-shadow {
+    transition-duration: 0.01ms;
+  }
+}
+

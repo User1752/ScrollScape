@@ -222,7 +222,22 @@ function _sortLibrary(favs) {
     case "unread-count":   return [...favs].sort((a, b) => unreadCount(b) - unreadCount(a) || title(a).localeCompare(title(b)));
     case "tracker-score":  return [...favs].sort((a, b) => trackerScore(b) - trackerScore(a) || title(a).localeCompare(title(b)));
     case "random":         { const arr = [...favs]; for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
-    default:               return favs;
+    default: {
+      try {
+        const savedOrder = JSON.parse(localStorage.getItem('bookshelfCustomOrder'));
+        if (savedOrder && Array.isArray(savedOrder) && savedOrder.length > 0) {
+          const orderMap = new Map(savedOrder.map((key, i) => [key, i]));
+          return [...favs].sort((a, b) => {
+            const keyA = `${a.id}:${a.sourceId || ''}`;
+            const keyB = `${b.id}:${b.sourceId || ''}`;
+            const posA = orderMap.has(keyA) ? orderMap.get(keyA) : Infinity;
+            const posB = orderMap.has(keyB) ? orderMap.get(keyB) : Infinity;
+            return posA - posB;
+          });
+        }
+      } catch(e) {}
+      return favs;
+    }
   }
 }
 
@@ -294,11 +309,16 @@ function renderLibrary() {
   const grid = $("library");
   if (!grid) return;
   const bookshelf3dEnabled = state.settings.libraryBookshelf3d === true;
-  const bookshelfTheme = state.settings.libraryBookshelfTheme === 'stripe-press' ? 'stripe-press' : 'classic';
-  const isStripeShelf = bookshelf3dEnabled && bookshelfTheme === 'stripe-press';
-  grid.classList.toggle('library-grid-bookshelf', bookshelf3dEnabled);
-  grid.classList.toggle('library-grid-bookshelf-stripe', bookshelf3dEnabled && bookshelfTheme === 'stripe-press');
-  grid.classList.toggle('interactive-manga-shelf', isStripeShelf);
+  const VALID_SHELF_THEMES = ['stripe-press', 'bookshelf-2-5d'];
+  const bookshelfTheme = VALID_SHELF_THEMES.includes(state.settings.libraryBookshelfTheme)
+    ? state.settings.libraryBookshelfTheme
+    : 'classic';
+  const isStripeShelf   = bookshelf3dEnabled && bookshelfTheme === 'stripe-press';
+  const isBookshelf25d  = bookshelf3dEnabled && bookshelfTheme === 'bookshelf-2-5d';
+  grid.classList.toggle('library-grid-bookshelf',        bookshelf3dEnabled);
+  grid.classList.toggle('library-grid-bookshelf-stripe', isStripeShelf);
+  grid.classList.toggle('library-grid-bookshelf-25d',    isBookshelf25d);
+  grid.classList.toggle('interactive-manga-shelf',       isStripeShelf);
 
   // === Display Mode & Grid Columns ===
   const displayMode = state.settings.displayMode || 'detailed';
@@ -312,9 +332,13 @@ function renderLibrary() {
   } else {
     grid.classList.add('library-grid-detailed');
   }
-  grid.style.gridTemplateColumns = isStripeShelf
-    ? 'repeat(auto-fill, minmax(72px, 90px))'
-    : `repeat(${mangasPerRow}, minmax(0, 1fr))`;
+  if (isStripeShelf) {
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(18px, 28px))';
+  } else if (isBookshelf25d) {
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(32px, 58px))';
+  } else {
+    grid.style.gridTemplateColumns = `repeat(${mangasPerRow}, minmax(0, 1fr))`;
+  }
 
   _syncLibrarySelectionWithFavorites();
   _updateLibrarySortLabel();
@@ -514,42 +538,64 @@ function renderLibrary() {
 
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
     const coverUrl = normalizeImageUrl(manga.cover);
-    const bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, manga.sourceId, bookshelfTheme) : '';
+    let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, manga.sourceId, bookshelfTheme) : '';
+    if (isBookshelf25d) {
+      const baseWidth = 28;
+      const chaptersPerStep = 50;
+      const pixelsPerStep = 4;
+      const minWidth = 28;
+      const maxWidth = 120;
+      const chCount = cachedChapterTotal || 1;
+      const calcWidth = baseWidth + Math.floor(chCount / chaptersPerStep) * pixelsPerStep;
+      const spineWidth = Math.max(minWidth, Math.min(maxWidth, calcWidth));
+      if (bookshelfStyle.includes('style="')) {
+        bookshelfStyle = bookshelfStyle.replace('style="', `style="--book25d-spine-width: ${spineWidth}px; `);
+      } else {
+        bookshelfStyle = ` style="--book25d-spine-width: ${spineWidth}px;"`;
+      }
+    }
     const spineData = resolveSyntheticSpineData(manga, manga.sourceId || '');
-    const coverMarkup = coverUrl && !coverUrl.endsWith('.pdf')
+    const coverImgMarkup = coverUrl && !coverUrl.endsWith('.pdf')
       ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">`
       : (manga.cover
-          ? '<div class="no-cover book3d-placeholder"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">NO COVER</span></div>'
-          : '<div class="no-cover book3d-placeholder"><span class="book3d-placeholder-icon">?</span><span class="book3d-placeholder-label">UNKNOWN</span></div>');
+          ? '<div class="book3d-placeholder"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">NO COVER</span></div>'
+          : '<div class="book3d-placeholder"><span class="book3d-placeholder-icon">?</span><span class="book3d-placeholder-label">UNKNOWN</span></div>');
     const premiumBookMarkup = `
       <div class="book3d">
-        <div class="book3d-case"></div>
+        <div class="book3d-spine"></div>
+        <div class="book3d-cover-preview" aria-hidden="true">
+          ${coverImgMarkup}
+        </div>
         <div class="book3d-shadow"></div>
-        <div class="book3d-spine">
-          <span class="book3d-spine-title">${escapeHtml(spineData.title)}</span>
-          <span class="book3d-spine-meta">${escapeHtml(spineData.meta)}</span>
+      </div>
+      <div class="book3d-label" aria-hidden="true">${escapeHtml(spineData.source)}</div>`;
+
+    // Bookshelf 2.5D markup: calibre style spine resting, cover on hover
+    const shelf25dCoverMarkup = coverUrl && !coverUrl.endsWith('.pdf')
+      ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">`
+      : `<div class="book25d-no-cover"><span>?</span></div>`;
+    const shelf25dMarkup = `
+      <div class="book25d">
+        <div class="book25d-spine"></div>
+        <div class="book25d-cover-preview" aria-hidden="true">
+          ${shelf25dCoverMarkup}
         </div>
-        <div class="book3d-pages"></div>
-        <div class="book3d-cover">
-          ${coverMarkup}
-          <div class="book3d-shine"></div>
-        </div>
-        <div class="book3d-label" aria-hidden="true">${escapeHtml(spineData.source)}</div>
-      </div>`;
+      </div>
+      <div class="book25d-source-label" aria-hidden="true">${escapeHtml(spineData.source)}</div>`;
 
     return `
-      <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${bookshelf3dEnabled && bookshelfTheme === 'stripe-press' ? ' library-card-bookshelf-stripe' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
+      <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${isStripeShelf ? ' library-card-bookshelf-stripe' : ''}${isBookshelf25d ? ' library-card-bookshelf-25d' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
         <div class="library-card-cover">
-          ${isStripeShelf ? premiumBookMarkup : (coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>'))}
-          ${statusBadge}
-          ${chaptersLeftBadge}
-          ${sourceLabel}
-          <div class="library-card-overlay">
+          ${isStripeShelf ? premiumBookMarkup : isBookshelf25d ? shelf25dMarkup : (coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>'))}
+          ${isBookshelf25d ? '' : statusBadge}
+          ${isBookshelf25d ? '' : chaptersLeftBadge}
+          ${isBookshelf25d ? '' : sourceLabel}
+          ${isBookshelf25d ? '' : `<div class="library-card-overlay">
             ${downloadedBadge}
             ${unreadBadge}
             ${localBadge}
             <button class="btn-read">${btnLabel}</button>
-          </div>
+          </div>`}
         </div>
         <div class="library-card-info">
           <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
@@ -568,34 +614,56 @@ function renderLibrary() {
         const localRating = state.ratings[_libRatingKey(manga.id)] || 0;
         const localLastChapter = state.lastReadChapter?.[manga.id];
         const localBtnLabel = localLastChapter ? 'Continue Reading' : 'Read';
-        const bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, 'local', bookshelfTheme) : '';
+        const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 1;
+        let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, 'local', bookshelfTheme) : '';
+        if (isBookshelf25d) {
+          const baseWidth = 28;
+          const chaptersPerStep = 50;
+          const pixelsPerStep = 4;
+          const minWidth = 28;
+          const maxWidth = 120;
+          const chCount = cachedChapterTotal || 1;
+          const calcWidth = baseWidth + Math.floor(chCount / chaptersPerStep) * pixelsPerStep;
+          const spineWidth = Math.max(minWidth, Math.min(maxWidth, calcWidth));
+          if (bookshelfStyle.includes('style="')) {
+            bookshelfStyle = bookshelfStyle.replace('style="', `style="--book25d-spine-width: ${spineWidth}px; `);
+          } else {
+            bookshelfStyle = ` style="--book25d-spine-width: ${spineWidth}px;"`;
+          }
+        }
         const localTypeLabel = escapeHtml((manga.type || 'local').toUpperCase());
         const localSpineData = resolveSyntheticSpineData(manga, 'local');
+        const localBtnLabel2 = localLastChapter ? '▶ Continuar' : '▶ Ler';
         const localBookMarkup = `
           <div class="book3d">
-            <div class="book3d-case"></div>
-            <div class="book3d-shadow"></div>
-            <div class="book3d-spine">
-              <span class="book3d-spine-title">${escapeHtml(localSpineData.title)}</span>
-              <span class="book3d-spine-meta">${escapeHtml(localTypeLabel)}</span>
-            </div>
-            <div class="book3d-pages"></div>
-            <div class="book3d-cover">
+            <div class="book3d-spine"></div>
+            <div class="book3d-cover-preview" aria-hidden="true">
               <img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-              <div class="no-cover book3d-placeholder" style="display:none"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">${localTypeLabel}</span></div>
-              <div class="book3d-shine"></div>
+              <div class="book3d-placeholder" style="display:none"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">${localTypeLabel}</span></div>
             </div>
-            <div class="book3d-label" aria-hidden="true">LOCAL</div>
-          </div>`;
+            <div class="book3d-shadow"></div>
+          </div>
+          <div class="book3d-label" aria-hidden="true">LOCAL</div>`;
+        const local25dMarkup = `
+          <div class="book25d">
+            <div class="book25d-spine"></div>
+            <div class="book25d-cover-preview" aria-hidden="true">
+              <img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <div class="book25d-no-cover" style="display:none"><span>&#128196;</span></div>
+            </div>
+          </div>
+          <div class="book25d-source-label" aria-hidden="true">LOCAL</div>`;
         return `
-        <div class="library-card local-manga-card${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${bookshelf3dEnabled && bookshelfTheme === 'stripe-press' ? ' library-card-bookshelf-stripe' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
+        <div class="library-card local-manga-card${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${isStripeShelf ? ' library-card-bookshelf-stripe' : ''}${isBookshelf25d ? ' library-card-bookshelf-25d' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
           <div class="library-card-cover">
             ${isStripeShelf
               ? localBookMarkup
+              : isBookshelf25d
+              ? local25dMarkup
               : `<img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="no-cover" style="display:none">&#128196;</div>`}
-            <div class="local-badge">${localTypeLabel}</div>
-            <button class="local-delete-btn" data-manga-id="${escapeHtml(manga.id)}" title="Delete local manga">&#128465;</button>
-            <div class="library-card-overlay"><button class="btn-read">${localBtnLabel}</button></div>
+            ${isBookshelf25d ? '' : `<div class="local-badge">${localTypeLabel}</div>`}
+            ${isBookshelf25d ? '' : `<button class="local-delete-btn" data-manga-id="${escapeHtml(manga.id)}" title="Delete local manga">&#128465;</button>`}
+            ${isBookshelf25d ? '' : `<div class="library-card-overlay"><button class="btn-read">${localBtnLabel}</button></div>`}
           </div>
           <div class="library-card-info">
             <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
@@ -612,7 +680,165 @@ function renderLibrary() {
     return;
   }
 
-  grid.innerHTML = favHTML + localHTML;
+  if (isBookshelf25d) {
+    grid.innerHTML = `
+      <div class="bookshelf25d-layout">
+        <div class="bookshelf25d-shelves">
+          ${favHTML + localHTML}
+        </div>
+        <aside class="bookshelf25d-details-panel" id="bookshelf25d-panel">
+          <div class="bookshelf25d-detail-placeholder">Select a manga</div>
+        </aside>
+      </div>
+    `;
+    const layout = grid.querySelector('.bookshelf25d-layout');
+    const updatePanel = (card) => {
+      const mangaId = card.dataset.mangaId;
+      const sourceId = card.dataset.sourceId;
+      let manga = sourceId === 'local' 
+        ? state.localManga?.find(m => String(m.id) === String(mangaId))
+        : state.favorites?.find(m => String(m.id) === String(mangaId) && String(m.sourceId || '') === String(sourceId || ''));
+      if (!manga) return;
+      const panel = layout.querySelector('.bookshelf25d-details-panel');
+      if (!panel) return;
+
+      const coverUrl = sourceId === 'local' ? `/api/local/${escapeHtml(manga.id)}/thumb` : normalizeImageUrl(manga.cover);
+      const title = escapeHtml(manga.title || 'Unknown Title');
+      const sourceName = sourceId === 'local' ? 'LOCAL' : (state.installedSources[sourceId]?.name || sourceId || 'MANGA');
+      const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 0;
+      
+      const readCount = cachedChapterTotal
+          ? [...state.readChapters].filter(key => key.startsWith(`${manga.id}:`)).length
+          : 0;
+      const chaptersLeft = cachedChapterTotal ? Math.max(0, cachedChapterTotal - readCount) : null;
+      const currentRating = state.ratings[_libRatingKey(manga.id)] || 0;
+      const lastChapterId = state.lastReadChapter?.[manga.id];
+      const btnLabel = lastChapterId ? "Continue Reading" : "Start Reading";
+      
+      let metaHtml = '';
+      if (cachedChapterTotal) metaHtml += `<div class="bookshelf25d-detail-meta-item">Chapters: <b>${cachedChapterTotal}</b></div>`;
+      if (chaptersLeft !== null && chaptersLeft > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">Unread: <b>${chaptersLeft}</b></div>`;
+      if (currentRating) metaHtml += `<div class="bookshelf25d-detail-meta-item">Rating: <b>${currentRating}/10</b></div>`;
+      const statusKey = _libStatusKey(manga.id, manga.sourceId);
+      const status = state.readingStatus[statusKey]?.status;
+      if (status) metaHtml += `<div class="bookshelf25d-detail-meta-item">Status: <b>${statusLabel(status)}</b></div>`;
+      
+      const coverMarkup = coverUrl && !coverUrl.endsWith('.pdf') 
+        ? `<img src="${escapeHtml(coverUrl)}" class="bookshelf25d-detail-cover" alt="Cover" onerror="this.style.display='none'">` 
+        : `<div class="bookshelf25d-detail-cover no-cover"><span>?</span></div>`;
+
+      panel.innerHTML = `
+        ${coverMarkup}
+        <h3 class="bookshelf25d-detail-title">${title}</h3>
+        <div class="bookshelf25d-detail-source">${escapeHtml(sourceName)}</div>
+        ${metaHtml ? `<div class="bookshelf25d-detail-meta">${metaHtml}</div>` : ''}
+        <div class="bookshelf25d-detail-action">
+          <button class="btn-read" id="bookshelf25d-panel-btn">${btnLabel}</button>
+        </div>
+      `;
+      
+      const readBtn = panel.querySelector('#bookshelf25d-panel-btn');
+      if (readBtn) {
+        readBtn.onclick = async (e) => {
+          e.stopPropagation();
+          const opened = await _openShelfMangaDirectly(mangaId, sourceId || 'local', manga.title);
+          if (!opened) loadMangaDetails(mangaId, "library", manga.title, false, sourceId || 'local');
+        };
+      }
+    };
+    
+    layout.addEventListener('mouseover', (e) => {
+      const card = e.target.closest('.library-card-bookshelf-25d');
+      if (card) updatePanel(card);
+    });
+    layout.addEventListener('focusin', (e) => {
+      const card = e.target.closest('.library-card-bookshelf-25d');
+      if (card) updatePanel(card);
+    });
+
+    // Drag and Drop ordering
+    let draggedCard = null;
+    const cards = grid.querySelectorAll('.library-card-bookshelf-25d');
+    cards.forEach(card => {
+      card.setAttribute('draggable', 'true');
+      
+      card.addEventListener('dragstart', (e) => {
+        draggedCard = card;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => card.style.opacity = '0.5', 0);
+      });
+      
+      card.addEventListener('dragend', () => {
+        draggedCard = null;
+        card.style.opacity = '1';
+        cards.forEach(c => c.style.outline = '');
+      });
+      
+      card.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (draggedCard && card !== draggedCard) {
+          card.style.outline = '2px dashed var(--primary)';
+        }
+      });
+      
+      card.addEventListener('dragleave', () => {
+        card.style.outline = '';
+      });
+      
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        card.style.outline = '';
+        if (draggedCard && draggedCard !== card) {
+          const id1 = draggedCard.dataset.mangaId;
+          const src1 = draggedCard.dataset.sourceId;
+          const id2 = card.dataset.mangaId;
+          const src2 = card.dataset.sourceId;
+          
+          if (src1 === 'local' || src2 === 'local') return; // Exclude local manga for simplicity
+          
+          const key1 = `${id1}:${src1 || ''}`;
+          const key2 = `${id2}:${src2 || ''}`;
+          
+          let fullOrder = [];
+          try {
+            fullOrder = JSON.parse(localStorage.getItem('bookshelfCustomOrder'));
+          } catch(err) {}
+          
+          if (!fullOrder || !Array.isArray(fullOrder) || fullOrder.length === 0) {
+            fullOrder = state.favorites.map(m => `${m.id}:${m.sourceId || ''}`);
+          } else {
+            // Ensure any new favorites missing from local order are appended
+            state.favorites.forEach(m => {
+              const k = `${m.id}:${m.sourceId || ''}`;
+              if (!fullOrder.includes(k)) fullOrder.push(k);
+            });
+          }
+          
+          const idx1 = fullOrder.indexOf(key1);
+          const idx2 = fullOrder.indexOf(key2);
+          
+          if (idx1 !== -1 && idx2 !== -1) {
+            const temp = fullOrder[idx1];
+            fullOrder[idx1] = fullOrder[idx2];
+            fullOrder[idx2] = temp;
+            
+            localStorage.setItem('bookshelfCustomOrder', JSON.stringify(fullOrder));
+            
+            if (_libSortMode !== 'added') {
+              setLibrarySortMode('added'); // Changes sort mode and triggers renderLibrary
+            } else {
+              renderLibrary();
+            }
+          }
+        }
+      });
+    });
+    const firstCard = grid.querySelector('.library-card-bookshelf-25d');
+    if (firstCard) updatePanel(firstCard);
+  } else {
+    grid.innerHTML = favHTML + localHTML;
+  }
 
   async function _openShelfMangaDirectly(mangaId, sourceForOpen, cardTitle = '') {
     const lastChapterId = state.lastReadChapter?.[mangaId];

@@ -80,7 +80,7 @@ function sanitizeSettings(rawSettings) {
   if (typeof sanitized.showHomeSearch !== 'boolean') sanitized.showHomeSearch = true;
   if (sanitized.homeSourceMode !== 'selected') sanitized.homeSourceMode = 'all';
   if (!Array.isArray(sanitized.homeSelectedSourceIds)) sanitized.homeSelectedSourceIds = [];
-  if (sanitized.libraryBookshelfTheme !== 'stripe-press') sanitized.libraryBookshelfTheme = 'classic';
+  if (!['stripe-press', 'bookshelf-2-5d'].includes(sanitized.libraryBookshelfTheme)) sanitized.libraryBookshelfTheme = 'classic';
   
   const speedDefaults = DEFAULT_SETTINGS.autoScrollPointSpeeds;
   const savedSpeeds = Array.isArray(sanitized.autoScrollPointSpeeds) ? sanitized.autoScrollPointSpeeds : speedDefaults;
