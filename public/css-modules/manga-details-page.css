@@ -44,7 +44,7 @@
   width: 100%;
   max-width: 480px;
   position: sticky;
-  top: 2rem;
+  top: calc(60px + 2rem);
   height: fit-content;
 }
 

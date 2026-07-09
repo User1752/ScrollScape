@@ -42,6 +42,7 @@ async function refreshState() {
 
     renderSourceSelect();
     if (typeof applyHomeSearchVisibility === 'function') applyHomeSearchVisibility();
+    if (window._homeSeenManga) window._homeSeenManga.clear();
     await Promise.all([
       loadPopularToday(),
       loadRecentlyAdded(),
@@ -88,6 +89,7 @@ function renderSourceSelect() {
       for (const other of selectors) { if (other && other !== sel) other.value = sel.value; }
       if (state.currentView !== 'advanced-search') {
         // Reload homepage content when source changes
+        if (window._homeSeenManga) window._homeSeenManga.clear();
         loadPopularToday();
         loadRecentlyAdded();
         loadLatestUpdates();

@@ -252,19 +252,10 @@ async function loadRecommendations() {
   }
   if (installedSourceIds.length === 0) return;
 
-  // Build genre profile from history (weighted 2x) + favorites (weighted 1x)
-  const genreScore = new Map();
-  const addGenres = (manga, weight) => {
-    for (const g of (manga.genres || [])) {
-      const key = g.toLowerCase();
-      genreScore.set(key, (genreScore.get(key) || 0) + weight);
-    }
-  };
-  for (const m of (state.history  || [])) addGenres(m, 2);
-  for (const m of (state.favorites || [])) addGenres(m, 1);
-
-  if (genreScore.size === 0) return;
-
+  // Build profile
+  const profile = typeof getUserReadingProfile === 'function' ? getUserReadingProfile() : null;
+  const genreScore = profile ? profile.genres : new Map();
+  
   // Top 3 genres — these drive both the API query and the label
   const topGenres = [...genreScore.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -273,46 +264,82 @@ async function loadRecommendations() {
 
   const topGenresLower = topGenres.map(g => g.toLowerCase());
 
-  const normalizeTitle = (title = "") =>
-    String(title).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+  function normalizeRecommendationTitle(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
+  }
+
+  function normalizeSourceId(value) {
+    return String(value ?? '').trim();
+  }
 
   const favoriteIdsBySource = new Set(
-    (state.favorites || []).map(m => `${_normSourceId(m.sourceId)}::${m.id}`)
+    (state.favorites || []).map(m => `${normalizeSourceId(m.sourceId)}::${m.id}`)
   );
   const favoriteTitleKeys = new Set(
-    (state.favorites || []).map(m => normalizeTitle(m.title || m.id)).filter(Boolean)
+    (state.favorites || []).map(m => normalizeRecommendationTitle(m.title || m.id)).filter(Boolean)
   );
 
-  // Score a result by how many label genres it matches (used for sources that return genres)
-  const genreMatchScore = m => {
-    const mg = (m.genres || []).map(g => g.toLowerCase());
-    return mg.length === 0
-      ? 1 // source doesn't return genres (MangaPill) — treat as neutral match
-      : topGenresLower.filter(g => mg.includes(g)).length;
+  // We will score results properly with the new scoring model
+  const scoreResult = (m, sid) => {
+    if (typeof getHomepageRecommendationScore === 'function' && profile) {
+      m.sourceId = sid;
+      const key = typeof getMangaKey === 'function' ? getMangaKey(m) : m.id;
+      const isDuplicate = window._homeSeenManga && window._homeSeenManga.has(key);
+      const score = getHomepageRecommendationScore(m, profile, isDuplicate);
+      if (!isDuplicate && score > -25 && window._homeSeenManga) window._homeSeenManga.add(key);
+      return score;
+    }
+    const mg = (m.genres || []).map(g => typeof g === 'string' ? g.toLowerCase() : '');
+    return mg.length === 0 ? 1 : topGenresLower.filter(g => mg.includes(g)).length;
   };
 
-  // Fetch from every installed source in parallel using exactly the label genres
-  const perSource = await Promise.all(
-    installedSourceIds.map(async sid => {
-      try {
-        const result = await api(`/api/source/${sid}/byGenres`, {
-          method: "POST",
-          body: JSON.stringify({ genres: topGenres })
-        });
-        return (result.results || [])
-          .filter(m => {
-            const sourceKey = `${sid}::${m.id}`;
-            const titleKey = normalizeTitle(m.title || m.id);
-            return !favoriteIdsBySource.has(sourceKey) && !favoriteTitleKeys.has(titleKey);
-          })
-          .map(m => ({ ...m, sourceId: sid, _score: genreMatchScore(m) }))
-          // Sort within each source: best genre match first
-          .sort((a, b) => b._score - a._score);
-      } catch (_) {
-        return [];
-      }
-    })
-  );
+  // If we have no genres but we do have history/favorites, fallback to trending/latest updates
+  let perSource = [];
+  if (topGenres.length > 0) {
+    perSource = await Promise.all(
+      installedSourceIds.map(async sid => {
+        try {
+          const result = await api(`/api/source/${sid}/byGenres`, {
+            method: "POST",
+            body: JSON.stringify({ genres: topGenres })
+          });
+          return (result.results || [])
+            .filter(m => {
+              const sourceKey = `${sid}::${m.id}`;
+              const titleKey = normalizeRecommendationTitle(m.title || m.id);
+              return !favoriteIdsBySource.has(sourceKey) && !favoriteTitleKeys.has(titleKey);
+            })
+            .map(m => ({ ...m, sourceId: sid, _score: scoreResult(m, sid) }))
+            .sort((a, b) => b._score - a._score);
+        } catch (_) {
+          return [];
+        }
+      })
+    );
+  } else {
+    // Cold start fallback: fetch trending or latestUpdates and score them based on source/status
+    perSource = await Promise.all(
+      installedSourceIds.map(async sid => {
+        try {
+          const method = typeof _sourceSupportsMethod === 'function' && _sourceSupportsMethod(sid, 'trending') 
+            ? 'trending' : 'latestUpdates';
+          const result = await api(`/api/source/${sid}/${method}`, {
+            method: "POST", body: "{}"
+          });
+          return (result.results || [])
+            .filter(m => {
+              const sourceKey = `${sid}::${m.id}`;
+              const titleKey = normalizeRecommendationTitle(m.title || m.id);
+              return !favoriteIdsBySource.has(sourceKey) && !favoriteTitleKeys.has(titleKey);
+            })
+            .map(m => ({ ...m, sourceId: sid, _score: scoreResult(m, sid) }))
+            .sort((a, b) => b._score - a._score);
+        } catch (_) {
+          return [];
+        }
+      })
+    );
+  }
 
   // Interleave results from all sources for diversity, then deduplicate by normalised title
   const interleaved = [];
@@ -324,7 +351,7 @@ async function loadRecommendations() {
   }
   const seenTitles = new Set();
   let filtered = interleaved.filter(m => {
-    const key = m.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30);
+    const key = normalizeRecommendationTitle(m.title || m.id);
     if (seenTitles.has(key)) return false;
     seenTitles.add(key);
     return true;
@@ -333,7 +360,15 @@ async function loadRecommendations() {
   if (state.settings.hideNsfw === true) {
     filtered = filtered.filter(m => !isNsfwManga(m));
   }
+  
+  // Final resort to bring best overall scores to the front
+  filtered.sort((a, b) => (b._score || 0) - (a._score || 0));
+  
   const list = filtered.slice(0, 24);
+
+  if (window.SCROLLSCAPE_DEBUG_RECOMMENDATIONS) {
+    console.log('[Recommendations] Final chosen:', list.map(m => `${m.title} (${m._score}) - ${m._debugReasons?.join(',')}`));
+  }
 
   if (!list.length) return;
   section.style.display = "block";
@@ -346,11 +381,14 @@ async function loadRecommendations() {
       const pct = Math.round((genreScore.get(g.toLowerCase()) || 0) / total * 100);
       return pct >= 5 ? `${g} (${pct}%)` : g;
     });
-    labelEl.textContent = `Based on: ${labelGenres.join(", ")}`;
+    if (topGenres.length > 0) {
+      labelEl.textContent = `${typeof t === 'function' ? t('home.basedOn') || 'Based on' : 'Based on'} ${labelGenres.join(", ")}`;
+    } else {
+      labelEl.textContent = typeof t === 'function' ? t('home.trending') || 'Trending' : 'Trending';
+    }
   }
 
   row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
   bindMangaCards(row);
   initRowAutoScroll(row);
 }
-

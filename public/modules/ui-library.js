@@ -1,3 +1,148 @@
+// ── Library Settings Helpers ────────────────────────────────────────────────
+function getDefaultLibraryCardSettings() {
+  return {
+    showSource: true,
+    showTags: false,
+    showDescription: false,
+    showChaptersRead: false,
+    showChaptersUnread: true,
+    showTotalChapters: true,
+    showRating: true,
+    showStatus: true,
+    showContinueBtn: true,
+    showCategoryBtn: false,
+    coverSizeDesktop: 'medium',
+    coverSizeMobile: 'large'
+  };
+}
+
+function loadLibraryCardSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('scrollscape.libraryCardSettings'));
+    if (saved && typeof saved === 'object') {
+      return { ...getDefaultLibraryCardSettings(), ...saved };
+    }
+  } catch (e) {
+    // Ignore parse errors
+  }
+  return getDefaultLibraryCardSettings();
+}
+
+function saveLibraryCardSettings(settings) {
+  localStorage.setItem('scrollscape.libraryCardSettings', JSON.stringify(settings));
+}
+
+let currentBookshelf25dPanelManga = null;
+
+let _spineColorMap = null;
+const SPINE_COLOR_CLASSES = [
+  '#6a4c4c', // brown/red
+  '#4c5a6a', // blue
+  '#4c6a54', // green
+  '#6a634c', // yellow/brown
+  '#5d4c6a', // purple
+  '#4c6a6a', // cyan/teal
+  '#6a5d4c'  // orange/brown
+];
+
+function loadSpineColors() {
+  if (_spineColorMap) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem('scrollscape.librarySpineColors'));
+    _spineColorMap = saved && typeof saved === 'object' ? saved : {};
+  } catch (e) {
+    _spineColorMap = {};
+  }
+}
+
+function saveSpineColorMap() {
+  localStorage.setItem('scrollscape.librarySpineColors', JSON.stringify(_spineColorMap));
+}
+
+function getMangaIdentityKey(manga) {
+  const sourceId = normalizeLibraryId(manga.sourceId || manga.source);
+  const mangaId = normalizeLibraryId(manga.id || manga.mangaId);
+  return `${sourceId}:${mangaId}`;
+}
+
+function hashString(value) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getStableSpineColor(manga) {
+  loadSpineColors();
+  const key = getMangaIdentityKey(manga);
+  if (_spineColorMap[key]) return _spineColorMap[key];
+
+  const color = SPINE_COLOR_CLASSES[hashString(key) % SPINE_COLOR_CLASSES.length];
+  _spineColorMap[key] = color;
+  saveSpineColorMap();
+  return color;
+}
+
+function normalizeLibraryId(value) {
+  return String(value ?? '');
+}
+
+function resolveLibraryManga({ mangaId, sourceId, title, allowLocal = true }) {
+  const normMangaId = normalizeLibraryId(mangaId);
+  const normSourceId = normalizeLibraryId(sourceId);
+  
+  if (allowLocal && normSourceId === 'local') {
+    let manga = (state.localManga || []).find(m => normalizeLibraryId(m.id) === normMangaId);
+    if (manga) return { ...manga, sourceId: 'local' };
+  }
+  
+  if (normSourceId && normSourceId !== 'local') {
+    let manga = (state.favorites || []).find(m => 
+      normalizeLibraryId(m.id) === normMangaId && 
+      normalizeLibraryId(m.sourceId || '') === normSourceId
+    );
+    if (manga) return manga;
+  }
+  
+  let matches = (state.favorites || []).filter(m => normalizeLibraryId(m.id) === normMangaId);
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1 && title) {
+    let titleMatch = matches.find(m => m.title === title);
+    if (titleMatch) return titleMatch;
+  }
+  
+  if (allowLocal && (!normSourceId || normSourceId === 'local')) {
+    let manga = (state.localManga || []).find(m => normalizeLibraryId(m.id) === normMangaId);
+    if (manga) return { ...manga, sourceId: 'local' };
+  }
+  
+  return null;
+}
+
+function getContextMenuPoint(event) {
+  if (!event) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  
+  if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+    return { x: event.clientX, y: event.clientY };
+  }
+  
+  if (event.touches && event.touches.length > 0) {
+    return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }
+  if (event.changedTouches && event.changedTouches.length > 0) {
+    return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+  }
+  
+  if (event.target && event.target.getBoundingClientRect) {
+    const rect = event.target.getBoundingClientRect();
+    return { x: rect.left, y: rect.bottom };
+  }
+  
+  return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+}
+
 // ── Sources Modal ─────────────────────────────────────────────────────────
 function showSourcesModal() {
   const modal = document.createElement('div');
@@ -50,6 +195,79 @@ function showSourcesModal() {
 // Add event listener for the Sources button after DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSources')?.addEventListener('click', showSourcesModal);
+  
+  const btnEditPage = document.getElementById('btnEditPage');
+  if (btnEditPage) {
+    btnEditPage.addEventListener('click', () => {
+      const modal = document.getElementById('customizeLibraryCardModal');
+      if (!modal) return;
+      
+      const settings = loadLibraryCardSettings();
+      
+      // Setup UI
+      const safeCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+      const safeRadioSet = (name, val) => {
+        const els = document.querySelectorAll(`input[name="${name}"]`);
+        els.forEach(el => { el.checked = (el.value === val); });
+      };
+      
+      safeCheck('libCustSource', settings.showSource);
+      safeCheck('libCustTags', settings.showTags);
+      safeCheck('libCustDesc', settings.showDescription);
+      safeCheck('libCustChapRead', settings.showChaptersRead);
+      safeCheck('libCustChapUnread', settings.showChaptersUnread);
+      safeCheck('libCustChapTotal', settings.showTotalChapters);
+      safeCheck('libCustRating', settings.showRating);
+      safeCheck('libCustStatus', settings.showStatus);
+      safeCheck('libCustBtnContinue', settings.showContinueBtn);
+      safeCheck('libCustBtnCategory', settings.showCategoryBtn);
+      
+      safeRadioSet('libCustCoverDesktop', settings.coverSizeDesktop);
+      safeRadioSet('libCustCoverMobile', settings.coverSizeMobile);
+      
+      modal.classList.remove('hidden');
+    });
+  }
+
+  const closeCustModal = () => {
+    const modal = document.getElementById('customizeLibraryCardModal');
+    if (modal) modal.classList.add('hidden');
+  };
+
+  document.getElementById('btnCustomizeCardClose')?.addEventListener('click', closeCustModal);
+  document.getElementById('btnCustomizeCardCancel')?.addEventListener('click', closeCustModal);
+  
+  document.getElementById('btnCustomizeCardSave')?.addEventListener('click', () => {
+    const safeGetCheck = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
+    const safeGetRadio = (name, def) => {
+      const el = document.querySelector(`input[name="${name}"]:checked`);
+      return el ? el.value : def;
+    };
+    
+    const newSettings = {
+      showSource: safeGetCheck('libCustSource'),
+      showTags: safeGetCheck('libCustTags'),
+      showDescription: safeGetCheck('libCustDesc'),
+      showChaptersRead: safeGetCheck('libCustChapRead'),
+      showChaptersUnread: safeGetCheck('libCustChapUnread'),
+      showTotalChapters: safeGetCheck('libCustChapTotal'),
+      showRating: safeGetCheck('libCustRating'),
+      showStatus: safeGetCheck('libCustStatus'),
+      showContinueBtn: safeGetCheck('libCustBtnContinue') || safeGetCheck('libCustBtn'), // fallback
+      showCategoryBtn: safeGetCheck('libCustBtnCategory'),
+      coverSizeDesktop: safeGetRadio('libCustCoverDesktop', 'medium'),
+      coverSizeMobile: safeGetRadio('libCustCoverMobile', 'large')
+    };
+    
+    saveLibraryCardSettings(newSettings);
+    closeCustModal();
+    
+    // Refresh library layout if active
+    const activeLayout = document.querySelector('.library-grid-bookshelf-25d .bookshelf25d-layout');
+    if (activeLayout) {
+      renderLibrary(); // Re-render to update the panel sizes and info
+    }
+  });
 });
 // ============================================================================
 // LIBRARY RENDERING
@@ -267,7 +485,9 @@ function resolveSyntheticSpineData(manga, sourceId = '') {
   };
 }
 
-function _bookshelfCardStyle(mangaId, sourceId, theme = 'classic') {
+function _bookshelfCardStyle(manga, theme = 'classic') {
+  const mangaId = manga.id || manga.mangaId;
+  const sourceId = manga.sourceId || manga.source || 'local';
   const seedStr = `${String(mangaId || '')}:${String(sourceId || '')}`;
   let seed = 0;
   for (let i = 0; i < seedStr.length; i += 1) {
@@ -296,7 +516,7 @@ function _bookshelfCardStyle(mangaId, sourceId, theme = 'classic') {
   const scale = (0.985 + (seed % 5) * 0.009).toFixed(3);
   const pull = (12 + (seed % 10)).toFixed(2);
   const spineAccent = `hsl(${18 + (seed % 24)} 68% 56%)`;
-  const spineColor = `hsl(${hue} 22% 36%)`;
+  const spineColor = getStableSpineColor(manga);
   return ` style="--book-tilt:${tilt.toFixed(2)}deg;--book-depth:${depth}px;--book-float:${float}px;--book-phase:${phase.toFixed(2)}s;--book-spine-color:${spineColor};--book-shadow-strength:${shadowStrength};--book-pitch:${pitch}deg;--book-roll:${roll}deg;--book-scale:${scale};--book-pull:${pull}px;--book-spine-accent:${spineAccent}"`;
 }
 
@@ -538,7 +758,7 @@ function renderLibrary() {
 
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
     const coverUrl = normalizeImageUrl(manga.cover);
-    let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, manga.sourceId, bookshelfTheme) : '';
+    let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga, bookshelfTheme) : '';
     if (isBookshelf25d) {
       const baseWidth = 28;
       const chaptersPerStep = 50;
@@ -615,7 +835,7 @@ function renderLibrary() {
         const localLastChapter = state.lastReadChapter?.[manga.id];
         const localBtnLabel = localLastChapter ? 'Continue Reading' : 'Read';
         const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 1;
-        let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga.id, 'local', bookshelfTheme) : '';
+        let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle({ ...manga, sourceId: 'local' }, bookshelfTheme) : '';
         if (isBookshelf25d) {
           const baseWidth = 28;
           const chaptersPerStep = 50;
@@ -695,12 +915,15 @@ function renderLibrary() {
     const updatePanel = (card) => {
       const mangaId = card.dataset.mangaId;
       const sourceId = card.dataset.sourceId;
-      let manga = sourceId === 'local' 
-        ? state.localManga?.find(m => String(m.id) === String(mangaId))
-        : state.favorites?.find(m => String(m.id) === String(mangaId) && String(m.sourceId || '') === String(sourceId || ''));
+      const manga = resolveLibraryManga({ mangaId, sourceId, title: card.dataset.title });
       if (!manga) return;
+      
       const panel = layout.querySelector('.bookshelf25d-details-panel');
       if (!panel) return;
+      
+      currentBookshelf25dPanelManga = manga;
+
+      const settings = loadLibraryCardSettings();
 
       const coverUrl = sourceId === 'local' ? `/api/local/${escapeHtml(manga.id)}/thumb` : normalizeImageUrl(manga.cover);
       const title = escapeHtml(manga.title || 'Unknown Title');
@@ -714,27 +937,63 @@ function renderLibrary() {
       const currentRating = state.ratings[_libRatingKey(manga.id)] || 0;
       const lastChapterId = state.lastReadChapter?.[manga.id];
       const btnLabel = lastChapterId ? "Continue Reading" : "Start Reading";
-      
-      let metaHtml = '';
-      if (cachedChapterTotal) metaHtml += `<div class="bookshelf25d-detail-meta-item">Chapters: <b>${cachedChapterTotal}</b></div>`;
-      if (chaptersLeft !== null && chaptersLeft > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">Unread: <b>${chaptersLeft}</b></div>`;
-      if (currentRating) metaHtml += `<div class="bookshelf25d-detail-meta-item">Rating: <b>${currentRating}/10</b></div>`;
       const statusKey = _libStatusKey(manga.id, manga.sourceId);
       const status = state.readingStatus[statusKey]?.status;
-      if (status) metaHtml += `<div class="bookshelf25d-detail-meta-item">Status: <b>${statusLabel(status)}</b></div>`;
+
+      let metaHtml = '';
+      if (settings.showChaptersRead && readCount > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">Read: <b>${readCount}</b></div>`;
+      if (settings.showChaptersUnread && chaptersLeft !== null && chaptersLeft > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">Unread: <b>${chaptersLeft}</b></div>`;
+      if (settings.showTotalChapters && cachedChapterTotal) metaHtml += `<div class="bookshelf25d-detail-meta-item">Chapters: <b>${cachedChapterTotal}</b></div>`;
+      if (settings.showRating && currentRating) metaHtml += `<div class="bookshelf25d-detail-meta-item">Rating: <b>${currentRating}/10</b></div>`;
+      if (settings.showStatus && status) metaHtml += `<div class="bookshelf25d-detail-meta-item">Status: <b>${statusLabel(status)}</b></div>`;
+      
+      // Determine tags
+      let tagsHtml = '';
+      if (settings.showTags) {
+        const rawTags = manga.categories || manga.tags || manga.genres || [];
+        const tags = Array.isArray(rawTags) ? rawTags : [];
+        if (tags.length > 0) {
+          tagsHtml = `<div class="bookshelf25d-detail-tags">${tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`;
+        }
+      }
+
+      // Determine description
+      let descHtml = '';
+      if (settings.showDescription) {
+        const desc = manga.description || manga.synopsis || '';
+        if (desc) {
+          descHtml = `<div class="bookshelf25d-detail-desc">${escapeHtml(desc)}</div>`;
+        }
+      }
+      
+      const coverClass = `bookshelf25d-detail-cover size-desktop-${settings.coverSizeDesktop || 'medium'}`;
+
+      const tFunc = typeof window.t === 'function' ? window.t : (k) => k.split('.').pop();
       
       const coverMarkup = coverUrl && !coverUrl.endsWith('.pdf') 
-        ? `<img src="${escapeHtml(coverUrl)}" class="bookshelf25d-detail-cover" alt="Cover" onerror="this.style.display='none'">` 
-        : `<div class="bookshelf25d-detail-cover no-cover"><span>?</span></div>`;
+        ? `<img src="${escapeHtml(coverUrl)}" class="${coverClass} interactive-cover" alt="Cover" title="${escapeHtml(tFunc('library.card.openMangaPage'))}" style="cursor: pointer" onerror="this.style.display='none'">` 
+        : `<div class="${coverClass} no-cover interactive-cover" title="${escapeHtml(tFunc('library.card.openMangaPage'))}" style="cursor: pointer"><span>?</span></div>`;
+
+      let buttonsHtml = '';
+      if (settings.showContinueBtn || settings.showCategoryBtn) {
+        buttonsHtml = '<div class="bookshelf25d-detail-action" style="display:flex;flex-direction:column;gap:0.5rem">';
+        if (settings.showContinueBtn) {
+          buttonsHtml += `<button class="btn-read" id="bookshelf25d-panel-btn">${btnLabel}</button>`;
+        }
+        if (settings.showCategoryBtn) {
+          buttonsHtml += `<button class="btn-read" id="bookshelf25d-panel-category-btn" style="background:var(--surface-3);color:var(--text-primary);box-shadow:none;border:1px solid var(--border-color);">${escapeHtml(tFunc('library.card.category') === 'category' ? 'Category' : tFunc('library.card.category'))}</button>`;
+        }
+        buttonsHtml += '</div>';
+      }
 
       panel.innerHTML = `
         ${coverMarkup}
         <h3 class="bookshelf25d-detail-title">${title}</h3>
-        <div class="bookshelf25d-detail-source">${escapeHtml(sourceName)}</div>
+        ${settings.showSource ? `<div class="bookshelf25d-detail-source">${escapeHtml(sourceName)}</div>` : ''}
+        ${tagsHtml}
+        ${descHtml}
         ${metaHtml ? `<div class="bookshelf25d-detail-meta">${metaHtml}</div>` : ''}
-        <div class="bookshelf25d-detail-action">
-          <button class="btn-read" id="bookshelf25d-panel-btn">${btnLabel}</button>
-        </div>
+        ${buttonsHtml}
       `;
       
       const readBtn = panel.querySelector('#bookshelf25d-panel-btn');
@@ -742,9 +1001,55 @@ function renderLibrary() {
         readBtn.onclick = async (e) => {
           e.stopPropagation();
           const opened = await _openShelfMangaDirectly(mangaId, sourceId || 'local', manga.title);
-          if (!opened) loadMangaDetails(mangaId, "library", manga.title, false, sourceId || 'local');
+          if (!opened) {
+            if (typeof loadMangaDetails === 'function') loadMangaDetails(mangaId, "library", manga.title, false, sourceId || 'local');
+            else if (typeof setView === 'function') setView("manga-details", { mangaId, sourceId });
+          }
         };
       }
+
+      const catBtn = panel.querySelector('#bookshelf25d-panel-category-btn');
+      if (catBtn) {
+        catBtn.onclick = (e) => {
+          e.stopPropagation();
+          showLibraryContextMenu(catBtn, currentBookshelf25dPanelManga, mangaCategories);
+        };
+      }
+
+      const coverEl = panel.querySelector('.interactive-cover');
+      if (coverEl) {
+        coverEl.onclick = async (e) => {
+          e.stopPropagation();
+          const sourceForOpen = normalizeLibraryId(currentBookshelf25dPanelManga.sourceId) || 'local';
+          const opened = await _openShelfMangaDirectly(currentBookshelf25dPanelManga.id, sourceForOpen, currentBookshelf25dPanelManga.title);
+          if (!opened) {
+            if (typeof loadMangaDetails === 'function') loadMangaDetails(currentBookshelf25dPanelManga.id, "library", currentBookshelf25dPanelManga.title, false, sourceForOpen);
+            else if (typeof setView === 'function') setView("manga-details", { mangaId: currentBookshelf25dPanelManga.id, sourceId: sourceForOpen });
+          }
+        };
+        coverEl.oncontextmenu = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof window.openMangaCoverPicker === 'function') {
+            window.openMangaCoverPicker(currentBookshelf25dPanelManga, { 
+              sourceId: currentBookshelf25dPanelManga.sourceId,
+              sourceCover: currentBookshelf25dPanelManga._sourceCover || currentBookshelf25dPanelManga.cover,
+              currentCover: currentBookshelf25dPanelManga.cover 
+            });
+          } else {
+            showToast('Cover Picker', 'Cover picker is not available.', 'error');
+          }
+        };
+      }
+
+      // Single delegated context menu for the panel
+      panel.oncontextmenu = (e) => {
+        if (e.target.closest('.interactive-cover')) return;
+        e.preventDefault();
+        if (currentBookshelf25dPanelManga) {
+          showLibraryContextMenu(e, currentBookshelf25dPanelManga, mangaCategories);
+        }
+      };
     };
     
     layout.addEventListener('mouseover', (e) => {
@@ -876,19 +1181,58 @@ function renderLibrary() {
     }
   }
 
+  grid.querySelectorAll(".library-card").forEach(card => {
+    let pressTimer = null;
+    let startX = 0, startY = 0;
+
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const mangaId = card.dataset.mangaId;
+      const sourceId = card.dataset.sourceId;
+      
+      const manga = resolveLibraryManga({ mangaId, sourceId, title: card.dataset.title });
+      if (manga) {
+        showLibraryContextMenu(e, manga, mangaCategories);
+      }
+    };
+
+    card.addEventListener('contextmenu', handleContextMenu);
+
+    card.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        handleContextMenu(e);
+      }, 600);
+    }, { passive: true });
+
+    card.addEventListener('touchmove', (e) => {
+      if (!pressTimer) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    }, { passive: true });
+
+    const cancelTouch = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+    card.addEventListener('touchend', cancelTouch);
+    card.addEventListener('touchcancel', cancelTouch);
+  });
+
   grid.querySelectorAll(".library-card:not(.local-manga-card)").forEach(card => {
     const mangaId  = card.dataset.mangaId;
     const sourceId = card.dataset.sourceId;
     const cardTitle = card.dataset.title || '';
-
-    card.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const manga = state.favorites.find(m => m.id === mangaId && (m.sourceId === sourceId || !sourceId));
-      if (manga) {
-        const targets = _getLibraryActionTargets(manga);
-        showLibraryContextMenu(e, manga, mangaCategories, targets);
-      }
-    });
 
     card.onclick = async (e) => {
       // Don't navigate if the click was on or inside the context menu
@@ -993,17 +1337,21 @@ function _ctxDocClickHandler(e) {
   _closeLibraryContextMenu();
 }
 
-async function showLibraryContextMenu(e, manga, mangaCategories) {
+async function showLibraryContextMenu(pointOrEvent, mangaInput, mangaCategories) {
   _closeLibraryContextMenu();
+
+  // Try to cleanly resolve the manga context including the correct sourceId.
+  const manga = resolveLibraryManga({
+    mangaId: mangaInput.id,
+    sourceId: mangaInput.sourceId,
+    title: mangaInput.title
+  }) || mangaInput; // fallback to input if resolution completely fails
 
   const actionMangas = _getLibraryActionTargets(manga);
   const isBulk = actionMangas.length > 1;
   const bulkPrefix = isBulk ? `Selected (${actionMangas.length})` : 'Current';
 
-  const sourceId = manga.sourceId
-    || state.currentSourceId
-    || (state.favorites || []).find(f => String(f.id) === String(manga.id))?.sourceId
-    || '';
+  const sourceId = normalizeLibraryId(manga.sourceId);
   if (!sourceId) {
     showToast('Categories', 'Could not resolve source for this manga.', 'warning');
     return;
@@ -1055,23 +1403,27 @@ async function showLibraryContextMenu(e, manga, mangaCategories) {
     <div class="ctx-categories-header" style="padding-top:0.55rem;padding-bottom:0.35rem">${bulkPrefix} manga actions</div>
     <button class="context-item" id="ctxDownloadAll">${_ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>')} ${isBulk ? `Download All Chapters (${actionMangas.length})` : 'Download All'}</button>
     <div class="context-divider"></div>
-    ${!isBulk ? `<button class="context-item" id="ctxChangeCover">${_ico('<rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>')} Change Cover</button><button class="context-item" id="ctxMigrateOne">${_ico('<path d="M8 7h13M13 3l4 4-4 4"/><path d="M16 17H3"/><path d="M7 13l-4 4 4 4"/>')} Migrate this manga</button><div class="context-divider"></div>` : ''}
+    ${!isBulk && sourceId !== 'local' ? `<button class="context-item" id="ctxChangeCover">${_ico('<rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>')} Change Cover</button><button class="context-item" id="ctxMigrateOne">${_ico('<path d="M8 7h13M13 3l4 4-4 4"/><path d="M16 17H3"/><path d="M7 13l-4 4 4 4"/>')} Migrate this manga</button><div class="context-divider"></div>` : ''}
     <button class="context-item ${currentStatus === 'completed' ? 'ctx-item-active' : ''}" id="ctxMarkCompleted">${_ico('<polyline points="20 6 9 17 4 12"/>')} ${isBulk ? 'Mark Selected as Completed' : 'Mark as Completed'}</button>
     <button class="context-item ${currentStatus === 'reading'   ? 'ctx-item-active' : ''}" id="ctxMarkReading">${_ico('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>')} ${isBulk ? 'Mark Selected as Reading' : 'Mark as Reading'}</button>
     <button class="context-item ${!currentStatus             ? 'ctx-item-active' : ''}" id="ctxRemoveStatus">${_ico('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>')} ${isBulk ? 'Mark Selected as Unread' : 'Mark as Unread'}</button>
     <div class="context-divider"></div>
     <button class="context-item" id="ctxRemoveFromLibrary">${_ico('<path d="M3 6h18M9 6v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V6"/><path d="M10 11v6M14 11v6"/>')} ${isBulk ? 'Remove Selected from Library' : 'Remove from Library'}</button>
-    ${categoriesSection}`;
+    ${sourceId !== 'local' ? categoriesSection : `<div class="context-divider"></div><div class="ctx-categories-header" style="opacity:0.5;font-style:italic;padding-bottom:0.5rem">Categories not supported for local manga</div>`}`;
 
   document.body.appendChild(menu);
 
   // Position: avoid going off-screen
   const vw = window.innerWidth, vh = window.innerHeight;
   const mw = 240, mh = menu.offsetHeight || 300;
-  let x = e.clientX, y = e.clientY;
+  
+  let { x, y } = getContextMenuPoint(pointOrEvent);
+
   if (x + mw > vw - 8) x = vw - mw - 8;
   if (y + mh > vh - 8) y = vh - mh - 8;
   if (y < 8) y = 8;
+  if (x < 8) x = 8;
+  
   menu.style.left = `${x}px`;
   menu.style.top  = `${y}px`;
 

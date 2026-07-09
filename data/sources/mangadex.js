@@ -47,9 +47,12 @@ async function mdFetch(url, retries = 3) {
     if (res.status === 503) {
       const err = new Error('MangaDex API error: 503 (O site MangaDex está em manutenção ou temporariamente indisponível)');
       err.isMaintenance = true;
+      err.statusCode = 503;
       throw err;
     }
-    throw new Error(`MangaDex API error: ${res.status}`);
+    const err = new Error(`MangaDex API error: ${res.status}`);
+    err.statusCode = res.status;
+    throw err;
   }
 }
 
@@ -237,6 +240,7 @@ module.exports = {
   },
 
   async byGenres(genres, orderBy = '', filters = {}, page = 1) {
+    if (!Array.isArray(genres)) genres = genres ? [genres] : [];
     // Aliases: our genre name → MangaDex tag name (lowercase)
     const aliases = {
       "shoujo ai":      "girls' love",
@@ -310,7 +314,11 @@ module.exports = {
   async mangaDetails(mangaId) {
     const url = `https://api.mangadex.org/manga/${mangaId}?includes[]=cover_art&includes[]=author&includes[]=artist`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`MangaDex API error: ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(`MangaDex API error: ${res.status}`);
+      err.statusCode = res.status;
+      throw err;
+    }
     const data = await res.json();
 
     const manga = data.data;
@@ -341,7 +349,11 @@ module.exports = {
     while (hasMore) {
       const url = `https://api.mangadex.org/manga/${mangaId}/feed?limit=${limit}&offset=${offset}&translatedLanguage[]=en&order[chapter]=desc&includeExternalUrl=0`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`MangaDex API error: ${res.status}`);
+      if (!res.ok) {
+        const err = new Error(`MangaDex API error: ${res.status}`);
+        err.statusCode = res.status;
+        throw err;
+      }
       const data = await res.json();
 
       const chapters = (data.data || []).map(ch => ({
@@ -362,7 +374,11 @@ module.exports = {
   async pages(chapterId) {
     const url = `https://api.mangadex.org/at-home/server/${chapterId}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`MangaDex API error: ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(`MangaDex API error: ${res.status}`);
+      err.statusCode = res.status;
+      throw err;
+    }
     const data = await res.json();
 
     const baseUrl = data.baseUrl;

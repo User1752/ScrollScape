@@ -244,6 +244,65 @@ function _repairMangaChapterProgressIfNeeded(mangaId, chapters) {
   }
 }
 
+function normalizeChapterMetadata(chapter, index, fallbackLabel) {
+  const ch = chapter || {};
+  let title = String(ch.title || ch.name || ch.chapterTitle || ch.label || '').trim();
+  let number = String(ch.number || ch.chapter || '').trim();
+  
+  if (!number && title && title.match(/chapter\s+(\d+(?:\.\d+)?)/i)) {
+    number = title.match(/chapter\s+(\d+(?:\.\d+)?)/i)[1];
+  }
+  
+  // Clean up title
+  if (title.toLowerCase() === `chapter ${number}`.toLowerCase() || title === number || title === `ch. ${number}`) {
+    title = '';
+  }
+  if (number && title.toLowerCase().startsWith(`chapter ${number} - `)) {
+    title = title.substring(`chapter ${number} - `.length).trim();
+  }
+  if (number && title.toLowerCase().startsWith(`chapter ${number} — `)) {
+    title = title.substring(`chapter ${number} — `.length).trim();
+  }
+  if (number && title.toLowerCase().startsWith(`chapter ${number}: `)) {
+    title = title.substring(`chapter ${number}: `.length).trim();
+  }
+
+  const numLabel = number ? `Chapter ${number}` : fallbackLabel;
+  const displayTitle = title && title !== numLabel ? `${numLabel} — ${title}` : numLabel;
+
+  // Dates
+  let rawDate = ch.publishedAt || ch.releaseDate || ch.updatedAt || ch.date || ch.sourceUpdatedAt;
+  let dateType = ch.publishedAt || ch.releaseDate ? 'published' : (ch.updatedAt || ch.date ? 'updated' : (ch.sourceUpdatedAt ? 'sourceUpdated' : null));
+  
+  let displayDateLabel = '';
+  let displayDate = '';
+
+  if (rawDate) {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      const opts = { day: "2-digit", month: "short", year: "numeric" };
+      try {
+        const lang = (typeof currentLanguage !== 'undefined' && currentLanguage === 'pt') ? 'pt-PT' : 'en-US';
+        displayDate = new Intl.DateTimeFormat(lang, opts).format(d);
+        if (dateType === 'published') displayDateLabel = typeof t === 'function' ? t('chapter.published') : 'Published';
+        else if (dateType === 'updated') displayDateLabel = typeof t === 'function' ? t('chapter.updated') : 'Updated';
+        else if (dateType === 'sourceUpdated') displayDateLabel = typeof t === 'function' ? t('chapter.sourceUpdated') : 'Source updated';
+      } catch (e) {
+        // Ignore parsing errors and omit date
+      }
+    }
+  }
+
+  return {
+    number,
+    title,
+    displayTitle,
+    displayDateLabel,
+    displayDate,
+    raw: ch
+  };
+}
+
 function renderChaptersList() {
   if (!state.currentManga) return;
   const chapDiv = $("chapters");
@@ -303,17 +362,20 @@ function renderChaptersList() {
         const rawSavedPage = Number(state.lastReadPages?.[progressKey]);
         const savedPage = Number.isFinite(rawSavedPage) && rawSavedPage >= 0 ? (Math.floor(rawSavedPage) + 1) : 1;
         const totalPages = Number(state.lastReadPageTotals?.[progressKey] || 0);
+        const fallbackLabel = `Chapter ${i + 1}`;
+        const meta = normalizeChapterMetadata(ch, i, fallbackLabel);
+        
         const progressLabel = totalPages > 0 ? `${savedPage}/${totalPages}` : String(savedPage);
         return `
-          <div class="chapter-item ${isRead ? 'chapter-read' : ''} ${isFlagged ? 'chapter-flagged' : ''} ${isSelected ? 'chapter-selected' : ''} ${isCurrentProgress ? 'chapter-current-progress' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-display-index="${i}" data-chapter-name="${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}">
+          <div class="chapter-item ${isRead ? 'chapter-read' : ''} ${isFlagged ? 'chapter-flagged' : ''} ${isSelected ? 'chapter-selected' : ''} ${isCurrentProgress ? 'chapter-current-progress' : ''}" data-chapter-id="${escapeHtml(ch.id)}" data-chapter-index="${realIndex}" data-display-index="${i}" data-chapter-name="${escapeHtml(meta.displayTitle)}">
             <div class="chapter-info">
               <div class="chapter-name">
                 ${isFlagged ? '<span class="chapter-flag-icon">&#x1F6A9;</span> ' : ''}
                 ${isOffline ? '<img src="https://cdn-icons-png.flaticon.com/512/0/532.png" width="14" height="14" title="Downloaded for offline reading" style="margin-right: 4px; vertical-align: text-bottom; filter: invert(0.5) sepia(1) saturate(5) hue-rotate(var(--theme-hue-rotate, 0deg));" alt="offline" />' : ''}
-                ${escapeHtml(ch.name || `Chapter ${ch.chapter || i + 1}`)}
+                ${escapeHtml(meta.displayTitle)}
               </div>
-              ${ch.date ? `<div class="chapter-date">${new Date(ch.date).toLocaleDateString("en-US", { day:"2-digit", month:"short", year:"numeric" })}</div>` : ""}
-              ${isCurrentProgress ? `<div class="chapter-progress-page">Parou na página ${progressLabel}</div>` : ""}
+              ${meta.displayDate ? `<div class="chapter-date">${escapeHtml(meta.displayDateLabel)}: ${escapeHtml(meta.displayDate)}</div>` : ""}
+              ${isCurrentProgress ? `<div class="chapter-progress-page">${typeof t === 'function' ? t('reader.stoppedAtPage') || 'Stopped at page' : 'Stopped at page'} ${progressLabel}</div>` : ""}
             </div>
             <div class="chapter-action">
               ${isRead ? `<span class="read-badge">&#x2713;</span>` : ""}
@@ -472,7 +534,8 @@ function renderChaptersList() {
         renderChaptersList();
         showToast("Deleted", "Offline chapters removed.", "success");
       } catch(e) {
-        showToast("Error", "Failed to delete: " + e.message, "error");
+        dbg.error(dbg.ERR_SOURCE, 'Failed to delete offline chapters', e);
+        showToast("Error", "Failed to delete offline chapters.", "error");
         delBtn.innerHTML = prevHtml;
       }
     };

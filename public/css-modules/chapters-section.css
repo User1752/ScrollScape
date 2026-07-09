@@ -253,8 +253,10 @@
 }
 
 .chapter-date {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted, var(--text-secondary));
+  opacity: 0.85;
 }
 
 .chapter-progress-page {

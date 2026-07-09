@@ -23,6 +23,23 @@
   background: color-mix(in srgb, var(--bg-tertiary) 82%, var(--bg-dark));
   color: var(--color-warning);
 }
+
+/* ============================================================================
+   LIBRARY LAYOUT OVERRIDES
+   ============================================================================ */
+body:has(#view-library:not(.hidden)) .main-container {
+  max-width: 100%;
+  padding-right: 110px; /* Space for the right action rail */
+  padding-left: 2rem;
+}
+
+@media (max-width: 900px) {
+  body:has(#view-library:not(.hidden)) .main-container {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+}
+
 /* ============================================================================
    LIBRARY
    ============================================================================ */
@@ -771,8 +788,8 @@
 
 .bookshelf25d-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 20vw, 360px);
+  column-gap: 24px;
   padding: 1.5rem 0.5rem 2rem;
   align-items: start;
 }
@@ -783,6 +800,7 @@
   align-content: flex-start;
   align-items: flex-end;
   gap: 1.5rem 6px;
+  width: 100%;
   min-height: calc(4 * 180px);
   background-image: repeating-linear-gradient(to bottom, transparent, transparent calc(180px - 20px), rgba(0,0,0,0.4) calc(180px - 20px), rgba(0,0,0,0.6) 180px);
   background-size: 100% 180px;
@@ -905,18 +923,12 @@
 }
 
 /* Add random colors */
-.library-card.library-card-bookshelf-25d:nth-child(7n+1) .book25d-spine { --book-spine-color: #6a4c4c; }
-.library-card.library-card-bookshelf-25d:nth-child(7n+2) .book25d-spine { --book-spine-color: #4c5a6a; }
-.library-card.library-card-bookshelf-25d:nth-child(7n+3) .book25d-spine { --book-spine-color: #4c6a54; }
-.library-card.library-card-bookshelf-25d:nth-child(7n+4) .book25d-spine { --book-spine-color: #6a634c; }
-.library-card.library-card-bookshelf-25d:nth-child(7n+5) .book25d-spine { --book-spine-color: #5d4c6a; }
-.library-card.library-card-bookshelf-25d:nth-child(7n+6) .book25d-spine { --book-spine-color: #4c6a6a; }
-.library-card.library-card-bookshelf-25d:nth-child(7n+7) .book25d-spine { --book-spine-color: #6a5d4c; }
+
 
 /* Side Panel Details */
 .bookshelf25d-details-panel {
   position: sticky;
-  top: 1rem;
+  top: calc(60px + 1.5rem);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color, rgba(255,255,255,0.1));
   border-radius: 12px;
@@ -925,6 +937,8 @@
   flex-direction: column;
   align-items: center;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  max-height: calc(100vh - 60px - 3rem);
+  overflow-y: auto;
 }
 
 .bookshelf25d-detail-placeholder {
@@ -936,12 +950,20 @@
 
 .bookshelf25d-detail-cover {
   width: 100%;
-  max-width: 220px;
   aspect-ratio: 3 / 4.5;
   object-fit: cover;
   border-radius: 6px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.5);
   margin-bottom: 1rem;
+}
+
+/* Cover sizes */
+@media (min-width: 769px) {
+  .bookshelf25d-detail-cover.size-desktop-small { width: auto; height: 160px; max-width: none; }
+  .bookshelf25d-detail-cover.size-desktop-medium { width: auto; height: 220px; max-width: none; }
+  .bookshelf25d-detail-cover.size-desktop-large { width: auto; height: 280px; max-width: none; }
+  .bookshelf25d-detail-cover.size-desktop-xlarge { width: auto; height: 340px; max-width: none; }
+  .bookshelf25d-detail-cover.size-desktop-xxlarge { width: auto; height: 420px; max-width: none; }
 }
 
 .bookshelf25d-detail-cover.no-cover {
@@ -974,6 +996,36 @@
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
   text-align: center;
+}
+
+.bookshelf25d-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.bookshelf25d-detail-tags .tag {
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--text-primary);
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.bookshelf25d-detail-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  width: 100%;
 }
 
 .bookshelf25d-detail-meta {
@@ -1034,9 +1086,6 @@
     width: 100%;
     position: static;
     margin-bottom: 1rem;
-  }
-  .bookshelf25d-detail-cover {
-    max-width: 160px;
   }
 }
 @media (max-width: 600px) {

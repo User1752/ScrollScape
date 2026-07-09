@@ -13,6 +13,169 @@ const _homeRowRequestSeq = {
   latestUpdates: 0,
 };
 
+window._homeSeenManga = new Set();
+
+function getMangaKey(manga) {
+  if (!manga) return '';
+  return `${String(manga.sourceId || '')}:${String(manga.id || manga.mangaId || '')}`;
+}
+
+function getUserReadingProfile() {
+  const profile = {
+    genres: new Map(),
+    sources: new Map(),
+    statuses: new Map(),
+    avgChapterCount: 0,
+    totalCount: 0,
+    readIds: new Set(),
+    completedIds: new Set(),
+    recentlyReadIds: new Set(),
+    recentTags: new Set(),
+    recentSources: new Set(),
+    recentAuthors: new Set()
+  };
+
+  const add = (m, weight, isRecent = false) => {
+    profile.totalCount++;
+    const key = getMangaKey(m);
+    
+    (m.genres || []).forEach(g => {
+      if (typeof g === 'string') {
+        const lowerG = g.toLowerCase();
+        profile.genres.set(lowerG, (profile.genres.get(lowerG) || 0) + weight);
+        if (isRecent) profile.recentTags.add(lowerG);
+      }
+    });
+    
+    if (m.sourceId) {
+      profile.sources.set(m.sourceId, (profile.sources.get(m.sourceId) || 0) + weight);
+      if (isRecent) profile.recentSources.add(m.sourceId);
+    }
+    
+    if (m.status) profile.statuses.set(m.status, (profile.statuses.get(m.status) || 0) + weight);
+    
+    if (isRecent && m.author) profile.recentAuthors.add(String(m.author).toLowerCase());
+    
+    const cc = state.chapterCountCache?.[key] || state.chapterCountCache?.[m.id] || 0;
+    if (cc > 0) profile.avgChapterCount += (cc - profile.avgChapterCount) / profile.totalCount;
+    
+    profile.readIds.add(key);
+    profile.readIds.add(m.id); // Also add legacy ID to ensure overlap checks work
+    
+    // Check if fully read
+    const readKeyPrefix = `${key}:`;
+    const readKeyLegacyPrefix = `${m.id}:`;
+    const readCount = [...(state.readChapters || [])].filter(k => k.startsWith(readKeyPrefix) || k.startsWith(readKeyLegacyPrefix)).length;
+    if (cc > 0 && readCount >= cc) profile.completedIds.add(key);
+  };
+
+  (state.history || []).forEach(m => {
+    add(m, 2, true);
+    profile.recentlyReadIds.add(getMangaKey(m));
+  });
+  (state.favorites || []).forEach(m => add(m, 1, false));
+  
+  return profile;
+}
+
+function getHomepageRecommendationScore(manga, profile, isDuplicate = false) {
+  let score = 0;
+  const reasons = [];
+  const key = getMangaKey(manga);
+
+  // +45 tag/category overlap
+  let tagScore = 0;
+  if (Array.isArray(manga.genres)) {
+    manga.genres.forEach(g => {
+      if (typeof g === 'string' && profile.genres.has(g.toLowerCase())) {
+        tagScore += profile.genres.get(g.toLowerCase());
+      }
+    });
+    if (tagScore > 0) {
+      score += Math.min(45, tagScore * 5); // cap at 45
+      reasons.push('tags');
+    }
+  }
+
+  // +30 same preferred source
+  if (manga.sourceId && profile.sources.has(manga.sourceId)) {
+    score += Math.min(30, profile.sources.get(manga.sourceId) * 5);
+    reasons.push('source');
+  }
+
+  // +25 unread chapters available
+  const readKeyPrefix = `${manga.id}:`;
+  const readCount = [...(state.readChapters || [])].filter(k => k.startsWith(readKeyPrefix)).length;
+  const totalChapters = state.chapterCountCache?.[manga.id] || 0;
+  if (totalChapters > readCount && readCount > 0) {
+    score += 25;
+    reasons.push('unread');
+  }
+
+  // +20 recently read similar manga
+  // Candidate gets points if it overlaps with recently read manga, but isn't itself recently read
+  if (!profile.recentlyReadIds.has(key)) {
+    let similarScore = 0;
+    if (manga.sourceId && profile.recentSources.has(manga.sourceId)) similarScore += 5;
+    if (manga.author && profile.recentAuthors.has(String(manga.author).toLowerCase())) similarScore += 10;
+    if (Array.isArray(manga.genres)) {
+      const tagOverlap = manga.genres.filter(g => typeof g === 'string' && profile.recentTags.has(g.toLowerCase())).length;
+      if (tagOverlap > 0) similarScore += Math.min(10, tagOverlap * 3);
+    }
+    if (similarScore > 0) {
+      score += Math.min(20, similarScore);
+      reasons.push('recentlyReadSimilar');
+    }
+  }
+
+  // +15 high rating if available
+  if (manga.rating && parseFloat(manga.rating) >= 8.0) {
+    score += 15;
+    reasons.push('rating');
+  }
+
+  // +15 matching preferred status
+  if (manga.status && profile.statuses.has(manga.status)) {
+    score += 15;
+    reasons.push('status');
+  }
+
+  // +10 chapter count matches user pattern
+  if (totalChapters > 0 && profile.avgChapterCount > 0 && Math.abs(totalChapters - profile.avgChapterCount) < 50) {
+    score += 10;
+    reasons.push('chapters');
+  }
+
+  // +10 recently added to library (if in favorites but not completed)
+  if ((profile.readIds.has(key) || profile.readIds.has(manga.id)) && !profile.completedIds.has(key) && !profile.completedIds.has(manga.id)) {
+    score += 10;
+    reasons.push('library');
+  }
+
+  // Penalties
+  // -50 hidden/removed/blacklisted
+  if (state.settings?.genreBlacklist?.some(b => (manga.genres || []).map(g=>typeof g === 'string' ? g.toLowerCase() : '').includes(b))) {
+    score -= 50;
+    reasons.push('blacklisted');
+  }
+
+  // -35 already fully read
+  if (profile.completedIds.has(key) || profile.completedIds.has(manga.id)) {
+    score -= 35;
+    reasons.push('completed');
+  }
+
+  // -25 duplicate across homepage sections
+  if (isDuplicate || window._homeSeenManga.has(key)) {
+    score -= 25;
+    reasons.push('duplicate');
+  }
+
+  manga._debugScore = score;
+  manga._debugReasons = reasons;
+  return score;
+}
+
 const HOME_SOURCE_TIMEOUT_MS = 3500;
 
 function _homeRequestTimeout() {
@@ -250,18 +413,36 @@ async function _loadMultiSourceHomeList(method, perSourceLimit = 7, totalLimit =
   const merged = [];
   const maxLen = Math.max(...buckets.map(b => b.length), 0);
 
+  const profile = typeof getUserReadingProfile === 'function' ? getUserReadingProfile() : null;
+
   for (let i = 0; i < maxLen; i++) {
     for (const bucket of buckets) {
       if (i >= bucket.length) continue;
-      const key = String(bucket[i].title || '').trim().toLowerCase();
+      const m = bucket[i];
+      const key = String(m.title || '').trim().toLowerCase();
       if (!key || seen.has(key)) continue;
       seen.add(key);
-      merged.push(bucket[i]);
-      if (merged.length >= totalLimit) return merged;
+
+      if (profile && typeof getHomepageRecommendationScore === 'function') {
+        const key = typeof getMangaKey === 'function' ? getMangaKey(m) : m.id;
+        const isDuplicate = window._homeSeenManga && window._homeSeenManga.has(key);
+        m._score = getHomepageRecommendationScore(m, profile, isDuplicate);
+        if (!isDuplicate && m._score > -25 && window._homeSeenManga) window._homeSeenManga.add(key);
+      } else {
+        m._score = 0;
+      }
+      merged.push(m);
     }
   }
 
-  return merged;
+  // Sort by the newly calculated score, but ensure minimum limit is satisfied if possible
+  merged.sort((a, b) => b._score - a._score);
+  
+  if (window.SCROLLSCAPE_DEBUG_RECOMMENDATIONS) {
+    console.log(`[${method}] Top chosen:`, merged.slice(0, 5).map(m => `${m.title} (${m._score}) - ${m._debugReasons?.join(',')}`));
+  }
+
+  return merged.slice(0, totalLimit);
 }
 
 window.loadPopularToday = async function loadPopularToday() {
@@ -423,7 +604,7 @@ async function continueReading(mangaId, sourceId) {
       await loadMangaDetails(mangaId);
     }
   } catch (err) {
-    showToast("Error", err.message, "error");
+    dbg.error(dbg.ERR_SOURCE, 'Error continuing reading', err);
+    showToast("Error", "Could not continue reading.", "error");
   }
 }
-
