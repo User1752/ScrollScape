@@ -57,7 +57,13 @@ function withTimeout(ms) {
   return AbortSignal.timeout(ms);
 }
 
+let cooldownUntil = 0;
+
 async function gql(query) {
+  if (Date.now() < cooldownUntil) {
+    throw new Error('Rate limited, retry later');
+  }
+
   let lastErr;
 
   for (const apiUrl of APIS) {
@@ -78,7 +84,14 @@ async function gql(query) {
       }
 
       if (!res.ok) {
-        if (json?.errors) throw new Error(json.errors[0]?.message || `HTTP ${res.status}`);
+        const errMsg = json?.errors?.[0]?.message || '';
+        if (res.status === 429 || errMsg.toLowerCase().includes('too many requests')) {
+          const match = errMsg.match(/try again in (\d+)/i);
+          const delaySecs = match ? parseInt(match[1], 10) : 60;
+          cooldownUntil = Date.now() + (delaySecs * 1000);
+          throw new Error('Rate limited, retry later');
+        }
+        if (json?.errors) throw new Error(errMsg || `HTTP ${res.status}`);
         if (isLikelyHtml(text)) {
           throw new Error(`AllManga upstream blocked (${res.status})`);
         }
@@ -102,6 +115,12 @@ async function gql(query) {
 
       if (json.errors) {
         const msg = json.errors[0]?.message || 'Unknown AllManga API error';
+        if (msg.toLowerCase().includes('too many requests')) {
+          const match = msg.match(/try again in (\d+)/i);
+          const delaySecs = match ? parseInt(match[1], 10) : 60;
+          cooldownUntil = Date.now() + (delaySecs * 1000);
+          throw new Error('Rate limited, retry later');
+        }
         throw new Error(msg);
       }
 

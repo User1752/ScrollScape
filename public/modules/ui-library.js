@@ -577,6 +577,18 @@ function renderLibrary() {
   const searchQuery    = ($("librarySearchInput")?.value || "").trim().toLowerCase();
   const hideNsfw = state.settings.hideNsfw === true;
 
+  if (window.SCROLLSCAPE_DEBUG_LIBRARY_MEMBERSHIP) {
+    const onePieceObj = state.favorites.find(m => m.title && String(m.title).toLowerCase().includes('one piece'));
+    console.log({
+      source: "library-render",
+      favoritesCount: state.favorites.length,
+      mangaKeys: state.favorites.map(m => getMangaKey(m)),
+      onePieceFound: !!onePieceObj,
+      onePieceObject: onePieceObj,
+      activeFilters: { filterVal, categoryFilter, trackerFilter, searchQuery }
+    });
+  }
+
   // Build a genres enrichment map from history (history entries have full genre data,
   // while favorites added via import often have genres: []).
   // Keyed as "id:sourceId" for direct lookup.
@@ -632,28 +644,46 @@ function renderLibrary() {
 
   const visibleSources = Array.isArray(state.settings.visibleSources)
     ? state.settings.visibleSources
-    : Object.keys(state.installedSources || {});
+    : null;
   let favs = state.favorites.filter(manga => {
-    if (!visibleSources.includes(manga.sourceId)) return false;
-    if (hideNsfw && _isNsfwEnriched(manga)) return false;
-    if (filterVal !== "all") {
-      const key    = _libStatusKey(manga.id, manga.sourceId);
+    let hideReason = null;
+    
+    if (visibleSources !== null && manga.sourceId && !visibleSources.includes(manga.sourceId)) {
+      hideReason = `Source not visible: ${manga.sourceId}`;
+    } else if (hideNsfw && typeof _isNsfwEnriched === 'function' && _isNsfwEnriched(manga)) {
+      hideReason = `NSFW hidden`;
+    } else if (filterVal !== "all") {
+      const key = _libStatusKey(manga.id, manga.sourceId);
       const status = state.readingStatus[key]?.status;
-      if (status !== filterVal) return false;
-    }
-    if (categoryFilter !== "all") {
+      if (status !== filterVal) hideReason = `Status mismatch: ${status} !== ${filterVal}`;
+    } else if (categoryFilter !== "all") {
       const primaryKey = `${manga.id}:${manga.sourceId || ''}`;
-      const legacyKey  = `${manga.id}:`;
+      const legacyKey = `${manga.id}:`;
       const cats = Array.from(new Set([
         ...(mangaCategories[primaryKey] || []),
         ...(mangaCategories[legacyKey] || []),
       ]));
-      if (!cats.includes(categoryFilter)) return false;
+      if (!cats.includes(categoryFilter)) hideReason = `Category mismatch: ${categoryFilter}`;
+    } else if (trackerFilter === 'anilist') {
+      if (typeof _alGetLink !== 'function' || !_alGetLink(manga.id)) hideReason = `No AniList link`;
+    } else if (searchQuery && !String(manga.title || '').toLowerCase().includes(searchQuery)) {
+      hideReason = `Search mismatch`;
     }
-    if (trackerFilter === 'anilist') {
-      if (typeof _alGetLink !== 'function' || !_alGetLink(manga.id)) return false;
+    
+    if (hideReason) {
+      if (window.SCROLLSCAPE_DEBUG_LIBRARY_MEMBERSHIP) {
+        console.log({
+          stage: "library-render",
+          title: manga.title,
+          id: manga.id,
+          sourceId: manga.sourceId,
+          mangaKey: `${manga.sourceId || ''}:${manga.id || ''}`,
+          renderable: false,
+          filteredOutReason: hideReason
+        });
+      }
+      return false;
     }
-    if (searchQuery && !String(manga.title || '').toLowerCase().includes(searchQuery)) return false;
     return true;
   });
 
@@ -896,7 +926,7 @@ function renderLibrary() {
     : "";
 
   if (favs.length === 0 && !localHTML) {
-    grid.innerHTML = `<div class="muted">No manga found. Add favorites or import local files!</div>`;
+    grid.innerHTML = `<div class="muted">${t('library.noMangaFound')}</div>`;
     return;
   }
 
@@ -907,7 +937,7 @@ function renderLibrary() {
           ${favHTML + localHTML}
         </div>
         <aside class="bookshelf25d-details-panel" id="bookshelf25d-panel">
-          <div class="bookshelf25d-detail-placeholder">Select a manga</div>
+          <div class="bookshelf25d-detail-placeholder">${t('library.selectManga')}</div>
         </aside>
       </div>
     `;
@@ -926,8 +956,8 @@ function renderLibrary() {
       const settings = loadLibraryCardSettings();
 
       const coverUrl = sourceId === 'local' ? `/api/local/${escapeHtml(manga.id)}/thumb` : normalizeImageUrl(manga.cover);
-      const title = escapeHtml(manga.title || 'Unknown Title');
-      const sourceName = sourceId === 'local' ? 'LOCAL' : (state.installedSources[sourceId]?.name || sourceId || 'MANGA');
+      const title = escapeHtml(manga.title || t('library.unknownTitle'));
+      const sourceName = sourceId === 'local' ? t('library.local') : (state.installedSources[sourceId]?.name || sourceId || 'MANGA');
       const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 0;
       
       const readCount = cachedChapterTotal
@@ -936,16 +966,26 @@ function renderLibrary() {
       const chaptersLeft = cachedChapterTotal ? Math.max(0, cachedChapterTotal - readCount) : null;
       const currentRating = state.ratings[_libRatingKey(manga.id)] || 0;
       const lastChapterId = state.lastReadChapter?.[manga.id];
-      const btnLabel = lastChapterId ? "Continue Reading" : "Start Reading";
+      const btnLabel = lastChapterId ? t("library.customize.continueReadingButton") : t("library.card.openMangaPage");
+      
+      let metaHtml = '';
+      if (settings.showChaptersRead && readCount > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">${t('library.read') || 'Read:'} <b>${readCount}</b></div>`;
+      if (settings.showChaptersUnread && chaptersLeft !== null && chaptersLeft > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">${t('library.unread')} <b>${chaptersLeft}</b></div>`;
+      if (settings.showTotalChapters && cachedChapterTotal) metaHtml += `<div class="bookshelf25d-detail-meta-item">${t('library.chapters')} <b>${cachedChapterTotal}</b></div>`;
+      if (settings.showRating && currentRating) metaHtml += `<div class="bookshelf25d-detail-meta-item">${t('library.rating')} <b>${currentRating}/10</b></div>`;
+      
       const statusKey = _libStatusKey(manga.id, manga.sourceId);
       const status = state.readingStatus[statusKey]?.status;
-
-      let metaHtml = '';
-      if (settings.showChaptersRead && readCount > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">Read: <b>${readCount}</b></div>`;
-      if (settings.showChaptersUnread && chaptersLeft !== null && chaptersLeft > 0) metaHtml += `<div class="bookshelf25d-detail-meta-item">Unread: <b>${chaptersLeft}</b></div>`;
-      if (settings.showTotalChapters && cachedChapterTotal) metaHtml += `<div class="bookshelf25d-detail-meta-item">Chapters: <b>${cachedChapterTotal}</b></div>`;
-      if (settings.showRating && currentRating) metaHtml += `<div class="bookshelf25d-detail-meta-item">Rating: <b>${currentRating}/10</b></div>`;
-      if (settings.showStatus && status) metaHtml += `<div class="bookshelf25d-detail-meta-item">Status: <b>${statusLabel(status)}</b></div>`;
+      if (settings.showStatus && status) {
+         const i18nStatusMap = {
+            reading: 'reading',
+            completed: 'completed',
+            on_hold: 'onHold',
+            plan_to_read: 'planToRead',
+            dropped: 'dropped'
+         };
+         metaHtml += `<div class="bookshelf25d-detail-meta-item">${t('library.status')} <b>${t('library.' + (i18nStatusMap[status] || status))}</b></div>`;
+      }
       
       // Determine tags
       let tagsHtml = '';

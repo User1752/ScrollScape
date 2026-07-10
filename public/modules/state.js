@@ -145,3 +145,48 @@ const state = {
   /** @type {Record<string, number>} mangaId → total number of chapters (cached from last fetch) */
   chapterCountCache: {}
 };
+
+function getMangaKey(manga) {
+  if (!manga) return ':';
+  const sourceId = String(manga.sourceId || manga.source || '');
+  const mangaId = String(manga.id || manga.mangaId || '');
+  return `${sourceId}:${mangaId}`;
+}
+
+function isMangaInLibrary(manga, activeSourceId) {
+  if (!manga) return false;
+  const sourceId = String(manga.sourceId || manga.source || activeSourceId || '');
+  const mangaId = String(manga.id || manga.mangaId || '');
+  const targetKey = `${sourceId}:${mangaId}`;
+
+  const matchingFavorites = state.favorites.filter(fav => {
+    const favSourceId = String(fav.sourceId || fav.source || '');
+    const favMangaId = String(fav.id || fav.mangaId || '');
+
+    // Rule 1: strict match
+    if (favSourceId && `${favSourceId}:${favMangaId}` === targetKey) {
+       return true;
+    }
+    // Rule 4: If sourceId is missing from existing favorite, do not silently treat it as a match.
+    // Legacy id-only fallback is restricted.
+    return false;
+  });
+
+  const result = matchingFavorites.length > 0;
+  
+  if (window.SCROLLSCAPE_DEBUG_LIBRARY_MEMBERSHIP) {
+    console.log({
+      stage: "membership-check",
+      title: manga.title,
+      id: mangaId,
+      sourceId: sourceId,
+      mangaKey: targetKey,
+      favoritesCount: state.favorites.length,
+      matchingFavorites,
+      renderable: result,
+      filteredOutReason: result ? null : "Not in favorites"
+    });
+  }
+  return result;
+}
+

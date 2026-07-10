@@ -188,6 +188,23 @@ window.search = async function search(page = 1) {
       body: JSON.stringify({ query, page })
     });
     const rawResults = result.results || [];
+    
+    if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH && rawResults.length === 0 && query && query !== '*') {
+      console.log({
+        area: state.currentSourceId,
+        code: "NO_RESULTS",
+        errorLabel: `${state.currentSourceId} search returned no results for valid query`,
+        suggestedAction: "Check source site or try fallback.",
+        cooldownUntil: null,
+        retryAllowed: true,
+        query: query,
+        normalizedQuery: typeof _normalizeLookupTitle === 'function' ? _normalizeLookupTitle(query) : query,
+        endpoint: `/api/source/${state.currentSourceId}/search`,
+        status: "success",
+        responseShape: result
+      });
+    }
+    
     const blacklist = state.settings.genreBlacklist || [];
     const results = rawResults.filter(m => {
       if (state.settings.hideNsfw && isNsfwManga(m)) return false;
@@ -784,7 +801,7 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
     const storedCover = _getStoredMangaCover(result.id, state.currentSourceId);
     if (storedCover) result.cover = storedCover;
     state.currentManga = result;
-    const isFavorited = state.favorites.some(m => m.id === result.id && m.sourceId === state.currentSourceId);
+    const isFavorited = isMangaInLibrary(result, state.currentSourceId);
     const hasProgress = !!state.lastReadChapter?.[result.id];
 
     // Navigate with context
@@ -848,17 +865,57 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
     // Favorites toggle
     $("addFavBtn").onclick = async () => {
       try {
-        const res = await api("/api/favorites/toggle", {
-          method: "POST",
-          body: JSON.stringify({ mangaId: result.id, sourceId: state.currentSourceId, manga: result })
-        });
-        $("addFavBtn").textContent = res.isFavorite ? "Remove from Library" : "Add to Library";
-        state.favorites = res.favorites;
-        showToast(res.isFavorite ? "Added to Library" : "Removed from Library", result.title, res.isFavorite ? "success" : "info");
+        const mangaIdStr = String(result.id);
+        const sourceIdStr = String(state.currentSourceId);
+        
+        const safeManga = {
+          ...result,
+          id: mangaIdStr,
+          sourceId: sourceIdStr
+        };
+        
+        const favsBefore = state.favorites.length;
+        const isFavoritedBefore = isMangaInLibrary(safeManga, sourceIdStr);
+        const action = isFavoritedBefore ? "remove" : "add";
+        
+        if (action === "add") {
+          await api("/api/library/add", { method: "POST", body: JSON.stringify(safeManga) });
+        } else {
+          await api("/api/library/remove", { method: "POST", body: JSON.stringify(safeManga) });
+        }
+        
+        const libData = await api("/api/library");
+        state.favorites = Array.isArray(libData.favorites) ? libData.favorites : (Array.isArray(libData) ? libData : state.favorites);
+        
+        const saved = state.favorites.some(f => getMangaKey(f) === getMangaKey(safeManga));
+        if (action === "add" && !saved) {
+          throw new Error("Persistence verification failed.");
+        }
+        
+        $("addFavBtn").textContent = saved ? (t("context.remove") || "Remove from Library") : (t("manga.addToLibrary") || "Add to Library");
+        
+        if (window.SCROLLSCAPE_DEBUG_LIBRARY_MEMBERSHIP) {
+          console.log({
+            stage: "post-add-verify",
+            title: result.title,
+            id: mangaIdStr,
+            sourceId: sourceIdStr,
+            mangaKey: getMangaKey(safeManga),
+            persistenceResult: action,
+            favoritesCountBefore: favsBefore,
+            favoritesCountAfter: state.favorites.length,
+            savedObject: safeManga
+          });
+        }
+        
+        showToast(saved ? "Added to Library" : "Removed from Library", result.title, saved ? "success" : "info");
         renderLibrary();
         await updateStats();
         await checkAndUnlockAchievements();
-      } catch (e) { showToast("Error", e.message, "error"); }
+      } catch (e) {
+        console.error(e);
+        showToast("Error", "Could not update Library.", "error");
+      }
     };
 
     // Start reading (first chapter)

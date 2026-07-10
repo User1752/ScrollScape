@@ -36,14 +36,25 @@ function extractMangaId(href = '') {
   return m ? m[1] : '';
 }
 
-async function getHtml(url) {
-  const res = await fetch(url, {
-    headers: HEADERS,
-    redirect: 'follow',
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
-  });
-  if (!res.ok) throw new Error(`MangaPill fetch error: ${res.status} ${url}`);
-  return res.text();
+async function getHtml(url, maxRetries = 2) {
+  let lastErr;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: HEADERS,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+      });
+      if (!res.ok) throw new Error(`MangaPill fetch error: ${res.status} ${url}`);
+      return await res.text();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxRetries - 1) {
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 // ── Card parsers ─────────────────────────────────────────────────────────────

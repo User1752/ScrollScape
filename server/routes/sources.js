@@ -134,8 +134,10 @@ function registerSourceRoutes(router) {
 
     try {
       const result = await sourceDispatchService.dispatch({ id, method, body });
+      if (res.headersSent) return;
       res.json(result);
     } catch (e) {
+      if (res.headersSent) return;
       if (LIST_METHODS.has(method) && isTransientSourceError(e)) {
         return res.json({
           results: [],

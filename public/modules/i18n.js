@@ -74,6 +74,15 @@ const translations = {
     "library.planToRead": "Plan to Read",
     "library.onHold": "On Hold",
     "library.dropped": "Dropped",
+    "library.noMangaFound": "No manga found. Add favorites or import local files!",
+    "library.selectManga": "Select a manga",
+    "library.unknownTitle": "Unknown Title",
+    "library.local": "LOCAL",
+    "library.chapters": "Chapters:",
+    "library.read": "Read:",
+    "library.unread": "Unread:",
+    "library.rating": "Rating:",
+    "library.status": "Status:",
     
     // Library Customization
     "library.customizeCard": "Customize Library Card",
@@ -432,6 +441,15 @@ const translations = {
     "library.planToRead": "Quero Ler",
     "library.onHold": "Em Pausa",
     "library.dropped": "Abandonados",
+    "library.noMangaFound": "Nenhum mangá encontrado. Adiciona favoritos ou importa ficheiros locais!",
+    "library.selectManga": "Seleciona um mangá",
+    "library.unknownTitle": "Título Desconhecido",
+    "library.local": "LOCAL",
+    "library.chapters": "Capítulos:",
+    "library.read": "Lidos:",
+    "library.unread": "Por Ler:",
+    "library.rating": "Avaliação:",
+    "library.status": "Estado:",
     
     // Library Customization
     "library.customizeCard": "Personalizar Cartão",
