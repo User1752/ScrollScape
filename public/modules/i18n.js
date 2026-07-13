@@ -113,6 +113,22 @@ const translations = {
     "library.card.category": "Category",
     "library.card.categories": "Categories",
     
+    // Manga Spines
+    "library.spine.change": "Change Spine",
+    "library.spine.select": "Select spine",
+    "library.spine.current": "Current",
+    "library.spine.onlyOne": "Only one spine available",
+    "library.spine.none": "No custom spines available",
+    "library.spine.updated": "Spine updated",
+    "library.spine.mode": "Display mode",
+    "library.spine.auto": "Auto",
+    "library.spine.single": "Single spine",
+    "library.spine.strip": "Spine strip",
+    "library.spine.bookshelf": "Bookshelf",
+    "library.spine.useAll": "Use all available",
+    "library.spine.stripUpdated": "Spine strip updated",
+    "library.spine.bookshelfUpdated": "Bookshelf spine updated",
+    
     // Reader
     "reader.close": "Close",
     "reader.previous": "Previous",
@@ -479,6 +495,22 @@ const translations = {
     "library.card.changeCover": "Alterar capa",
     "library.card.category": "Categoria",
     "library.card.categories": "Categorias",
+    
+    // Manga Spines
+    "library.spine.change": "Alterar lombada",
+    "library.spine.select": "Selecionar lombada",
+    "library.spine.current": "Atual",
+    "library.spine.onlyOne": "Só existe uma lombada disponível",
+    "library.spine.none": "Não existem lombadas personalizadas disponíveis",
+    "library.spine.updated": "Lombada atualizada",
+    "library.spine.mode": "Modo de visualização",
+    "library.spine.auto": "Automático",
+    "library.spine.single": "Lombada única",
+    "library.spine.strip": "Faixa de lombadas",
+    "library.spine.bookshelf": "Estante",
+    "library.spine.useAll": "Usar todas as disponíveis",
+    "library.spine.stripUpdated": "Faixa de lombadas atualizada",
+    "library.spine.bookshelfUpdated": "Estante de lombadas atualizada",
     
     // Reader
     "reader.close": "Fechar",

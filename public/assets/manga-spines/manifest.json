@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "spines": {
+    "title:one-piece": [
+      {
+        "id": "one-piece-omnibus-001-003",
+        "label": "Omnibus Vol. 1–3",
+        "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-001-003.jpg",
+        "volumes": "1–3",
+        "isbn": "9781421536255",
+        "source": "SamJones04/MangaSpines",
+        "repositoryUrl": "https://github.com/SamJones04/MangaSpines",
+        "originalFilename": "One Piece - 1, 2, 3 - 9781421536255.jpg"
+      },
+      {
+        "id": "one-piece-omnibus-004-006",
+        "label": "Omnibus Vol. 4–6",
+        "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-004-006.jpg",
+        "volumes": "4–6",
+        "isbn": "9781421536262",
+        "source": "SamJones04/MangaSpines",
+        "repositoryUrl": "https://github.com/SamJones04/MangaSpines",
+        "originalFilename": "One Piece - 4, 5, 6 - 9781421536262.jpg"
+      },
+      {
+        "id": "one-piece-omnibus-007-009",
+        "label": "Omnibus Vol. 7–9",
+        "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-007-009.jpg",
+        "volumes": "7–9",
+        "isbn": "9781421536279",
+        "source": "SamJones04/MangaSpines",
+        "repositoryUrl": "https://github.com/SamJones04/MangaSpines",
+        "originalFilename": "One Piece - 7, 8, 9 - 9781421536279.jpg"
+      },
+      {
+        "id": "one-piece-omnibus-010-012",
+        "label": "Omnibus Vol. 10–12",
+        "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-010-012.jpg",
+        "volumes": "10–12",
+        "isbn": "9781421536286",
+        "source": "SamJones04/MangaSpines",
+        "repositoryUrl": "https://github.com/SamJones04/MangaSpines",
+        "originalFilename": "One Piece - 10, 11, 12 - 9781421536286.jpg"
+      },
+      {
+        "id": "one-piece-omnibus-013-015",
+        "label": "Omnibus Vol. 13–15",
+        "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-013-015.jpg",
+        "volumes": "13–15",
+        "isbn": "9781421554983",
+        "source": "SamJones04/MangaSpines",
+        "repositoryUrl": "https://github.com/SamJones04/MangaSpines",
+        "originalFilename": "One Piece - 13, 14, 15 - 9781421554983.jpg"
+      },
+      {
+        "id": "one-piece-omnibus-016-018",
+        "label": "Omnibus Vol. 16–18",
+        "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-016-018.jpg",
+        "volumes": "16–18",
+        "isbn": "9781441552983",
+        "source": "SamJones04/MangaSpines",
+        "repositoryUrl": "https://github.com/SamJones04/MangaSpines",
+        "originalFilename": "One Piece - 16, 17, 18 - 9781441552983.jpg"
+      }
+    ]
+  },
+  "bookshelves": {
+    "title:one-piece": {
+      "id": "one-piece-bookshelf",
+      "label": "One Piece Bookshelf",
+      "mode": "volume-strip",
+      "defaultDisplay": "auto",
+      "items": [
+        {
+          "id": "one-piece-omnibus-001-003",
+          "label": "Omnibus Vol. 1–3",
+          "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-001-003.jpg",
+          "volumes": "1–3",
+          "isbn": "9781421536255"
+        },
+        {
+          "id": "one-piece-omnibus-004-006",
+          "label": "Omnibus Vol. 4–6",
+          "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-004-006.jpg",
+          "volumes": "4–6",
+          "isbn": "9781421536262"
+        },
+        {
+          "id": "one-piece-omnibus-007-009",
+          "label": "Omnibus Vol. 7–9",
+          "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-007-009.jpg",
+          "volumes": "7–9",
+          "isbn": "9781421536279"
+        },
+        {
+          "id": "one-piece-omnibus-010-012",
+          "label": "Omnibus Vol. 10–12",
+          "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-010-012.jpg",
+          "volumes": "10–12",
+          "isbn": "9781421536286"
+        },
+        {
+          "id": "one-piece-omnibus-013-015",
+          "label": "Omnibus Vol. 13–15",
+          "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-013-015.jpg",
+          "volumes": "13–15",
+          "isbn": "9781421554983"
+        },
+        {
+          "id": "one-piece-omnibus-016-018",
+          "label": "Omnibus Vol. 16–18",
+          "src": "/assets/manga-spines/images/one-piece/one-piece-omnibus-016-018.jpg",
+          "volumes": "16–18",
+          "isbn": "9781441552983"
+        }
+      ]
+    }
+  }
+}
