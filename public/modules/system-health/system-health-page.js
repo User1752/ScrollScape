@@ -200,7 +200,33 @@
       }
       safeTextById('systemHealthLoadState', tr('systemHealth.copyErrorsSuccess', 'Errors copied to clipboard.'));
     } catch (err) {
-      safeTextById('systemHealthLoadState', `${tr('systemHealth.copyErrorsFailedPrefix', 'Failed to copy errors')}: ${err.message}`);
+      console.error(err);
+      safeTextById('systemHealthLoadState', tr('systemHealth.copyErrorsFailedPrefix', 'Failed to copy errors'));
+    }
+  }
+
+  function safeI18n(key, fallback) {
+    const value = typeof tr === 'function' ? tr(key, fallback) : key;
+    return value && value !== key ? value : fallback;
+  }
+
+  async function clearSourceErrors() {
+    if (!confirm(safeI18n('systemHealth.clearErrorsConfirm', 'Clear source logs? This will not remove your Library.'))) return;
+    
+    const btn = document.getElementById('systemHealthClearErrorsBtn');
+    if (btn) btn.disabled = true;
+    
+    try {
+      const res = await api('/api/health/source-errors', { method: 'DELETE' });
+      if (res.ok) {
+        if (typeof showToast === 'function') showToast(tr('systemHealth.clearErrorsSuccessTitle', 'Logs Cleared'), tr('systemHealth.clearErrorsSuccess', 'Source logs cleared.'), 'success');
+        await refreshHealth();
+      }
+    } catch (err) {
+      console.error(err);
+      if (typeof showToast === 'function') showToast(tr('systemHealth.clearErrorsFailedTitle', 'Error'), tr('systemHealth.clearErrorsFailedPrefix', 'Could not clear source logs.'), 'error');
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -367,11 +393,12 @@
       renderHealthMessages(healthData);
       safeTextById('systemHealthLoadState', tr('systemHealth.status.loaded', 'System health loaded.'));
     } catch (err) {
-      safeTextById('systemHealthLoadState', `${tr('systemHealth.error.loadHealthPrefix', 'Failed to load health status')}: ${err.message}`);
+      console.error(err);
+      safeTextById('systemHealthLoadState', tr('systemHealth.error.loadHealthPrefix', 'Failed to load health status'));
       safeHtmlById('systemHealthSourcesGrid', `<p class="sh-empty">${esc(tr('systemHealth.error.sourceData', 'Could not load source diagnostics.'))}</p>`);
       safeHtmlById('systemHealthSourceErrors', `<p class="sh-empty">${esc(tr('systemHealth.error.sourceErrors', 'Could not load source error history.'))}</p>`);
       safeHtmlById('systemHealthModulesGrid', `<p class=\"sh-empty\">${esc(tr('systemHealth.error.moduleData', 'Could not load module data.'))}</p>`);
-      safeHtmlById('systemHealthMessages', `<div class=\"sh-message sh-message-error\">${esc(err.message)}</div>`);
+      safeHtmlById('systemHealthMessages', `<div class=\"sh-message sh-message-error\">${esc(tr('systemHealth.error.loadHealthPrefix', 'Failed to load health status'))}</div>`);
     }
   }
 
@@ -413,8 +440,9 @@
         `${tr('systemHealth.status.smokeFinishedPrefix', 'Smoke test finished')}: ${titleStatus(combinedStatus)} (backend ${backendSmoke.summary?.pass || 0} ${tr('systemHealth.status.pass', 'Pass').toLowerCase()} / ${backendSmoke.summary?.warning || 0} ${tr('systemHealth.status.warning', 'Warning').toLowerCase()} / ${backendSmoke.summary?.fail || 0} ${tr('systemHealth.status.fail', 'Fail').toLowerCase()}; frontend ${frontendSmoke.summary.pass} ${tr('systemHealth.status.pass', 'Pass').toLowerCase()} / ${frontendSmoke.summary.warning} ${tr('systemHealth.status.warning', 'Warning').toLowerCase()} / ${frontendSmoke.summary.fail} ${tr('systemHealth.status.fail', 'Fail').toLowerCase()}).`
       );
     } catch (err) {
-      safeTextById('systemHealthLoadState', `${tr('systemHealth.error.smokeFailedPrefix', 'Smoke test failed')}: ${err.message}`);
-      safeHtmlById('systemHealthSmokeTableBody', `<tr><td colspan=\"5\">${esc(err.message)}</td></tr>`);
+      console.error(err);
+      safeTextById('systemHealthLoadState', tr('systemHealth.error.smokeFailedPrefix', 'Smoke test failed'));
+      safeHtmlById('systemHealthSmokeTableBody', `<tr><td colspan=\"5\">${esc(tr('systemHealth.error.smokeFailedPrefix', 'Smoke test failed'))}</td></tr>`);
     } finally {
       if (runBtn) {
         runBtn.disabled = false;
@@ -441,6 +469,15 @@
     if (copyErrorsBtn && !copyErrorsBtn.dataset.bound) {
       copyErrorsBtn.dataset.bound = '1';
       copyErrorsBtn.addEventListener('click', copyErrorsToClipboard);
+    }
+
+    const clearErrorsBtn = document.getElementById('systemHealthClearErrorsBtn');
+    if (clearErrorsBtn) {
+      clearErrorsBtn.textContent = safeI18n('systemHealth.clearErrorsBtn', 'Clear Logs');
+      if (!clearErrorsBtn.dataset.bound) {
+        clearErrorsBtn.dataset.bound = '1';
+        clearErrorsBtn.addEventListener('click', clearSourceErrors);
+      }
     }
   }
 

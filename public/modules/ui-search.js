@@ -167,6 +167,49 @@ function advSearchGoToPage(page) {
   advancedSearch(page);
 }
 
+function normalizeSourceSearchResult(raw, sourceId) {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const url = String(raw.url || raw.href || raw.sourceUrl || '').trim();
+
+  let id = String(
+    raw.id ||
+    raw.mangaId ||
+    raw.slug ||
+    ''
+  ).trim();
+
+  if (!id || id === 'undefined' || id === 'null') {
+    const match = url.match(/\/manga\/([^/?#]+)/i);
+    if (match) id = decodeURIComponent(match[1]);
+  }
+
+  const title = String(raw.title || raw.name || '').trim();
+
+  if (!id || id === 'undefined' || !title) {
+    if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH) {
+      console.warn('[ScrollScape] Dropping invalid search result', {
+        sourceId,
+        raw,
+        resolvedId: id,
+        title,
+        url
+      });
+    }
+    return null;
+  }
+
+  return {
+    ...raw,
+    id,
+    mangaId: id,
+    slug: String(raw.slug || id).trim(),
+    sourceId: String(raw.sourceId || raw.source || sourceId || '').trim(),
+    title,
+    url
+  };
+}
+
 // ── Main search ─────────────────────────────────────────────────────────────
 window.search = async function search(page = 1) {
   const query = $("searchInput").value.trim();
@@ -188,8 +231,11 @@ window.search = async function search(page = 1) {
       body: JSON.stringify({ query, page })
     });
     const rawResults = result.results || [];
+    const normalizedResults = rawResults
+      .map(m => normalizeSourceSearchResult(m, state.currentSourceId))
+      .filter(Boolean);
     
-    if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH && rawResults.length === 0 && query && query !== '*') {
+    if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH && normalizedResults.length === 0 && query && query !== '*') {
       console.log({
         area: state.currentSourceId,
         code: "NO_RESULTS",
@@ -198,15 +244,12 @@ window.search = async function search(page = 1) {
         cooldownUntil: null,
         retryAllowed: true,
         query: query,
-        normalizedQuery: typeof _normalizeLookupTitle === 'function' ? _normalizeLookupTitle(query) : query,
-        endpoint: `/api/source/${state.currentSourceId}/search`,
-        status: "success",
-        responseShape: result
+        rawResultsLength: rawResults.length
       });
     }
     
     const blacklist = state.settings.genreBlacklist || [];
-    const results = rawResults.filter(m => {
+    const results = normalizedResults.filter(m => {
       if (state.settings.hideNsfw && isNsfwManga(m)) return false;
       if (blacklist.length > 0 && Array.isArray(m.genres)) {
         const lowerGenres = m.genres.map(g => typeof g === 'string' ? g.toLowerCase() : '');
@@ -229,7 +272,7 @@ window.search = async function search(page = 1) {
       renderPagination("searchPagination", page, hasNextPage, "searchGoToPage");
     }
   } catch (e) {
-    $("searchStatus").textContent = `Error: ${e.message}`;
+    $("searchStatus").textContent = "Could not search manga.";
     const pg = $("searchPagination"); if (pg) pg.innerHTML = "";
   }
 }
@@ -309,8 +352,9 @@ async function switchToSourceSearch(sourceId, title) {
       method: "POST",
       body: JSON.stringify({ query: title, page: 1 })
     });
-    const results = result.results || [];
-    const chapterFiltered = await _filterMangaWithoutChapters(results, sourceId);
+    const rawResults = result.results || [];
+    const normalizedResults = typeof normalizeSourceSearchResult === 'function' ? rawResults.map(m => normalizeSourceSearchResult(m, sourceId)).filter(Boolean) : rawResults;
+    const chapterFiltered = await _filterMangaWithoutChapters(normalizedResults, sourceId);
     if (chapterFiltered.length === 0) {
       showToast("Not found", `"${title}" not found in ${state.installedSources[sourceId]?.name || sourceId}`, "info");
       return;
@@ -327,7 +371,7 @@ async function switchToSourceSearch(sourceId, title) {
     selectors.forEach(s => { if (s) s.value = sourceId; });
     loadMangaDetails(chapterFiltered[0].id);
   } catch (e) {
-    showToast("Error", e.message, "error");
+    showToast("Error", "Could not load manga details.", "error");
   }
 }
 
@@ -367,7 +411,9 @@ async function _resolveMangaByTitleAcrossSources(title, excludeSourceId) {
         method: 'POST',
         body: JSON.stringify({ query: wanted, page: 1 }),
       });
-      for (const c of (r?.results || []).slice(0, 8)) {
+      const rawResults = r?.results || [];
+      const normResults = typeof normalizeSourceSearchResult === 'function' ? rawResults.map(m => normalizeSourceSearchResult(m, sid)).filter(Boolean) : rawResults;
+      for (const c of normResults.slice(0, 8)) {
         if (!c?.id) continue;
         const sim = _titleScore(wanted, c.title || '');
         if (sim < 0.55) continue;
@@ -391,8 +437,10 @@ async function _resolveMangaInSourceByTitle(sourceId, title) {
     body: JSON.stringify({ query: wanted, page: 1 }),
   });
 
+  const rawResults = r?.results || [];
+  const normResults = typeof normalizeSourceSearchResult === 'function' ? rawResults.map(m => normalizeSourceSearchResult(m, sourceId)).filter(Boolean) : rawResults;
   let best = null;
-  for (const c of (r?.results || []).slice(0, 10)) {
+  for (const c of normResults.slice(0, 10)) {
     if (!c?.id) continue;
     const sim = _titleScore(wanted, c.title || '');
     if (sim < 0.6) continue;
@@ -656,7 +704,7 @@ function openMangaCoverPicker(manga, options = {}) {
       closePicker();
       showToast('Cover updated', 'Saved to your library data.', 'success');
     } catch (e) {
-      showToast('Cover error', e.message, 'error');
+      showToast('Cover error', 'Could not search covers.', 'error');
     }
   };
 
@@ -736,7 +784,7 @@ function openMangaCoverPicker(manga, options = {}) {
       pickerState.hasNextPage = false;
       gridEl.classList.remove('muted');
       gridEl.innerHTML = '<p class="muted">Could not load cover search results.</p>';
-      metaEl.textContent = e.message || 'Cover search failed.';
+      metaEl.textContent = 'Cover search failed.';
     } finally {
       pickerState.loading = false;
       updateLoadMoreVisibility();
@@ -768,7 +816,69 @@ function openMangaCoverPicker(manga, options = {}) {
 
 window.openMangaCoverPicker = openMangaCoverPicker;
 
-async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = "", skipFallback = false, forcedSourceId = "") {
+function normalizeLibraryMangaPayload(manga, activeSourceId) {
+  const sourceId = String(
+    manga?.sourceId ||
+    manga?.source ||
+    activeSourceId ||
+    ''
+  ).trim();
+
+  const url = String(manga?.url || manga?.href || manga?.sourceUrl || '').trim();
+
+  let id = String(
+    manga?.id ||
+    manga?.mangaId ||
+    manga?.slug ||
+    ''
+  ).trim();
+
+  if (id === 'undefined') id = '';
+
+  if (!id && url) {
+    const match = url.match(/\/manga\/([^/?#]+)/i);
+    if (match) id = decodeURIComponent(match[1]);
+  }
+
+  const title = String(manga?.title || manga?.name || '').trim();
+
+  return {
+    ...manga,
+    id,
+    mangaId: id,
+    slug: String(manga?.slug || id).trim(),
+    sourceId,
+    title,
+    cover: manga?.cover || manga?.image || manga?.coverUrl || '',
+    url
+  };
+}
+
+function buildLibraryPayload(manga, activeSourceId) {
+  const normalized = normalizeLibraryMangaPayload(manga, activeSourceId);
+  if (!normalized.id || !normalized.sourceId || !normalized.title) {
+    return null;
+  }
+  return normalized;
+}
+
+async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle = "", skipFallback = false, forcedSourceId = "") {
+  // Normalize mangaId if needed
+  let mangaId = String(rawMangaId || '').trim();
+  if (mangaId === 'undefined') mangaId = '';
+
+  if (!mangaId) {
+    if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH) {
+      console.log({
+        source: 'manga-details-error',
+        message: 'Refusing to load details for undefined mangaId',
+        rawMangaId
+      });
+    }
+    showToast('Error', 'Cannot load details: Manga ID is missing', 'error');
+    return;
+  }
+
   if (forcedSourceId && forcedSourceId !== state.currentSourceId) {
     state.currentSourceId = forcedSourceId;
     try { renderSourceSelect(); } catch (_) {}
@@ -865,29 +975,67 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
     // Favorites toggle
     $("addFavBtn").onclick = async () => {
       try {
-        const mangaIdStr = String(result.id);
-        const sourceIdStr = String(state.currentSourceId);
-        
-        const safeManga = {
-          ...result,
-          id: mangaIdStr,
-          sourceId: sourceIdStr
-        };
-        
+        const safeManga = buildLibraryPayload(result, state.currentSourceId);
+
+        if (!safeManga) {
+          showToast("Error", "Could not update Library.", "error");
+          if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+            console.log({
+              source: "library-update-error",
+              action: "add/remove",
+              endpoint: "unknown",
+              errorName: "Validation Error",
+              errorMessage: "Invalid library payload: missing id, sourceId, or title after normalization",
+              payload: result
+            });
+          }
+          return;
+        }
+
+        const mangaIdStr = safeManga.id;
+        const sourceIdStr = safeManga.sourceId;
+        const mangaKey = getMangaKey(safeManga);
         const favsBefore = state.favorites.length;
         const isFavoritedBefore = isMangaInLibrary(safeManga, sourceIdStr);
         const action = isFavoritedBefore ? "remove" : "add";
+        const endpoint = action === "add" ? "/api/library/add" : "/api/library/remove";
         
-        if (action === "add") {
-          await api("/api/library/add", { method: "POST", body: JSON.stringify(safeManga) });
-        } else {
-          await api("/api/library/remove", { method: "POST", body: JSON.stringify(safeManga) });
+        if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+          console.log({
+            source: "library-update-attempt",
+            action: action,
+            title: safeManga.title,
+            id: safeManga.id,
+            sourceId: safeManga.sourceId,
+            mangaKey: mangaKey,
+            payload: safeManga,
+            endpoint: endpoint
+          });
         }
         
-        const libData = await api("/api/library");
-        state.favorites = Array.isArray(libData.favorites) ? libData.favorites : (Array.isArray(libData) ? libData : state.favorites);
+        let res;
+        let success = false;
+        if (action === "add") {
+          success = await ensureMangaInLibrary(safeManga, sourceIdStr);
+          if (!success) throw new Error("Persistence verification failed.");
+        } else {
+          res = await ensureMangaNotInLibrary(safeManga.id, sourceIdStr);
+          success = true;
+        }
+
+        if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+          console.log({
+            source: "library-update-response",
+            action,
+            endpoint,
+            status: 200,
+            ok: success,
+            favoritesCountBefore: favsBefore,
+            favoritesCountAfter: state.favorites.length
+          });
+        }
         
-        const saved = state.favorites.some(f => getMangaKey(f) === getMangaKey(safeManga));
+        const saved = state.favorites.some(f => getMangaKey(f) === mangaKey);
         if (action === "add" && !saved) {
           throw new Error("Persistence verification failed.");
         }
@@ -900,7 +1048,7 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
             title: result.title,
             id: mangaIdStr,
             sourceId: sourceIdStr,
-            mangaKey: getMangaKey(safeManga),
+            mangaKey: mangaKey,
             persistenceResult: action,
             favoritesCountBefore: favsBefore,
             favoritesCountAfter: state.favorites.length,
@@ -913,6 +1061,17 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
         await updateStats();
         await checkAndUnlockAchievements();
       } catch (e) {
+        if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+          const action = isMangaInLibrary(result, state.currentSourceId) ? "remove" : "add";
+          console.log({
+            source: "library-update-error",
+            action: action,
+            endpoint: action === "add" ? "/api/library/add" : "/api/library/remove",
+            errorName: e.name || "Error",
+            errorMessage: e.message,
+            payload: result
+          });
+        }
         console.error(e);
         showToast("Error", "Could not update Library.", "error");
       }
@@ -952,7 +1111,7 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
           } else {
             showToast("Chapter not found", "It may have been removed.", "error");
           }
-        } catch (e) { showToast("Error", e.message, "error"); }
+        } catch (e) { showToast("Error", "Could not load source details.", "error"); }
       };
     }
 
@@ -1069,8 +1228,8 @@ async function loadMangaDetails(mangaId, fromView = "discover", fallbackTitle = 
       }
     }
 
-    $("searchStatus").textContent = `Error: ${e.message}`;
-    showToast("Error", e.message, "error");
+    $("searchStatus").textContent = "Could not load manga details.";
+    showToast("Error", "Could not load manga details.", "error");
   }
 }
 
@@ -1120,7 +1279,7 @@ function renderDetailRating(mangaId) {
         }
         renderDetailRating(mangaId);
         renderLibrary();
-      } catch (e) { showToast("Error", e.message, "error"); }
+      } catch (e) { showToast("Error", "Could not process rating.", "error"); }
     };
   });
   const clearBtn = wrap.querySelector(".detail-rating-clear");
@@ -1131,7 +1290,7 @@ function renderDetailRating(mangaId) {
         delete state.ratings[ratingKey];
         renderDetailRating(mangaId);
         renderLibrary();
-      } catch (e) { showToast("Error", e.message, "error"); }
+      } catch (e) { showToast("Error", "Could not clear rating.", "error"); }
     };
   }
 }

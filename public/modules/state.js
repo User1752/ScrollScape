@@ -49,7 +49,7 @@ const state = {
     readingMode: "ltr",   // "ltr" | "rtl" | "webtoon"
     libraryDefaultStatusFilter: "all",
     libraryBookshelf3d: false,
-    libraryBookshelfTheme: 'classic',
+    bookshelfStripeUseSourceColor: false,
     skipReadChapters: false,
     skipDuplicates: true,
     panWideImages: false,
@@ -189,4 +189,147 @@ function isMangaInLibrary(manga, activeSourceId) {
   }
   return result;
 }
+
+function isBadIdentityValue(value) {
+  const s = String(value ?? '').trim().toLowerCase();
+  return !s || s === 'undefined' || s === 'null' || s === '[object object]';
+}
+
+function normalizeLibraryPayload(manga, fallbackSourceId) {
+  if (!manga || typeof manga !== 'object') return null;
+
+  const url = String(manga.url || manga.href || manga.sourceUrl || '').trim();
+
+  let id = String(
+    manga.id ||
+    manga.mangaId ||
+    manga.slug ||
+    ''
+  ).trim();
+
+  if (isBadIdentityValue(id) && url) {
+    const match = url.match(/\/manga\/([^/?#]+)/i);
+    if (match) id = decodeURIComponent(match[1]);
+  }
+
+  const sourceId = String(
+    manga.sourceId ||
+    manga.source ||
+    fallbackSourceId ||
+    ''
+  ).trim();
+
+  const title = String(manga.title || manga.name || '').trim();
+
+  if (
+    isBadIdentityValue(id) ||
+    isBadIdentityValue(sourceId) ||
+    isBadIdentityValue(title)
+  ) {
+    return null;
+  }
+
+  return {
+    ...manga,
+    id,
+    mangaId: id,
+    slug: String(manga.slug || id).trim(),
+    sourceId,
+    title,
+    cover: manga.cover || manga.image || manga.coverUrl || '',
+    url
+  };
+}
+
+async function ensureMangaInLibrary(manga, fallbackSourceId) {
+  const payload = normalizeLibraryPayload(manga, fallbackSourceId);
+
+  if (!payload) {
+    if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+      console.warn({ stage: "add-request-error", errorName: "ValidationError", errorMessage: "Invalid payload", payload });
+    }
+    showToast("Error", "Could not update Library.", "error");
+    return false;
+  }
+
+  const key = getMangaKey(payload);
+
+  if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+    console.log({
+      stage: "before-add-request",
+      title: payload.title,
+      id: payload.id,
+      mangaId: payload.mangaId,
+      slug: payload.slug,
+      sourceId: payload.sourceId,
+      url: payload.url,
+      mangaKey: key,
+      payload,
+      endpoint: "/api/library/add",
+      currentSourceId: state.currentSourceId
+    });
+  }
+
+  if (isMangaInLibrary(payload)) {
+    return true;
+  }
+
+  try {
+    const response = await fetch("/api/library/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mangaId: payload.mangaId, sourceId: payload.sourceId, manga: payload })
+    });
+    
+    const responseBody = await response.json();
+    const favoritesCountBefore = state.favorites.length;
+
+    if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+      console.log({
+        stage: "after-add-response",
+        endpoint: "/api/library/add",
+        status: response.status,
+        ok: response.ok,
+        responseBody,
+        favoritesCountBefore
+      });
+    }
+
+    if (!response.ok || !responseBody.ok) {
+      throw new Error(responseBody.error || "Backend rejected payload");
+    }
+
+    const libData = await api("/api/library");
+    state.favorites = Array.isArray(libData.favorites) ? libData.favorites : (Array.isArray(libData) ? libData : state.favorites);
+
+    const saved = state.favorites.some(f => getMangaKey(f) === key);
+    
+    if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+      console.log({ stage: "after-add-verification", saved, favoritesCountAfter: state.favorites.length });
+    }
+
+    if (!saved) {
+      showToast("Error", "Could not update Library.", "error");
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    if (window.SCROLLSCAPE_DEBUG_LIBRARY_UPDATE) {
+      console.error({ stage: "add-request-error", endpoint: "/api/library/add", payload, errorName: e.name, errorMessage: e.message });
+    }
+    showToast("Error", "Could not update Library.", "error");
+    return false;
+  }
+}
+
+async function ensureMangaNotInLibrary(mangaId, sourceId) {
+  const mangaIdStr = String(mangaId);
+  const sourceIdStr = String(sourceId || state.currentSourceId);
+  const res = await api("/api/library/remove", { method: "POST", body: JSON.stringify({ mangaId: mangaIdStr, sourceId: sourceIdStr }) });
+  const libData = await api("/api/library");
+  state.favorites = Array.isArray(libData.favorites) ? libData.favorites : (Array.isArray(libData) ? libData : state.favorites);
+  return res;
+}
+
 

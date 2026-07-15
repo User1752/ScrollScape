@@ -32,8 +32,26 @@ function normCover(raw) {
 }
 
 function extractMangaId(href = '') {
-  const m = String(href).match(/^\/manga\/([^\/?#]+)/i);
-  return m ? m[1] : '';
+  const m = String(href).match(/(?:\/manga\/|https?:\/\/(?:[^/]+)\/manga\/)([^/?#]+)/i);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function normMangaUrl(href = '') {
+  const s = String(href || '').trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  return `${BASE}${s.startsWith('/') ? s : `/${s}`}`;
+}
+
+function isMangaPillChapterHref(href = '') {
+  const s = String(href || '').trim();
+  return s.startsWith('/chapters/') || /https?:\/\/[^/]+\/chapters\//i.test(s);
+}
+
+function extractChapterId(href = '') {
+  const s = String(href || '').trim();
+  const match = s.match(/\/chapters\/([^/?#]+)/i);
+  return match ? decodeURIComponent(match[1]) : '';
 }
 
 async function getHtml(url, maxRetries = 2) {
@@ -67,7 +85,7 @@ function parseSearchCards($) {
     const img   = $(el).find('img');
     const titleEl = $(el).find('a').last().find('div').first();
     const href  = a.attr('href') || '';
-    if (!href.startsWith('/manga/')) return;
+    if (!href.includes('/manga/')) return;
     const id    = extractMangaId(href);
     if (!id) return;
     const raw   = img.attr('data-src') || img.attr('src') || '';
@@ -80,7 +98,7 @@ function parseSearchCards($) {
       if (t) genres.push(t);
     });
 
-    results.push({ id, title, cover: normCover(raw), url: BASE + href, genres, status: 'unknown', author: '' });
+    results.push({ id, title, cover: normCover(raw), url: normMangaUrl(href), genres, status: 'unknown', author: '' });
   });
   return results;
 }
@@ -90,7 +108,7 @@ function parseChapterCards($) {
   const results = [];
   $('.grid > div:not([class])').each((_, el) => {
     const imgEl   = $(el).find('img');
-    const mangaA  = $(el).find('a[href^="/manga/"]').first();
+    const mangaA  = $(el).find('a').filter((_, a) => ($(a).attr('href') || '').includes('/manga/')).first();
     const titleEl = $(el).find('a:not(:first-child) > div').first();
     const href    = mangaA.attr('href') || '';
     if (!href) return;
@@ -98,7 +116,7 @@ function parseChapterCards($) {
     if (!id) return;
     const raw   = imgEl.attr('data-src') || imgEl.attr('src') || '';
     const title = titleEl.text().trim() || mangaA.text().trim();
-    results.push({ id, title, cover: normCover(raw), url: BASE + href, genres: [], status: 'unknown', author: '' });
+    results.push({ id, title, cover: normCover(raw), url: normMangaUrl(href), genres: [], status: 'unknown', author: '' });
   });
   return results;
 }
@@ -124,9 +142,9 @@ function parseHomeTrendingCards($, limit = 20) {
   const seen = new Set();
 
   grid.children('div').each((_, card) => {
-    const mangaA = $(card).find('a[href^="/manga/"]').first();
+    const mangaA = $(card).find('a').filter((_, a) => ($(a).attr('href') || '').includes('/manga/')).first();
     const href = mangaA.attr('href') || '';
-    if (!href.startsWith('/manga/')) return;
+    if (!href.includes('/manga/')) return;
 
     const id = extractMangaId(href);
     if (!id || seen.has(id)) return;
@@ -141,7 +159,7 @@ function parseHomeTrendingCards($, limit = 20) {
       id,
       title,
       cover: normCover(raw),
-      url: BASE + href,
+      url: normMangaUrl(href),
       genres: [],
       status,
       author: ''
@@ -381,14 +399,14 @@ module.exports = {
     const chapters = [];
     $('#chapters div a').each((_, el) => {
       const href = $(el).attr('href') || '';
-      if (!href.startsWith('/chapters/')) return;
+      if (!isMangaPillChapterHref(href)) return;
       const name = $(el).text().trim();
       chapters.push({
-        id: href.replace('/chapters/', ''),
+        id: extractChapterId(href),
         name,
         title: name,
         chapter: name,
-        url: BASE + href,
+        url: normMangaUrl(href),
         publishAt: null,
         pages: []
       });

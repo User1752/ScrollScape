@@ -138,15 +138,46 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
     return { favorites: store.favorites || [], history: store.history || [], coverOverrides: store.coverOverrides || {} };
   }
 
+  function isBadIdentityValue(value) {
+    const s = String(value ?? '').trim().toLowerCase();
+    return !s || s === 'undefined' || s === 'null' || s === '[object object]';
+  }
+
   async function addToLibrary({ mangaId, sourceId, manga } = {}) {
+    const missing = [];
+    if (isBadIdentityValue(mangaId)) missing.push('id');
+    if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+    if (!manga || isBadIdentityValue(manga.title || manga.name)) missing.push('title');
+
+    if (missing.length > 0) {
+      const err = new Error('Invalid library payload');
+      err.statusCode = 400;
+      err.code = 'INVALID_LIBRARY_PAYLOAD';
+      err.details = { missing };
+      throw err;
+    }
+
     const store = await readStore();
-    const safeEntry = applyCoverOverride(store, { ...safeManga(manga), sourceId, addedAt: new Date().toISOString() }, sourceId);
-    const existing = store.favorites.findIndex(m => m.id === mangaId && m.sourceId === sourceId);
+    
+    const safeEntry = {
+      ...safeManga(manga),
+      id: String(mangaId),
+      mangaId: String(mangaId),
+      sourceId: String(sourceId),
+      title: String(manga.title || manga.name || '').trim(),
+      addedAt: new Date().toISOString()
+    };
+    
+    const finalEntry = applyCoverOverride(store, safeEntry, sourceId);
+
+    const existing = store.favorites.findIndex(m => 
+      String(m.id) === String(mangaId) && String(m.sourceId || '') === String(sourceId || '')
+    );
 
     if (existing >= 0) {
-      store.favorites[existing] = safeEntry;
+      store.favorites[existing] = finalEntry;
     } else {
-      store.favorites.push(safeEntry);
+      store.favorites.push(finalEntry);
     }
 
     await writeStore(store);
@@ -154,8 +185,22 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
   }
 
   async function removeFromLibrary({ mangaId, sourceId } = {}) {
+    const missing = [];
+    if (isBadIdentityValue(mangaId)) missing.push('id');
+    if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+    
+    if (missing.length > 0) {
+      const err = new Error('Invalid library payload');
+      err.statusCode = 400;
+      err.code = 'INVALID_LIBRARY_PAYLOAD';
+      err.details = { missing };
+      throw err;
+    }
+
     const store = await readStore();
-    store.favorites = store.favorites.filter(m => !(m.id === mangaId && m.sourceId === sourceId));
+    store.favorites = store.favorites.filter(m => 
+      !(String(m.id) === String(mangaId) && String(m.sourceId || '') === String(sourceId || ''))
+    );
     await writeStore(store);
     return { ok: true, favorites: store.favorites, coverOverrides: store.coverOverrides || {} };
   }
@@ -163,9 +208,15 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
   async function updateLibraryCover({ mangaId, sourceId, cover } = {}) {
     const nextCover = String(cover || '').trim().slice(0, 2000);
 
-    if (!mangaId || !sourceId) {
+    const missing = [];
+    if (isBadIdentityValue(mangaId)) missing.push('id');
+    if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+    
+    if (missing.length > 0) {
       const err = new Error('mangaId and sourceId required');
       err.statusCode = 400;
+      err.code = 'INVALID_LIBRARY_PAYLOAD';
+      err.details = { missing };
       throw err;
     }
     if (!isAllowedCoverUrl(nextCover)) {

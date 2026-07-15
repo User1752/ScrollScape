@@ -272,7 +272,9 @@ async function advancedSearch(page = 1) {
           body: JSON.stringify({ query: query || "", page, orderBy, publicationStatus, contentRating, format })
         });
       }
-      const results = await _filterMangaWithoutChapters(result.results || [], state.currentSourceId);
+      const rawResults = result.results || [];
+      const normalizedResults = typeof normalizeSourceSearchResult === 'function' ? rawResults.map(m => normalizeSourceSearchResult(m, state.currentSourceId)).filter(Boolean) : rawResults;
+      const results = await _filterMangaWithoutChapters(normalizedResults, state.currentSourceId);
       const hasNextPage = result.hasNextPage || false;
       state.advSearchHasNextPage = hasNextPage;
       const resultsDiv = $("advancedResults");
@@ -286,7 +288,7 @@ async function advancedSearch(page = 1) {
       $("advancedSearchStatus").textContent = `${results.length} result(s) found — Page ${page}`;
       renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
     } catch (e) {
-      $("advancedSearchStatus").textContent = `Error: ${e.message}`;
+      $("advancedSearchStatus").textContent = "Could not search manga.";
       renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
     }
     return;
@@ -323,7 +325,9 @@ async function advancedSearch(page = 1) {
         });
         acc.hasMore = result.hasNextPage || false;
       }
-      const filteredBatch = _applyAdvFilters(result.results || [], query, selectedGenres, publicationStatus, contentRating, format);
+      const rawResults = result.results || [];
+      const normalizedResults = typeof normalizeSourceSearchResult === 'function' ? rawResults.map(m => normalizeSourceSearchResult(m, state.currentSourceId)).filter(Boolean) : rawResults;
+      const filteredBatch = _applyAdvFilters(normalizedResults, query, selectedGenres, publicationStatus, contentRating, format);
       const batch = await _filterMangaWithoutChapters(filteredBatch, state.currentSourceId);
       acc.results.push(...batch);
     } catch (e) {
@@ -333,7 +337,7 @@ async function advancedSearch(page = 1) {
   }
 
   if (fetchError && acc.results.length === 0) {
-    $("advancedSearchStatus").textContent = `Error: ${fetchError.message}`;
+    $("advancedSearchStatus").textContent = "Could not search manga.";
     renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
     return;
   }
@@ -403,7 +407,7 @@ async function randomManga(options = {}) {
   } catch (e) {
     state.currentSourceId = prevSource;
     state._fromRandom = false;
-    if (statusEl) statusEl.textContent = `Error: ${e.message}`;
+    if (statusEl) statusEl.textContent = "Could not load manga details.";
   }
 }
 

@@ -160,3 +160,40 @@
   margin: 0;
   color: var(--color-text-muted);
 }
+
+.system-health-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.system-health-clear-errors-btn {
+  border: 1px solid rgba(255, 88, 88, 0.45);
+  background: rgba(120, 32, 32, 0.72);
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1;
+  min-height: 40px;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.system-health-clear-errors-btn:hover {
+  background: rgba(150, 42, 42, 0.88);
+  border-color: rgba(255, 110, 110, 0.7);
+  transform: translateY(-1px);
+}
+
+.system-health-clear-errors-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}

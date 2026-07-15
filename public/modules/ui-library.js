@@ -445,9 +445,68 @@ function getStableSpineColor(manga) {
   return color;
 }
 
+// ── Spine Width Helpers ───────────────────────────────────────────────────────
+
+/**
+ * Safely parse a chapter value that may be a number, "123", "Ch.45", etc.
+ * Returns 0 if the value cannot be interpreted as a positive finite number.
+ */
+function parseChapterNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  const s = String(value ?? '').trim();
+  if (!s) return 0;
+  const match = s.match(/(\d+(?:\.\d+)?)/);
+  return match ? Number(match[1]) : 0;
+}
+
+/**
+ * Extract the most reliable chapter count from manga metadata.
+ * Checks multiple property names used by different sources.
+ */
+function getMangaChapterCount(manga) {
+  const directCandidates = [
+    manga?.chapterCount,
+    manga?.chaptersCount,
+    manga?.totalChapters,
+    manga?.latestChapter,
+    manga?.latestChapterNumber,
+    manga?.lastChapter
+  ];
+  for (const val of directCandidates) {
+    const n = parseChapterNumber(val);
+    if (n > 0) return n;
+  }
+  if (Array.isArray(manga?.chapters) && manga.chapters.length > 0) {
+    return manga.chapters.length;
+  }
+  return 0;
+}
+
+/**
+ * Map chapter count → spine width in pixels.
+ * Long-running manga (Ippo ~1500 ch, One Piece ~1000 ch) get wider spines.
+ * Width is clamped to 34–96 px.
+ */
+function getBookshelfSpineWidth(manga, cachedCount) {
+  // Prefer live manga metadata; fall back to cached chapter count from state.
+  let chapters = getMangaChapterCount(manga);
+  if (chapters === 0 && cachedCount > 0) chapters = cachedCount;
+
+  if (chapters >= 1400) return 92;
+  if (chapters >= 1000) return 84;
+  if (chapters >= 700)  return 76;
+  if (chapters >= 400)  return 68;
+  if (chapters >= 200)  return 58;
+  if (chapters >= 100)  return 50;
+  if (chapters >= 40)   return 44;
+  return 38;
+}
+
+
 function normalizeLibraryId(value) {
   return String(value ?? '');
 }
+
 
 function resolveLibraryManga({ mangaId, sourceId, title, allowLocal = true }) {
   const normMangaId = normalizeLibraryId(mangaId);
@@ -804,14 +863,25 @@ function _sortLibrary(favs) {
       try {
         const savedOrder = JSON.parse(localStorage.getItem('bookshelfCustomOrder'));
         if (savedOrder && Array.isArray(savedOrder) && savedOrder.length > 0) {
-          const orderMap = new Map(savedOrder.map((key, i) => [key, i]));
-          return [...favs].sort((a, b) => {
-            const keyA = `${a.id}:${a.sourceId || ''}`;
-            const keyB = `${b.id}:${b.sourceId || ''}`;
-            const posA = orderMap.has(keyA) ? orderMap.get(keyA) : Infinity;
-            const posB = orderMap.has(keyB) ? orderMap.get(keyB) : Infinity;
-            return posA - posB;
-          });
+          const byKey = new Map(favs.map(m => [`${m.id}:${m.sourceId || ''}`, m]));
+          const used = new Set();
+          const ordered = [];
+          
+          for (const key of savedOrder) {
+            const manga = byKey.get(key);
+            if (manga) {
+              ordered.push(manga);
+              used.add(key);
+            }
+          }
+          
+          for (const manga of favs) {
+            const key = `${manga.id}:${manga.sourceId || ''}`;
+            if (!used.has(key)) {
+              ordered.push(manga);
+            }
+          }
+          return ordered;
         }
       } catch(e) {}
       return favs;
@@ -845,40 +915,6 @@ function resolveSyntheticSpineData(manga, sourceId = '') {
   };
 }
 
-function _bookshelfCardStyle(manga, theme = 'classic') {
-  const mangaId = manga.id || manga.mangaId;
-  const sourceId = manga.sourceId || manga.source || 'local';
-  const seedStr = `${String(mangaId || '')}:${String(sourceId || '')}`;
-  let seed = 0;
-  for (let i = 0; i < seedStr.length; i += 1) {
-    seed = (seed * 31 + seedStr.charCodeAt(i)) % 9973;
-  }
-  const classicTilt = ((seed % 9) - 4) * 0.7;
-  const stripeTilt = ((seed % 17) - 8) * 1.05;
-  const tilt = theme === 'stripe-press' ? stripeTilt : classicTilt;
-  let depth = (theme === 'stripe-press' ? 11 : 10) + (seed % 5);
-  if (theme === 'stripe-press') {
-    const chapterCountRaw = Number(state.chapterCountCache?.[mangaId]);
-    if (Number.isFinite(chapterCountRaw) && chapterCountRaw > 0) {
-      const clampedCount = Math.min(900, Math.max(1, chapterCountRaw));
-      const normalized = Math.log10(clampedCount + 1) / Math.log10(901);
-      depth = Math.round(14 + normalized * 16);
-    } else {
-      depth = 14 + (seed % 17);
-    }
-  }
-  const float = ((seed % 6) * 0.9).toFixed(2);
-  const phase = (seed % 7) * 0.26;
-  const hue = 20 + (seed % 24);
-  const shadowStrength = (0.24 + ((seed % 7) * 0.03)).toFixed(2);
-  const pitch = (((seed % 9) - 4) * 0.36).toFixed(2);
-  const roll = (((seed % 11) - 5) * 0.26).toFixed(2);
-  const scale = (0.985 + (seed % 5) * 0.009).toFixed(3);
-  const pull = (12 + (seed % 10)).toFixed(2);
-  const spineAccent = `hsl(${18 + (seed % 24)} 68% 56%)`;
-  const spineColor = getStableSpineColor(manga);
-  return ` style="--book-tilt:${tilt.toFixed(2)}deg;--book-depth:${depth}px;--book-float:${float}px;--book-phase:${phase.toFixed(2)}s;--book-spine-color:${spineColor};--book-shadow-strength:${shadowStrength};--book-pitch:${pitch}deg;--book-roll:${roll}deg;--book-scale:${scale};--book-pull:${pull}px;--book-spine-accent:${spineAccent}"`;
-}
 
 function cycleLibrarySort() {
   const idx = LIBRARY_SORT_MODES.findIndex(m => m.key === _libSortMode);
@@ -889,16 +925,8 @@ function renderLibrary() {
   const grid = $("library");
   if (!grid) return;
   const bookshelf3dEnabled = state.settings.libraryBookshelf3d === true;
-  const VALID_SHELF_THEMES = ['stripe-press', 'bookshelf-2-5d'];
-  const bookshelfTheme = VALID_SHELF_THEMES.includes(state.settings.libraryBookshelfTheme)
-    ? state.settings.libraryBookshelfTheme
-    : 'classic';
-  const isStripeShelf   = bookshelf3dEnabled && bookshelfTheme === 'stripe-press';
-  const isBookshelf25d  = bookshelf3dEnabled && bookshelfTheme === 'bookshelf-2-5d';
-  grid.classList.toggle('library-grid-bookshelf',        bookshelf3dEnabled);
-  grid.classList.toggle('library-grid-bookshelf-stripe', isStripeShelf);
-  grid.classList.toggle('library-grid-bookshelf-25d',    isBookshelf25d);
-  grid.classList.toggle('interactive-manga-shelf',       isStripeShelf);
+  const isBookshelf25d  = bookshelf3dEnabled;
+  grid.classList.toggle('library-grid-bookshelf-25d', isBookshelf25d);
 
   // === Display Mode & Grid Columns ===
   const displayMode = state.settings.displayMode || 'detailed';
@@ -912,9 +940,7 @@ function renderLibrary() {
   } else {
     grid.classList.add('library-grid-detailed');
   }
-  if (isStripeShelf) {
-    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(18px, 28px))';
-  } else if (isBookshelf25d) {
+  if (isBookshelf25d) {
     grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(32px, 58px))';
   } else {
     grid.style.gridTemplateColumns = `repeat(${mangasPerRow}, minmax(0, 1fr))`;
@@ -1002,10 +1028,70 @@ function renderLibrary() {
     }
   }
 
+  function normalizeLibraryManga(raw, index) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+    const id = String(raw.id || raw.mangaId || '').trim();
+    const sourceId = String(raw.sourceId || raw.source || '').trim();
+    const title = String(raw.title || raw.name || '').trim();
+
+    if (!id || !title) {
+      return null;
+    }
+
+    return {
+      ...raw,
+      id,
+      sourceId,
+      title,
+      cover: raw.cover || raw.image || raw.coverUrl || '',
+      status: raw.status || 'reading'
+    };
+  }
+
+  function isValidLibraryManga(manga) {
+    return !!(
+      manga &&
+      typeof manga === 'object' &&
+      String(manga.id || manga.mangaId || '').trim() &&
+      String(manga.title || manga.name || '').trim()
+    );
+  }
+
+  const rawFavs = state.favorites || [];
+  const validFavs = [];
+  const invalidFavs = [];
+  
+  for (let i = 0; i < rawFavs.length; i++) {
+    const norm = normalizeLibraryManga(rawFavs[i], i);
+    if (isValidLibraryManga(norm)) {
+      validFavs.push(norm);
+    } else {
+      invalidFavs.push(rawFavs[i]);
+    }
+  }
+
+  if (window.SCROLLSCAPE_DEBUG_LIBRARY_RENDER) {
+    const onePieceObj = validFavs.find(m => m.title && m.title.toLowerCase().includes('one piece'));
+    console.log({
+      source: "library-normalize",
+      rawCount: rawFavs.length,
+      validCount: validFavs.length,
+      invalidCount: invalidFavs.length,
+      invalidEntries: invalidFavs,
+      onePieceFound: !!onePieceObj,
+      onePieceObject: onePieceObj,
+      activeViewMode: state.settings.displayMode,
+      bookshelfEnabled: state.settings.libraryBookshelf3d
+    });
+  }
+
   const visibleSources = Array.isArray(state.settings.visibleSources)
     ? state.settings.visibleSources
     : null;
-  let favs = state.favorites.filter(manga => {
+
+  let favs = validFavs.filter(manga => {
     let hideReason = null;
     
     if (visibleSources !== null && manga.sourceId && !visibleSources.includes(manga.sourceId)) {
@@ -1148,21 +1234,17 @@ function renderLibrary() {
 
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
     const coverUrl = normalizeImageUrl(manga.cover);
-    let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle(manga, bookshelfTheme) : '';
-    let spineWidth = 24;
+    let bookshelfStyle = '';
+    let spineWidth = 38; // default for unknown chapter count
     if (isBookshelf25d) {
-      const baseWidth = 28;
-      const chaptersPerStep = 50;
-      const pixelsPerStep = 4;
-      const minWidth = 28;
-      const maxWidth = 120;
-      const chCount = cachedChapterTotal || 1;
-      const calcWidth = baseWidth + Math.floor(chCount / chaptersPerStep) * pixelsPerStep;
-      spineWidth = Math.max(minWidth, Math.min(maxWidth, calcWidth));
-      if (bookshelfStyle.includes('style="')) {
-        bookshelfStyle = bookshelfStyle.replace('style="', `style="--book25d-spine-width: ${spineWidth}px; `);
-      } else {
-        bookshelfStyle = ` style="--book25d-spine-width: ${spineWidth}px;"`;
+      spineWidth = getBookshelfSpineWidth(manga, cachedChapterTotal);
+      // Inject per-manga stable color and spine width as CSS variables
+      const spineColor = getStableSpineColor(manga);
+      bookshelfStyle = ` style="--book25d-spine-width: ${spineWidth}px; --book-spine-color: ${spineColor};"`;
+      // Optional debug logging
+      if (window.SCROLLSCAPE_DEBUG_BOOKSHELF_WIDTH) {
+        const detectedChapters = getMangaChapterCount(manga) || cachedChapterTotal;
+        console.debug('[Bookshelf25d]', { title: manga.title, sourceId: manga.sourceId, mangaId: manga.id, detectedChapters, spineWidth });
       }
     }
     const spineData = resolveSyntheticSpineData(manga, manga.sourceId || '');
@@ -1181,15 +1263,6 @@ function renderLibrary() {
       : (manga.cover
           ? '<div class="book3d-placeholder"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">NO COVER</span></div>'
           : '<div class="book3d-placeholder"><span class="book3d-placeholder-icon">?</span><span class="book3d-placeholder-label">UNKNOWN</span></div>');
-    const premiumBookMarkup = `
-      <div class="book3d">
-        <div class="book3d-spine" style="position:relative">${spineImgNode}</div>
-        <div class="book3d-cover-preview" aria-hidden="true">
-          ${coverImgMarkup}
-        </div>
-        <div class="book3d-shadow"></div>
-      </div>
-      <div class="book3d-label" aria-hidden="true">${escapeHtml(spineData.source)}</div>`;
 
     // Bookshelf 2.5D markup: calibre style spine resting, cover on hover
     const shelf25dCoverMarkup = coverUrl && !coverUrl.endsWith('.pdf')
@@ -1205,9 +1278,9 @@ function renderLibrary() {
       <div class="book25d-source-label" aria-hidden="true">${escapeHtml(spineData.source)}</div>`;
 
     return `
-      <div class="library-card${isSelected ? ' library-card-selected' : ''}${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${isStripeShelf ? ' library-card-bookshelf-stripe' : ''}${isBookshelf25d ? ' library-card-bookshelf-25d' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
+      <div class="library-card${isSelected ? ' library-card-selected' : ''}${isBookshelf25d ? ' library-card-bookshelf-25d' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
         <div class="library-card-cover">
-          ${isStripeShelf ? premiumBookMarkup : isBookshelf25d ? shelf25dMarkup : (coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>'))}
+          ${isBookshelf25d ? shelf25dMarkup : (coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>'))}
           ${isBookshelf25d ? '' : statusBadge}
           ${isBookshelf25d ? '' : chaptersLeftBadge}
           ${isBookshelf25d ? '' : sourceLabel}
@@ -1221,7 +1294,7 @@ function renderLibrary() {
         <div class="library-card-info">
           <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
           <p class="library-card-author">${escapeHtml(manga.author || "")}</p>
-          ${isStripeShelf ? `<div class="library-card-inline-action"><button class="btn-read btn-read-inline">${btnLabel}</button></div>` : (status && badgeLoc !== 'cover' && !state.settings.hideLibraryStatusAndChapters ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : "")}
+          ${(status && badgeLoc !== 'cover' && !state.settings.hideLibraryStatusAndChapters ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : "")}
           ${catChips ? `<div class="category-chips">${catChips}</div>` : ''}
           ${currentRating ? `<span class="card-score-badge">${currentRating}<span class="card-score-badge-max">/10</span></span>` : ""}
         </div>
@@ -1236,21 +1309,17 @@ function renderLibrary() {
         const localLastChapter = state.lastReadChapter?.[manga.id];
         const localBtnLabel = localLastChapter ? 'Continue Reading' : 'Read';
         const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 1;
-        let bookshelfStyle = bookshelf3dEnabled ? _bookshelfCardStyle({ ...manga, sourceId: 'local' }, bookshelfTheme) : '';
-        let spineWidth = 24;
+        let bookshelfStyle = '';
+        let spineWidth = 38; // default for unknown chapter count
         if (isBookshelf25d) {
-          const baseWidth = 28;
-          const chaptersPerStep = 50;
-          const pixelsPerStep = 4;
-          const minWidth = 28;
-          const maxWidth = 120;
-          const chCount = cachedChapterTotal || 1;
-          const calcWidth = baseWidth + Math.floor(chCount / chaptersPerStep) * pixelsPerStep;
-          spineWidth = Math.max(minWidth, Math.min(maxWidth, calcWidth));
-          if (bookshelfStyle.includes('style="')) {
-            bookshelfStyle = bookshelfStyle.replace('style="', `style="--book25d-spine-width: ${spineWidth}px; `);
-          } else {
-            bookshelfStyle = ` style="--book25d-spine-width: ${spineWidth}px;"`;
+          spineWidth = getBookshelfSpineWidth(manga, cachedChapterTotal);
+          // Inject per-manga stable color and spine width as CSS variables
+          const spineColor = getStableSpineColor({ ...manga, sourceId: 'local' });
+          bookshelfStyle = ` style="--book25d-spine-width: ${spineWidth}px; --book-spine-color: ${spineColor};"`;
+          // Optional debug logging
+          if (window.SCROLLSCAPE_DEBUG_BOOKSHELF_WIDTH) {
+            const detectedChapters = getMangaChapterCount(manga) || cachedChapterTotal;
+            console.debug('[Bookshelf25d/local]', { title: manga.title, mangaId: manga.id, detectedChapters, spineWidth });
           }
         }
         const localTypeLabel = escapeHtml((manga.type || 'local').toUpperCase());
@@ -1266,16 +1335,7 @@ function renderLibrary() {
           }
         }
         const localBtnLabel2 = localLastChapter ? '▶ Continuar' : '▶ Ler';
-        const localBookMarkup = `
-          <div class="book3d">
-            <div class="book3d-spine" style="position:relative">${localSpineImgNode}</div>
-            <div class="book3d-cover-preview" aria-hidden="true">
-              <img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-              <div class="book3d-placeholder" style="display:none"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">${localTypeLabel}</span></div>
-            </div>
-            <div class="book3d-shadow"></div>
-          </div>
-          <div class="book3d-label" aria-hidden="true">LOCAL</div>`;
+
         const local25dMarkup = `
           <div class="book25d">
             <div class="book25d-spine" style="position:relative">${localSpineImgNode}</div>
@@ -1286,11 +1346,9 @@ function renderLibrary() {
           </div>
           <div class="book25d-source-label" aria-hidden="true">LOCAL</div>`;
         return `
-        <div class="library-card local-manga-card${bookshelf3dEnabled ? ' library-card-bookshelf' : ''}${isStripeShelf ? ' library-card-bookshelf-stripe' : ''}${isBookshelf25d ? ' library-card-bookshelf-25d' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
+        <div class="library-card local-manga-card${isBookshelf25d ? ' library-card-bookshelf-25d' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="local" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
           <div class="library-card-cover">
-            ${isStripeShelf
-              ? localBookMarkup
-              : isBookshelf25d
+            ${isBookshelf25d
               ? local25dMarkup
               : `<img src="/api/local/${escapeHtml(manga.id)}/thumb" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="no-cover" style="display:none">&#128196;</div>`}
             ${isBookshelf25d ? '' : `<div class="local-badge">${localTypeLabel}</div>`}
@@ -1300,7 +1358,7 @@ function renderLibrary() {
           <div class="library-card-info">
             <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
             <p class="library-card-author">${localTypeLabel}</p>
-            ${isStripeShelf ? `<div class="library-card-inline-action"><button class="btn-read btn-read-inline">${localBtnLabel}</button></div>` : ''}
+
             ${localRating ? `<span class="card-score-badge">${localRating}<span class="card-score-badge-max">/10</span></span>` : ""}
           </div>
         </div>`;
@@ -1872,12 +1930,8 @@ async function showLibraryContextMenu(pointOrEvent, mangaInput, mangaCategories)
     let ok = 0, fail = 0;
     for (const m of actionMangas) {
       try {
-        await api('/api/library/remove', {
-          method: 'POST',
-          body: JSON.stringify({ mangaId: m.id, sourceId: m.sourceId })
-        });
-        // Remove from state
-        state.favorites = (state.favorites || []).filter(f => !(f.id === m.id && f.sourceId === m.sourceId));
+        await ensureMangaNotInLibrary(m.id, m.sourceId);
+        
         // Remove reading status
         const key = _libStatusKey(m.id, m.sourceId);
         if (state.readingStatus) delete state.readingStatus[key];

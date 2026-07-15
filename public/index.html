@@ -616,7 +616,10 @@
             <section class="sh-section">
               <div class="sh-head">
                 <h3 data-i18n="systemHealth.section.sourceErrors">Recent Source Errors</h3>
-                <button class="btn secondary" id="systemHealthCopyErrorsBtn" data-i18n="systemHealth.copyErrorsBtn">Copy Errors</button>
+                <div class="system-health-actions">
+                  <button class="btn secondary" id="systemHealthCopyErrorsBtn" data-i18n="systemHealth.copyErrorsBtn">Copy Errors</button>
+                  <button class="system-health-clear-errors-btn" id="systemHealthClearErrorsBtn">Clear Logs</button>
+                </div>
               </div>
               <div id="systemHealthSourceErrors"></div>
             </section>
@@ -891,7 +894,9 @@
   <!-- ScrollScape modules — loaded in dependency order, all before app.js -->
   <script src="./modules/debug.js" defer></script>
   <script src="./modules/api.js" defer></script>
-  <script src="./modules/i18n.js" defer></script>
+  <script src="./modules/i18n/locales/en-GB.js" defer></script>
+  <script src="./modules/i18n/locales/pt-PT.js" defer></script>
+  <script src="./modules/i18n/index.js" defer></script>
   <script src="./modules/state.js" defer></script>
   <script src="./modules/navigation.js" defer></script>
   <script src="./modules/utils.js?v=4" defer></script>

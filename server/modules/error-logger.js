@@ -50,4 +50,16 @@ async function recordError(errObj) {
   return op;
 }
 
-module.exports = { recordError };
+async function clearErrors() {
+  const op = writePromise.then(async () => {
+    try {
+      await fsp.writeFile(LOG_PATH, JSON.stringify([], null, 2), 'utf8');
+    } catch (e) {
+      console.error('[ErrorLogger] fail clear:', e.message);
+    }
+  });
+  writePromise = op;
+  return op;
+}
+
+module.exports = { recordError, clearErrors };

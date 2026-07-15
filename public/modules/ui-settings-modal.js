@@ -409,24 +409,15 @@ function showSettings() {
             <div class="settings-section-card">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <p class="settings-section-title" style="margin-bottom:0">Library Appearance</p>
-                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="libraryBookshelf3d,libraryBookshelfTheme">Reset</button>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="libraryBookshelf3d">Reset</button>
               </div>
               <div class="setting-group">
                 <label class="toggle-label">
-                  <span class="toggle-text">3D Bookshelf</span>
+                  <span class="toggle-text">Bookshelf View</span>
                   <input type="checkbox" id="libraryBookshelf3dToggle" ${state.settings.libraryBookshelf3d ? "checked" : ""}>
                   <span class="toggle-slider"></span>
                 </label>
                 <p class="setting-description">Shows library cards in a 3D bookshelf with depth effect</p>
-              </div>
-              <div class="setting-group" id="libraryBookshelfThemeGroup" style="${state.settings.libraryBookshelf3d ? '' : 'display:none'}">
-                <label for="libraryBookshelfThemeSelect">Bookshelf style</label>
-                <select id="libraryBookshelfThemeSelect" class="input">
-                  <option value="classic" ${(state.settings.libraryBookshelfTheme || 'classic') === 'classic' ? 'selected' : ''}>Classic 3D Shelf</option>
-                  <option value="stripe-press" ${state.settings.libraryBookshelfTheme === 'stripe-press' ? 'selected' : ''}>Interactive Manga Shelf</option>
-                  <option value="bookshelf-2-5d" ${state.settings.libraryBookshelfTheme === 'bookshelf-2-5d' ? 'selected' : ''}>Bookshelf View 2.5D</option>
-                </select>
-                <p class="setting-description">Interactive shelf mode aligns manga as physical volumes and pulls them forward on hover with visible synthetic spines.</p>
               </div>
             </div>
             <div class="settings-section-card">
@@ -997,31 +988,13 @@ function showSettings() {
     };
   }
 
-  const bookshelf3dToggle = $("libraryBookshelf3dToggle");
-  const bookshelfThemeGroup = $("libraryBookshelfThemeGroup");
-  const bookshelfThemeSelect = $("libraryBookshelfThemeSelect");
-  if (bookshelf3dToggle) {
-    bookshelf3dToggle.onchange = (e) => {
+  const bookshelfToggle = $("libraryBookshelf3dToggle");
+  if (bookshelfToggle) {
+    bookshelfToggle.addEventListener("change", (e) => {
       state.settings.libraryBookshelf3d = e.target.checked;
-      if (bookshelfThemeGroup) {
-        bookshelfThemeGroup.style.display = e.target.checked ? '' : 'none';
-      }
-      if (e.target.checked && (!state.settings.libraryBookshelfTheme || state.settings.libraryBookshelfTheme === 'classic')) {
-        state.settings.libraryBookshelfTheme = 'bookshelf-2-5d';
-        if (bookshelfThemeSelect) bookshelfThemeSelect.value = 'bookshelf-2-5d';
-      }
       saveSettings();
-      renderLibrary();
-    };
-  }
-
-  if (bookshelfThemeSelect) {
-    bookshelfThemeSelect.onchange = (e) => {
-      const validThemes = ['stripe-press', 'bookshelf-2-5d'];
-      state.settings.libraryBookshelfTheme = validThemes.includes(e.target.value) ? e.target.value : 'classic';
-      saveSettings();
-      renderLibrary();
-    };
+      if (typeof window.renderLibrary === "function") window.renderLibrary();
+    });
   }
 
   const showChaptersLeftToggle = $("showChaptersLeftToggle");

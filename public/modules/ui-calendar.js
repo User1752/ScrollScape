@@ -27,7 +27,7 @@ async function renderCalendarView() {
   try {
     data = await api(`/api/calendar?year=${_calState.year}&month=${_calState.month}`);
   } catch (e) {
-    container.innerHTML = `<div class="cal-error">${t("common.error")}: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="cal-error">${t("common.error")}: Could not load calendar data.</div>`;
     return;
   }
 
@@ -224,13 +224,21 @@ function renderMangaGrid(container, mangaList) {
 function bindMangaCards(container) {
   container.querySelectorAll("[data-manga-id]").forEach(el => {
     el.onclick = () => {
+      const mid = el.dataset.mangaId;
+      if (!mid || mid === 'undefined' || mid === 'null') {
+        if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH) {
+          console.warn('[ScrollScape] Prevented detail load for invalid manga card', el);
+        }
+        if (typeof showToast === 'function') showToast('Error', 'Invalid manga ID', 'error');
+        return;
+      }
       const sid = el.dataset.sourceId;
       if (sid && sid !== state.currentSourceId && state.installedSources[sid]) {
         state.currentSourceId = sid;
         const sel = $("sourceSelect");
         if (sel) sel.value = sid;
       }
-      loadMangaDetails(el.dataset.mangaId);
+      loadMangaDetails(mid);
     };
   });
 }

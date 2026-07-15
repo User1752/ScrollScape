@@ -5,6 +5,7 @@ const { createAsyncHandler } = require('../modules/http/async-handler');
 const { createSystemHealthService } = require('../modules/system-health/service');
 const { readStore } = require('../store');
 const { loadSourceFromFile } = require('../sourceLoader');
+const { clearErrors } = require('../modules/error-logger');
 
 const asyncHandler = createAsyncHandler('SYSTEM_HEALTH');
 
@@ -27,6 +28,11 @@ function registerSystemHealthRoutes(app) {
   app.get('/api/system/smoke-test', asyncHandler(async (_req, res) => {
     const result = await systemHealthService.runSmokeTest();
     res.json(result);
+  }));
+
+  app.delete('/api/health/source-errors', asyncHandler(async (_req, res) => {
+    await clearErrors();
+    res.json({ ok: true, cleared: true });
   }));
 }
 
