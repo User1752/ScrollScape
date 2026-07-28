@@ -918,6 +918,7 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
     setView("manga-details", {
       mangaId: mangaId,
       sourceId: state.currentSourceId,
+      title: result.title || fallbackTitle || "",
       scrollPosition: 0
     });
 

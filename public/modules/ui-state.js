@@ -43,6 +43,7 @@ async function refreshState() {
     renderSourceSelect();
     if (typeof applyHomeSearchVisibility === 'function') applyHomeSearchVisibility();
     if (window._homeSeenManga) window._homeSeenManga.clear();
+    if (typeof renderContinueReading === 'function') renderContinueReading();
     await Promise.all([
       loadPopularToday(),
       loadRecentlyAdded(),

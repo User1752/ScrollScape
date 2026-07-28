@@ -127,6 +127,17 @@ app.use('/', express.static(path.join(__dirname, 'public'), {
   },
 }));
 
+// ── SPA client-routing fallback ───────────────────────────────────────────────
+// URLs like /manga/:sourceId/:id/:slug or /library are handled entirely
+// client-side (see public/modules/router.js). Serve the app shell for any
+// GET request that isn't an API call or an actual static file, so deep links
+// and page refreshes on those routes work instead of 404ing.
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  if (/\.[a-zA-Z0-9]+$/.test(req.path)) return next(); // real file requests (css/js/img/...) 404 normally
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // ── Startup helpers ───────────────────────────────────────────────────────────
 
 /**

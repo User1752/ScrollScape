@@ -60,5 +60,7 @@ function setView(view, context = {}, replace = false) {
       // Context is already set, renderMangaDetails will use it
     }
   }
+
+  if (typeof syncUrlForView === 'function') syncUrlForView(view, navigationManager.getContext());
 }
 

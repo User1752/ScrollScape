@@ -839,14 +839,27 @@ function openLibrarySortDrawer() {
   });
 }
 
+// Builds a mangaId -> readChapterCount map in a single O(M) pass over
+// state.readChapters, instead of re-filtering the whole array per manga.
+function _buildReadCountMap() {
+  const map = new Map();
+  for (const key of (state.readChapters || [])) {
+    const id = key.slice(0, key.indexOf(':'));
+    map.set(id, (map.get(id) || 0) + 1);
+  }
+  return map;
+}
+
 function _sortLibrary(favs) {
   const title  = m => String(m.title || '').toLowerCase();
   const rating = m => state.ratings[_libRatingKey(m.id)] || 0;
   const totalChapters = m => Number(state.chapterCountCache?.[m.id]) || 0;
-  const readCount = m => [...(state.readChapters || [])].filter(k => k.startsWith(`${m.id}:`)).length;
+  const readCountMap = _buildReadCountMap();
+  const readCount = m => readCountMap.get(m.id) || 0;
   const unreadCount = m => Math.max(0, totalChapters(m) - readCount(m));
+  const historyIdxMap = new Map((state.history || []).map((h, i) => [String(h.id), i]));
   const historyIndex = m => {
-    const idx = (state.history || []).findIndex(h => String(h.id) === String(m.id));
+    const idx = historyIdxMap.has(String(m.id)) ? historyIdxMap.get(String(m.id)) : -1;
     return idx >= 0 ? idx : Infinity;
   };
   const trackerScore = m => Number(m.score) || 0;
@@ -1093,16 +1106,19 @@ function renderLibrary() {
 
   let favs = validFavs.filter(manga => {
     let hideReason = null;
-    
+
     if (visibleSources !== null && manga.sourceId && !visibleSources.includes(manga.sourceId)) {
       hideReason = `Source not visible: ${manga.sourceId}`;
-    } else if (hideNsfw && typeof _isNsfwEnriched === 'function' && _isNsfwEnriched(manga)) {
+    }
+    if (!hideReason && hideNsfw && typeof _isNsfwEnriched === 'function' && _isNsfwEnriched(manga)) {
       hideReason = `NSFW hidden`;
-    } else if (filterVal !== "all") {
+    }
+    if (!hideReason && filterVal !== "all") {
       const key = _libStatusKey(manga.id, manga.sourceId);
       const status = state.readingStatus[key]?.status;
       if (status !== filterVal) hideReason = `Status mismatch: ${status} !== ${filterVal}`;
-    } else if (categoryFilter !== "all") {
+    }
+    if (!hideReason && categoryFilter !== "all") {
       const primaryKey = `${manga.id}:${manga.sourceId || ''}`;
       const legacyKey = `${manga.id}:`;
       const cats = Array.from(new Set([
@@ -1110,12 +1126,14 @@ function renderLibrary() {
         ...(mangaCategories[legacyKey] || []),
       ]));
       if (!cats.includes(categoryFilter)) hideReason = `Category mismatch: ${categoryFilter}`;
-    } else if (trackerFilter === 'anilist') {
+    }
+    if (!hideReason && trackerFilter === 'anilist') {
       if (typeof _alGetLink !== 'function' || !_alGetLink(manga.id)) hideReason = `No AniList link`;
-    } else if (searchQuery && !String(manga.title || '').toLowerCase().includes(searchQuery)) {
+    }
+    if (!hideReason && searchQuery && !String(manga.title || '').toLowerCase().includes(searchQuery)) {
       hideReason = `Search mismatch`;
     }
-    
+
     if (hideReason) {
       if (window.SCROLLSCAPE_DEBUG_LIBRARY_MEMBERSHIP) {
         console.log({
@@ -1135,6 +1153,9 @@ function renderLibrary() {
 
   // Apply sort
   favs = _sortLibrary(favs);
+
+  // Precomputed once per render instead of re-scanning readChapters per card.
+  const readCountMap = _buildReadCountMap();
 
   const filteredLocalManga = state.localManga.filter(manga => {
     if (hideNsfw && _isNsfwEnriched(manga)) return false;
@@ -1186,9 +1207,7 @@ function renderLibrary() {
     // Overlay toggles
     const overlays = state.settings.overlays || {};
     const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 0;
-    const readCount = cachedChapterTotal
-      ? [...state.readChapters].filter(key => key.startsWith(`${manga.id}:`)).length
-      : 0;
+    const readCount = cachedChapterTotal ? (readCountMap.get(manga.id) || 0) : 0;
     const chaptersLeft = cachedChapterTotal ? Math.max(0, cachedChapterTotal - readCount) : null;
     // Downloaded Chapters overlay (exemplo: badge se houver capítulos baixados)
     let downloadedBadge = '';
@@ -1399,10 +1418,8 @@ function renderLibrary() {
       const title = escapeHtml(manga.title || t('library.unknownTitle'));
       const sourceName = sourceId === 'local' ? t('library.local') : (state.installedSources[sourceId]?.name || sourceId || 'MANGA');
       const cachedChapterTotal = Number(state.chapterCountCache?.[manga.id]) || 0;
-      
-      const readCount = cachedChapterTotal
-          ? [...state.readChapters].filter(key => key.startsWith(`${manga.id}:`)).length
-          : 0;
+
+      const readCount = cachedChapterTotal ? (readCountMap.get(manga.id) || 0) : 0;
       const chaptersLeft = cachedChapterTotal ? Math.max(0, cachedChapterTotal - readCount) : null;
       const currentRating = state.ratings[_libRatingKey(manga.id)] || 0;
       const lastChapterId = state.lastReadChapter?.[manga.id];
@@ -1480,10 +1497,14 @@ function renderLibrary() {
       if (readBtn) {
         readBtn.onclick = async (e) => {
           e.stopPropagation();
-          const opened = await _openShelfMangaDirectly(mangaId, sourceId || 'local', manga.title);
-          if (!opened) {
-            if (typeof loadMangaDetails === 'function') loadMangaDetails(mangaId, "library", manga.title, false, sourceId || 'local');
-            else if (typeof setView === 'function') setView("manga-details", { mangaId, sourceId });
+          try {
+            const opened = await _openShelfMangaDirectly(mangaId, sourceId || 'local', manga.title);
+            if (!opened) {
+              if (typeof loadMangaDetails === 'function') loadMangaDetails(mangaId, "library", manga.title, false, sourceId || 'local');
+              else if (typeof setView === 'function') setView("manga-details", { mangaId, sourceId });
+            }
+          } catch (err) {
+            showToast("Error", err?.message || "Something went wrong opening this manga.", "error");
           }
         };
       }
@@ -1500,11 +1521,15 @@ function renderLibrary() {
       if (coverEl) {
         coverEl.onclick = async (e) => {
           e.stopPropagation();
-          const sourceForOpen = normalizeLibraryId(currentBookshelf25dPanelManga.sourceId) || 'local';
-          const opened = await _openShelfMangaDirectly(currentBookshelf25dPanelManga.id, sourceForOpen, currentBookshelf25dPanelManga.title);
-          if (!opened) {
-            if (typeof loadMangaDetails === 'function') loadMangaDetails(currentBookshelf25dPanelManga.id, "library", currentBookshelf25dPanelManga.title, false, sourceForOpen);
-            else if (typeof setView === 'function') setView("manga-details", { mangaId: currentBookshelf25dPanelManga.id, sourceId: sourceForOpen });
+          try {
+            const sourceForOpen = normalizeLibraryId(currentBookshelf25dPanelManga.sourceId) || 'local';
+            const opened = await _openShelfMangaDirectly(currentBookshelf25dPanelManga.id, sourceForOpen, currentBookshelf25dPanelManga.title);
+            if (!opened) {
+              if (typeof loadMangaDetails === 'function') loadMangaDetails(currentBookshelf25dPanelManga.id, "library", currentBookshelf25dPanelManga.title, false, sourceForOpen);
+              else if (typeof setView === 'function') setView("manga-details", { mangaId: currentBookshelf25dPanelManga.id, sourceId: sourceForOpen });
+            }
+          } catch (err) {
+            showToast("Error", err?.message || "Something went wrong opening this manga.", "error");
           }
         };
         coverEl.oncontextmenu = (e) => {
@@ -1729,60 +1754,66 @@ function renderLibrary() {
     const cardTitle = card.dataset.title || '';
 
     card.onclick = async (e) => {
-      // Don't navigate if the click was on or inside the context menu
-      if (e.target.closest('#libraryContextMenu')) return;
+      try {
+        // Don't navigate if the click was on or inside the context menu
+        if (e.target.closest('#libraryContextMenu')) return;
 
-      // Ctrl + left-click: toggle multi-selection for bulk actions
-      if (e.ctrlKey && e.button === 0) {
-        e.preventDefault();
-        e.stopPropagation();
-        _toggleLibraryCardSelection(card);
-        return;
+        // Ctrl + left-click: toggle multi-selection for bulk actions
+        if (e.ctrlKey && e.button === 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          _toggleLibraryCardSelection(card);
+          return;
+        }
+
+        // Normal click clears multi-selection and keeps default navigation behavior
+        if (_librarySelectedKeys.size) {
+          _clearLibrarySelection(grid);
+        }
+
+        const prevSource = state.currentSourceId;
+        const fav = (state.favorites || []).find(m => String(m.id) === String(mangaId) && String(m.title || '') === String(cardTitle || m.title || ''));
+        const resolvedSourceId = sourceId || fav?.sourceId || '';
+
+        if (resolvedSourceId && resolvedSourceId !== state.currentSourceId) {
+          state.currentSourceId = resolvedSourceId;
+          renderSourceSelect();
+          const srcName = state.installedSources[resolvedSourceId]?.name || resolvedSourceId;
+          showToast("Source switched", srcName, "info");
+        }
+
+        const sourceForOpen = resolvedSourceId || state.currentSourceId;
+        const clickedReadButton = !!e.target.closest('.btn-read');
+        if (clickedReadButton) {
+          const opened = await _openShelfMangaDirectly(mangaId, sourceForOpen, cardTitle);
+          if (opened) return;
+        }
+
+        await loadMangaDetails(mangaId, "library", cardTitle, false, sourceForOpen);
+        if (!state.currentSourceId) state.currentSourceId = prevSource;
+      } catch (err) {
+        showToast("Error", err?.message || "Something went wrong opening this manga.", "error");
       }
-
-      // Normal click clears multi-selection and keeps default navigation behavior
-      if (_librarySelectedKeys.size) {
-        _clearLibrarySelection(grid);
-      }
-
-      const prevSource = state.currentSourceId;
-      const fav = (state.favorites || []).find(m => String(m.id) === String(mangaId) && String(m.title || '') === String(cardTitle || m.title || ''));
-      const resolvedSourceId = sourceId || fav?.sourceId || '';
-
-      if (resolvedSourceId && resolvedSourceId !== state.currentSourceId) {
-        state.currentSourceId = resolvedSourceId;
-        renderSourceSelect();
-        const srcName = state.installedSources[resolvedSourceId]?.name || resolvedSourceId;
-        showToast("Source switched", srcName, "info");
-      }
-
-      const sourceForOpen = resolvedSourceId || state.currentSourceId;
-      const clickedReadButton = !!e.target.closest('.btn-read');
-      const shouldTryDirectOpen = clickedReadButton || isStripeShelf;
-      if (shouldTryDirectOpen) {
-        const opened = await _openShelfMangaDirectly(mangaId, sourceForOpen, cardTitle);
-        if (opened) return;
-      }
-
-      await loadMangaDetails(mangaId, "library", cardTitle, false, sourceForOpen);
-      if (!state.currentSourceId) state.currentSourceId = prevSource;
     };
   });
 
   grid.querySelectorAll(".local-manga-card").forEach(card => {
     const mangaId = card.dataset.mangaId;
     card.onclick = async (e) => {
-      if (e.target.closest(".local-delete-btn")) return;
-      state.currentSourceId = "local";
+      try {
+        if (e.target.closest(".local-delete-btn")) return;
+        state.currentSourceId = "local";
 
-      const clickedReadButton = !!e.target.closest('.btn-read');
-      const shouldTryDirectOpen = clickedReadButton || isStripeShelf;
-      if (shouldTryDirectOpen) {
-        const opened = await _openShelfMangaDirectly(mangaId, 'local');
-        if (opened) return;
+        const clickedReadButton = !!e.target.closest('.btn-read');
+        if (clickedReadButton) {
+          const opened = await _openShelfMangaDirectly(mangaId, 'local');
+          if (opened) return;
+        }
+
+        await loadMangaDetails(mangaId, "library");
+      } catch (err) {
+        showToast("Error", err?.message || "Something went wrong opening this manga.", "error");
       }
-
-      await loadMangaDetails(mangaId, "library");
     };
   });
 

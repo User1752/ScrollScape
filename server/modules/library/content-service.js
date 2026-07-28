@@ -298,6 +298,18 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
     if (index > -1) {
       store.favorites.splice(index, 1);
     } else {
+      const missing = [];
+      if (isBadIdentityValue(mangaId)) missing.push('id');
+      if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+      if (!manga || isBadIdentityValue(manga.title || manga.name)) missing.push('title');
+      if (missing.length > 0) {
+        const err = new Error('Invalid library payload');
+        err.statusCode = 400;
+        err.code = 'INVALID_LIBRARY_PAYLOAD';
+        err.details = { missing };
+        throw err;
+      }
+
       store.favorites.push(applyCoverOverride(store, {
         ...safeManga(manga),
         id: mangaId,

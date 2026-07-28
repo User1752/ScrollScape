@@ -276,6 +276,10 @@ function createCalendarService({ readStore, loadSourceFromFile }) {
     const readingStatus = store.readingStatus || {};
 
     const releasing = favorites.filter(m => {
+      // Guards against corrupted/legacy favorite records that are missing
+      // required fields (e.g. saved before addToLibrary/toggleFavorite
+      // validated payloads) — skip them instead of crashing the whole page.
+      if (!m || !m.id || !m.title) return false;
       const userStatus = readingStatus[`${m.id}:${m.sourceId}`]?.status;
       if (EXCLUDED_USER_STATUSES.has(userStatus)) return false;
       const pub = (m.status || '').toLowerCase().trim();

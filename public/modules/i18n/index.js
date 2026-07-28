@@ -49,7 +49,7 @@ function setLanguage(lang) {
   localStorage.setItem('language', lang);
   applyTranslations();
   const btn = document.getElementById('langToggleBtn');
-  if (btn) btn.textContent = canonical.toUpperCase();
+  if (btn) btn.textContent = canonical.split('-')[0].toUpperCase();
 }
 
 /**

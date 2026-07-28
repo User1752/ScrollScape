@@ -22,6 +22,16 @@ function _bindAniListFlushLifecycleHandlers() {
   });
 }
 
+/** Restores whatever view/context a nav-stack entry points at (used by the back button). */
+function _restoreNavigationEntry(entry) {
+  if (!entry) return;
+  if (entry.view === 'manga-details' && entry.context.mangaId && entry.context.sourceId) {
+    loadMangaDetails(entry.context.mangaId, undefined, entry.context.title || '', false, entry.context.sourceId);
+  } else {
+    setView(entry.view, entry.context, true);
+  }
+}
+
 function bindUI() {
   initAdvancedFilters();
   _bindAniListFlushLifecycleHandlers();
@@ -44,21 +54,7 @@ function bindUI() {
   // Back buttons
   const backBtn = $("backBtn");
   if (backBtn) {
-    backBtn.onclick = () => {
-      const previous = navigationManager.goBack();
-      if (previous) {
-        // Restore specific view states
-        if (previous.view === 'manga-details' && previous.context.mangaId && previous.context.sourceId) {
-          // Temporarily set the source and load the manga details
-          const prevSource = state.currentSourceId;
-          state.currentSourceId = previous.context.sourceId;
-          loadMangaDetails(previous.context.mangaId);
-          // Note: loadMangaDetails will call setView internally
-        } else {
-          setView(previous.view, previous.context, true);
-        }
-      }
-    };
+    backBtn.onclick = () => _restoreNavigationEntry(navigationManager.goBack());
   }
 
   // Search
@@ -227,8 +223,8 @@ function bindUI() {
   // Language toggle button
   const langBtn = $("langToggleBtn");
   if (langBtn) {
-    langBtn.textContent = currentLanguage.toUpperCase();
-    langBtn.onclick = () => setLanguage(currentLanguage === 'en' ? 'pt' : 'en');
+    langBtn.textContent = currentLanguage.split('-')[0].toUpperCase();
+    langBtn.onclick = () => setLanguage(currentLanguage === 'pt-PT' ? 'en' : 'pt');
   }
 }
 

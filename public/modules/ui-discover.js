@@ -479,6 +479,69 @@ window.loadPopularToday = async function loadPopularToday() {
   }
 }
 
+// ── Continue Reading ────────────────────────────────────────────────────
+function _timeAgo(dateStr) {
+  const then = new Date(dateStr).getTime();
+  if (isNaN(then)) return '';
+  const diffMin = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  const diffD = Math.round(diffH / 24);
+  if (diffD < 30) return `${diffD}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function renderContinueReading() {
+  const section = $("continueReadingSection");
+  const row = $("continueReadingRow");
+  if (!section || !row) return;
+
+  const entries = (state.history || [])
+    .filter(m => m && m.id && !(state.settings.hideNsfw && isNsfwManga(m)))
+    .slice(0, 12);
+
+  if (!entries.length) {
+    section.classList.add('hidden');
+    row.innerHTML = '';
+    return;
+  }
+  section.classList.remove('hidden');
+
+  const readCountMap = typeof _buildReadCountMap === 'function' ? _buildReadCountMap() : new Map();
+
+  row.innerHTML = entries.map(m => {
+    const resolvedSourceId = m.sourceId || state.currentSourceId || "";
+    const coverUrl = normalizeImageUrl(m.cover);
+    const chapterLabel = String(m.chapterName || '').trim() || (m.chapterId ? `Chapter ${escapeHtml(String(m.chapterId))}` : '');
+    const total = Number(state.chapterCountCache?.[m.id]) || 0;
+    const read = readCountMap.get(m.id) || 0;
+    const pct = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : null;
+
+    return `
+      <div class="continue-card" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(resolvedSourceId)}">
+        <div class="continue-card-cover">
+          ${coverUrl && !coverUrl.endsWith('.pdf')
+            ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+            : `<div class="no-cover">&#128196;</div>`}
+          <div class="continue-card-play">&#9654;</div>
+          ${pct != null ? `<div class="continue-card-progress"><div class="continue-card-progress-fill" style="width:${pct}%"></div></div>` : ''}
+        </div>
+        <div class="continue-card-info">
+          <h4 class="continue-card-title">${escapeHtml(m.title || '')}</h4>
+          <p class="continue-card-meta">${escapeHtml(chapterLabel)}${chapterLabel ? ' · ' : ''}${_timeAgo(m.readAt)}</p>
+        </div>
+      </div>`;
+  }).join('');
+
+  row.querySelectorAll('.continue-card').forEach(card => {
+    card.onclick = () => continueReading(card.dataset.mangaId, card.dataset.sourceId);
+  });
+
+  initRowAutoScroll(row);
+}
+
 window.loadRecentlyAdded = async function loadRecentlyAdded() {
   const reqSeq = ++_homeRowRequestSeq.recentlyAdded;
   const row = $("recentlyAddedRow");

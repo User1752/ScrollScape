@@ -238,7 +238,10 @@ async function fetchLatestUpdates(limit = 20) {
 function thumbUrl(thumbnail) {
   if (!thumbnail) return '';
   const REF = encodeURIComponent(WEB_BASE);
-  const full = thumbnail.startsWith('http') ? thumbnail : COVER_BASE + thumbnail + '?w=500';
+  // The CDN only serves a fixed set of pre-generated widths (40, 100, 250);
+  // any other value (e.g. the previous ?w=500) 404s even though the same
+  // path with no query or a supported width returns 200.
+  const full = thumbnail.startsWith('http') ? thumbnail : COVER_BASE + thumbnail + '?w=250';
   return `/api/proxy-image?url=${encodeURIComponent(full)}&ref=${REF}`;
 }
 

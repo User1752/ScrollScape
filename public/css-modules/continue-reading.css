@@ -1,0 +1,116 @@
+/* ============================================================================
+   CONTINUE READING (home)
+   ============================================================================ */
+.continue-reading-section {
+  margin-bottom: 2rem;
+}
+
+.continue-reading-section.hidden {
+  display: none;
+}
+
+.continue-reading-row {
+  --continue-gap: 1rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - (var(--continue-gap) * 4)) / 5);
+  gap: var(--continue-gap);
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0.5rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.continue-reading-row::-webkit-scrollbar {
+  display: none;
+}
+
+.continue-card {
+  min-width: 0;
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+
+.continue-card-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.continue-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.continue-card:hover .continue-card-cover img {
+  transform: scale(1.05);
+}
+
+.continue-card-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: white;
+  background: rgba(0,0,0,0.35);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.continue-card:hover .continue-card-play {
+  opacity: 1;
+}
+
+.continue-card-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: rgba(0,0,0,0.55);
+}
+
+.continue-card-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light, #a78bfa));
+}
+
+.continue-card-info {
+  padding-top: 0.5rem;
+}
+
+.continue-card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.continue-card-meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .continue-reading-row {
+    grid-auto-columns: calc((100% - (var(--continue-gap) * 2)) / 3);
+  }
+}

@@ -41,7 +41,10 @@
   });
 
   bindUI();
-  
+
+  // Open whatever view the current URL points at (deep link / refresh).
+  if (typeof routerRestoreInitialRoute === 'function') routerRestoreInitialRoute();
+
   // Initialize Feather icons for static HTML
   if (typeof feather !== 'undefined') {
     feather.replace();
