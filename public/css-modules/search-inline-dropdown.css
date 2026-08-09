@@ -75,3 +75,21 @@
   gap: 1rem;
 }
 
+/* "+N more" button for one source's group in "Search all sources" — see
+   createSourceRevealController() in ui-search.js. */
+.search-source-group-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.search-source-group-more:empty {
+  display: none;
+  margin-top: 0;
+}
+
+.search-source-load-more-btn {
+  font-size: 0.8rem;
+  padding: 0.4rem 1rem;
+}
+

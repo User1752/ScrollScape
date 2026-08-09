@@ -636,20 +636,21 @@ async function advancedSearch(page = 1, isLoadMore = false) {
 }
 
 // Same "Search all sources" idea as the home search (see searchAllSources()
-// in ui-search.js), adapted for Advanced Search's filters. Scoped down the
-// same way: only the first native page per source (capped at
-// ADV_ALL_SOURCES_PER_SOURCE_LIMIT results), not the multi-page "fill-up"
-// accumulation advancedSearch() does for a single source — running that
-// fill-up loop (up to ADV_MAX_API_PAGES native calls) across every source
-// at once would be far too slow/heavy. Non-genre filters (sort, status,
-// format) are sent as-is to every source — a source that doesn't support
-// one already ignores it server-side (see ADV_SOURCE_CAPABILITIES).
-// Genres are the one filter that isn't just "supported or not": the
-// merged grid (see buildMergedGenreList) mixes two real taxonomies, so
-// each source only gets sent the genres that actually exist in its own
-// list (see getSourceGenreTaxonomy) — sources with none of the selected
-// genres are skipped outright rather than queried with a wrong filter.
-const ADV_ALL_SOURCES_PER_SOURCE_LIMIT = 20;
+// and createSourceRevealController() in ui-search.js), adapted for Advanced
+// Search's filters. Scoped down the same way: each source reveals results
+// ADV_ALL_SOURCES_REVEAL_CHUNK at a time via a "+N more" button, not the
+// multi-page "fill-up" accumulation advancedSearch() does for a single
+// source — running that fill-up loop (up to ADV_MAX_API_PAGES native calls)
+// across every source at once would be far too slow/heavy. Non-genre
+// filters (sort, status, format) are sent as-is to every source — a source
+// that doesn't support one already ignores it server-side (see
+// ADV_SOURCE_CAPABILITIES). Genres are the one filter that isn't just
+// "supported or not": the merged grid (see buildMergedGenreList) mixes two
+// real taxonomies, so each source only gets sent the genres that actually
+// exist in its own list (see getSourceGenreTaxonomy) — sources with none of
+// the selected genres are skipped outright rather than queried with a
+// wrong filter.
+const ADV_ALL_SOURCES_REVEAL_CHUNK = 20;
 const ADV_ALL_SOURCES_CONCURRENCY = 3;
 
 async function advancedSearchAllSources() {
@@ -687,19 +688,24 @@ async function advancedSearchAllSources() {
         <span class="search-source-group-status">Searching…</span>
       </div>
       <div class="search-source-group-grid"></div>
+      <div class="search-source-group-more"></div>
     </div>
   `).join("");
 
-  let totalResults = 0;
+  let totalShown = 0;
   let doneCount = 0;
   let cursor = 0;
+
+  function bumpStatus() {
+    $("advancedSearchStatus").textContent = doneCount < sources.length
+      ? `Searching... (${doneCount}/${sources.length} sources done, ${totalShown} result(s) so far)`
+      : `${totalShown} result(s) shown across ${sources.length} source(s)`;
+  }
 
   async function worker() {
     while (cursor < sources.length) {
       const source = sources[cursor++];
       const groupEl = resultsDiv.querySelector(`.search-source-group[data-source-id="${source.id}"]`);
-      const statusEl = groupEl?.querySelector(".search-source-group-status");
-      const gridEl = groupEl?.querySelector(".search-source-group-grid");
 
       // The merged genre grid mixes two taxonomies (default manga genres +
       // BatCave's own comic genres) — only pass a source the genres that
@@ -710,51 +716,48 @@ async function advancedSearchAllSources() {
       const genreMismatch = selectedGenres.length > 0 && sourceGenres.length === 0;
 
       if (genreMismatch) {
+        const statusEl = groupEl?.querySelector(".search-source-group-status");
         if (statusEl) statusEl.textContent = "No matching genres";
         if (groupEl) groupEl.style.display = "none";
         doneCount++;
-        $("advancedSearchStatus").textContent = doneCount < sources.length
-          ? `Searching... (${doneCount}/${sources.length} sources done, ${totalResults} result(s) so far)`
-          : `${totalResults} result(s) found across ${sources.length} source(s)`;
+        bumpStatus();
         continue;
       }
 
-      try {
-        let result;
-        if (sourceGenres.length > 0) {
-          result = await api(`/api/source/${source.id}/byGenres`, {
-            method: "POST",
-            body: JSON.stringify({ genres: sourceGenres, page: 1, orderBy, publicationStatus, contentRating, format })
-          });
-        } else {
-          result = await api(`/api/source/${source.id}/search`, {
-            method: "POST",
-            body: JSON.stringify({ query: query || "", page: 1, orderBy, publicationStatus, contentRating, format })
-          });
-        }
-        const rawResults = result.results || [];
-        let normalizedResults = rawResults.map(m => normalizeSourceSearchResult(m, source.id)).filter(Boolean);
-        if (needsClientFilter) {
-          normalizedResults = _applyAdvFilters(normalizedResults, query, sourceGenres, publicationStatus, contentRating, format);
-        }
-        const filtered = (await _filterMangaWithoutChapters(normalizedResults, source.id)).slice(0, ADV_ALL_SOURCES_PER_SOURCE_LIMIT);
+      const controller = createSourceRevealController({
+        groupEl,
+        chunkSize: ADV_ALL_SOURCES_REVEAL_CHUNK,
+        fetchPage: async (nativePage) => {
+          let result;
+          if (sourceGenres.length > 0) {
+            result = await api(`/api/source/${source.id}/byGenres`, {
+              method: "POST",
+              body: JSON.stringify({ genres: sourceGenres, page: nativePage, orderBy, publicationStatus, contentRating, format })
+            });
+          } else {
+            result = await api(`/api/source/${source.id}/search`, {
+              method: "POST",
+              body: JSON.stringify({ query: query || "", page: nativePage, orderBy, publicationStatus, contentRating, format })
+            });
+          }
+          const rawResults = result.results || [];
+          let normalizedResults = rawResults.map(m => normalizeSourceSearchResult(m, source.id)).filter(Boolean);
+          if (needsClientFilter) {
+            normalizedResults = _applyAdvFilters(normalizedResults, query, sourceGenres, publicationStatus, contentRating, format);
+          }
+          const items = await _filterMangaWithoutChapters(normalizedResults, source.id);
+          return { items, hasNextPage: result.hasNextPage || false };
+        },
+      });
 
-        totalResults += filtered.length;
-        if (statusEl) statusEl.textContent = filtered.length ? `${filtered.length} result(s)` : "No results";
-        if (filtered.length && gridEl) {
-          renderMangaGrid(gridEl, filtered);
-        } else if (groupEl) {
-          groupEl.style.display = "none";
-        }
+      try {
+        totalShown += await controller.loadFirstPage();
       } catch (e) {
-        if (statusEl) statusEl.textContent = "Unavailable";
-        if (groupEl) groupEl.style.display = "none";
+        // controller already set the "Unavailable" state on the group
       }
 
       doneCount++;
-      $("advancedSearchStatus").textContent = doneCount < sources.length
-        ? `Searching... (${doneCount}/${sources.length} sources done, ${totalResults} result(s) so far)`
-        : `${totalResults} result(s) found across ${sources.length} source(s)`;
+      bumpStatus();
     }
   }
 

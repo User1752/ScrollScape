@@ -319,17 +319,116 @@ window.search = async function search(page = 1, isLoadMore = false) {
   }
 }
 
-// Per-source result cap for "Search all sources" — this is a first-page,
-// best-effort overview across every selectable source, not a paginated
-// merge (each source has its own page/hasNextPage that doesn't unify
-// cleanly). Switch the source dropdown to a single source for full paging.
-const SEARCH_ALL_SOURCES_PER_SOURCE_LIMIT = 20;
+// How many results a source reveals at a time in "Search all sources" —
+// not a hard cap: each source's group has its own "+N more" button once
+// there's more to show, either already fetched-but-hidden or via the
+// source's next native page. Switch the source dropdown to a single
+// source for the full infinite-scroll experience instead.
+const SEARCH_ALL_SOURCES_REVEAL_CHUNK = 20;
 // How many sources are queried in parallel at once. Several installed
 // sources share the same FlareSolverr instance to get past Cloudflare —
 // firing all of them at once just queues them up behind each other, so a
 // small worker pool (matching the pattern already used for genre
 // hydration in ui-discover.js) keeps things moving without hammering it.
 const SEARCH_ALL_SOURCES_CONCURRENCY = 3;
+
+// ── "Search all sources" per-source reveal controller ───────────────────────
+// Shared by searchAllSources() here and advancedSearchAllSources() in
+// ui-advanced-search.js. Each source keeps an unbounded local pool of
+// already-fetched-and-filtered results; clicking "+N more" reveals the next
+// chunk from that pool first (no network needed) and only fetches the
+// source's next native page once the pool is actually exhausted.
+// fetchPage(nativePage) must resolve to { items, hasNextPage }, already
+// normalized/filtered by the caller.
+function _appendMangaCardsToGrid(gridEl, items) {
+  if (!gridEl || !items.length) return;
+  gridEl.insertAdjacentHTML("beforeend", items.map(m => mangaCardHTML(m)).join(""));
+  bindMangaCards(gridEl);
+  if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(gridEl);
+}
+
+// Bounds how many native pages ONE reveal (initial or "+N more" click) will
+// fetch trying to fill a single chunk — a heavily filtered source could
+// otherwise need many native pages to yield even one chunk-worth of
+// matches. Same reasoning as advancedSearch()'s per-round fill-up cap.
+const SOURCE_REVEAL_MAX_FETCH_ATTEMPTS = 20;
+
+function createSourceRevealController({ groupEl, chunkSize, fetchPage }) {
+  const statusEl = groupEl?.querySelector(".search-source-group-status");
+  const gridEl = groupEl?.querySelector(".search-source-group-grid");
+  const moreEl = groupEl?.querySelector(".search-source-group-more");
+
+  let pool = [];
+  let shown = 0;
+  let nativePage = 0;
+  let hasMoreNative = true;
+  let loading = false;
+
+  function renderMoreButton() {
+    if (!moreEl) return;
+    const hasMore = pool.length > shown || hasMoreNative;
+    if (!hasMore) { moreEl.innerHTML = ""; return; }
+    moreEl.innerHTML = `<button class="btn secondary search-source-load-more-btn" type="button">+${chunkSize} more</button>`;
+    moreEl.querySelector("button").onclick = loadMore;
+  }
+
+  function revealNextChunk() {
+    const chunk = pool.slice(shown, shown + chunkSize);
+    _appendMangaCardsToGrid(gridEl, chunk);
+    shown += chunk.length;
+    if (statusEl) statusEl.textContent = shown ? `${shown} result(s)` : "No results";
+    return chunk.length;
+  }
+
+  // Fetches native pages (bounded) until the pool has enough unshown items
+  // for a full chunk, or the source is genuinely exhausted.
+  async function ensurePoolHasChunk() {
+    const target = shown + chunkSize;
+    let attempts = 0;
+    while (pool.length < target && hasMoreNative && attempts < SOURCE_REVEAL_MAX_FETCH_ATTEMPTS) {
+      attempts++;
+      nativePage += 1;
+      const { items, hasNextPage } = await fetchPage(nativePage);
+      pool.push(...items);
+      hasMoreNative = hasNextPage;
+    }
+  }
+
+  async function loadMore() {
+    if (loading) return;
+    loading = true;
+    if (moreEl) moreEl.innerHTML = `<span class="load-more-status">Loading more…</span>`;
+    try {
+      await ensurePoolHasChunk();
+      revealNextChunk();
+    } catch (e) {
+      if (moreEl) moreEl.innerHTML = `<span class="load-more-status">Could not load more results.</span>`;
+      loading = false;
+      return;
+    }
+    loading = false;
+    renderMoreButton();
+  }
+
+  return {
+    async loadFirstPage() {
+      try {
+        await ensurePoolHasChunk();
+        const shownCount = revealNextChunk();
+        if (shownCount === 0 && !hasMoreNative) {
+          if (groupEl) groupEl.style.display = "none";
+        } else {
+          renderMoreButton();
+        }
+        return shownCount;
+      } catch (e) {
+        if (statusEl) statusEl.textContent = "Unavailable";
+        if (groupEl) groupEl.style.display = "none";
+        throw e;
+      }
+    },
+  };
+}
 
 async function searchAllSources(query) {
   const dropdown = $("searchDropdown");
@@ -357,10 +456,11 @@ async function searchAllSources(query) {
         <span class="search-source-group-status">Searching…</span>
       </div>
       <div class="search-source-group-grid"></div>
+      <div class="search-source-group-more"></div>
     </div>
   `).join("");
 
-  let totalResults = 0;
+  let totalShown = 0;
   let doneCount = 0;
   let cursor = 0;
 
@@ -368,37 +468,30 @@ async function searchAllSources(query) {
     while (cursor < sources.length) {
       const source = sources[cursor++];
       const groupEl = dropdown.querySelector(`.search-source-group[data-source-id="${source.id}"]`);
-      const statusEl = groupEl?.querySelector(".search-source-group-status");
-      const gridEl = groupEl?.querySelector(".search-source-group-grid");
+
+      const controller = createSourceRevealController({
+        groupEl,
+        chunkSize: SEARCH_ALL_SOURCES_REVEAL_CHUNK,
+        fetchPage: async (nativePage) => {
+          const result = await api(`/api/source/${source.id}/search`, {
+            method: "POST",
+            body: JSON.stringify({ query, page: nativePage })
+          });
+          const items = await _processSearchResults(result.results, source.id, query);
+          return { items, hasNextPage: result.hasNextPage || false };
+        },
+      });
 
       try {
-        const result = await api(`/api/source/${source.id}/search`, {
-          method: "POST",
-          body: JSON.stringify({ query, page: 1 })
-        });
-        const filtered = (await _processSearchResults(result.results, source.id, query))
-          .slice(0, SEARCH_ALL_SOURCES_PER_SOURCE_LIMIT);
-
-        totalResults += filtered.length;
-        if (statusEl) statusEl.textContent = filtered.length ? `${filtered.length} result(s)` : "No results";
-        if (gridEl) {
-          if (filtered.length) {
-            gridEl.innerHTML = filtered.map(m => mangaCardHTML(m)).join("");
-            bindMangaCards(gridEl);
-            if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(gridEl);
-          } else {
-            groupEl.style.display = "none";
-          }
-        }
+        totalShown += await controller.loadFirstPage();
       } catch (e) {
-        if (statusEl) statusEl.textContent = "Unavailable";
-        if (groupEl) groupEl.style.display = "none";
+        // controller already set the "Unavailable" state on the group
       }
 
       doneCount++;
       $("searchStatus").textContent = doneCount < sources.length
-        ? `Searching... (${doneCount}/${sources.length} sources done, ${totalResults} result(s) so far)`
-        : `${totalResults} result(s) found across ${sources.length} source(s)`;
+        ? `Searching... (${doneCount}/${sources.length} sources done, ${totalShown} result(s) so far)`
+        : `${totalShown} result(s) shown across ${sources.length} source(s)`;
     }
   }
 
