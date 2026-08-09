@@ -7,6 +7,19 @@ function showSettings() {
   let initializingSettingsModal = true;
   const modal = document.createElement("div");
   modal.className = "settings-modal";
+
+  // Closing this modal must not leave a dangling subscription behind —
+  // there are several places below that call modal.remove() (the X
+  // button, clicking the backdrop, a couple of post-save flows), so
+  // patching remove() itself here guarantees cleanup fires no matter which
+  // of those actually triggers the close, instead of having to remember to
+  // unsubscribe at every call site individually.
+  let _unsubscribeAnilistBadge = null;
+  const _originalModalRemove = modal.remove.bind(modal);
+  modal.remove = () => {
+    if (_unsubscribeAnilistBadge) { _unsubscribeAnilistBadge(); _unsubscribeAnilistBadge = null; }
+    _originalModalRemove();
+  };
   
   const _origSave = window.saveSettings;
   const saveSettings = () => {
@@ -1435,6 +1448,41 @@ function showSettings() {
   }
   const btnImportNow = $('btnAniListImportNow');
   if (btnImportNow) {
+    const progressWrap = $('anilistImportProgressWrap');
+    const progressFill = $('anilistImportProgressFill');
+    const progressText = $('anilistImportProgressText');
+    const setProgress = (pct, txt) => {
+      if (progressFill) progressFill.style.width = `${Math.max(0, Math.min(100, Number(pct) || 0))}%`;
+      if (progressText && txt) progressText.textContent = txt;
+    };
+
+    // Subscribed unconditionally (not just after clicking "Start Import")
+    // so that reopening Settings while an import kicked off from an
+    // earlier, since-closed modal is still running shows real progress
+    // instead of a blank/default button — the import itself was never
+    // tied to this modal's lifetime in the first place (see
+    // anilist.js's shared progress channel).
+    _unsubscribeAnilistBadge = anilistSubscribeImportProgress(({ percent, label, running }) => {
+      if (running) {
+        btnImportNow.disabled = true;
+        btnImportNow.textContent = 'Importing...';
+        if (progressWrap) progressWrap.classList.remove('hidden');
+        setProgress(percent, label || 'Importing…');
+      } else {
+        btnImportNow.disabled = false;
+        btnImportNow.textContent = '↓ Import Library Now';
+      }
+    });
+    if (typeof anilistGetImportState === 'function') {
+      const importState = anilistGetImportState();
+      if (importState.running) {
+        btnImportNow.disabled = true;
+        btnImportNow.textContent = 'Importing...';
+        if (progressWrap) progressWrap.classList.remove('hidden');
+        setProgress(importState.percent, importState.label || 'Importing…');
+      }
+    }
+
     btnImportNow.onclick = (e) => {
       if ($('anilistImportMenu')) {
         $('anilistImportMenu').remove();
@@ -1481,32 +1529,15 @@ function showSettings() {
           return;
         }
 
-        const progressWrap = $('anilistImportProgressWrap');
-        const progressFill = $('anilistImportProgressFill');
-        const progressText = $('anilistImportProgressText');
-        const setProgress = (pct, txt) => {
-          if (progressFill) progressFill.style.width = `${Math.max(0, Math.min(100, Number(pct) || 0))}%`;
-          if (progressText && txt) progressText.textContent = txt;
-        };
-
-        btnImportNow.disabled = true;
-        btnImportNow.textContent = 'Importing...';
-        if (progressWrap) progressWrap.classList.remove('hidden');
+        // Button/progress-bar state from here on is driven entirely by the
+        // anilistSubscribeImportProgress() subscription set up above (it
+        // fires for every report() call inside anilistImportLibrary
+        // regardless of which modal instance is open, or none at all) —
+        // no separate onProgress callback needed here.
         setProgress(0, 'Starting AniList import…');
 
         try {
-          const r = await anilistImportLibrary({
-            statuses: selectedStatuses,
-            onProgress: ({ percent, label }) => {
-              setProgress(percent, label || 'Importing…');
-            }
-          });
-
-          if (r?.ok) {
-            setProgress(100, 'Import complete.');
-          } else {
-            setProgress(100, `Import stopped: ${r?.error || 'unable to complete'}`);
-          }
+          const r = await anilistImportLibrary({ statuses: selectedStatuses });
 
           const sync = state.anilistSync;
           if (sync?.lastImportAt) {
@@ -1518,9 +1549,11 @@ function showSettings() {
               label.style.display = '';
             }
           }
-        } finally {
-          btnImportNow.disabled = false;
-          btnImportNow.textContent = '↓ Import Library Now';
+          if (!r?.ok) {
+            showToast('AniList Import', `Import stopped: ${r?.error || 'unable to complete'}`, 'warning');
+          }
+        } catch (err) {
+          showToast('AniList Import', err?.message || 'Import failed.', 'error');
         }
       };
     };

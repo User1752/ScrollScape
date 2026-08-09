@@ -310,6 +310,58 @@ async function anilistHandleCallback() {
 
 let _anilistImportInProgress = false;
 
+// Shared progress channel — anilistImportLibrary() already runs as a plain
+// async function tied to nothing in the DOM, so closing the Settings modal
+// mid-import never actually stopped it; what was missing was any visible
+// indication of that once the modal (and its in-place progress bar) went
+// away. This lets any UI (the settings modal's own bar, a persistent
+// floating badge, etc.) subscribe to the same progress events regardless of
+// whether it happened to exist when the import started.
+let _anilistImportLastProgress = { percent: 0, label: '' };
+const _anilistImportListeners = new Set();
+
+function _anilistBroadcastImportProgress(percent, label) {
+  _anilistImportLastProgress = { percent, label };
+  for (const fn of _anilistImportListeners) {
+    try { fn({ percent, label, running: _anilistImportInProgress }); } catch (_) {}
+  }
+}
+
+function anilistSubscribeImportProgress(fn) {
+  _anilistImportListeners.add(fn);
+  return () => _anilistImportListeners.delete(fn);
+}
+
+function anilistGetImportState() {
+  return { running: _anilistImportInProgress, ..._anilistImportLastProgress };
+}
+
+let _anilistBadgeHideTimer = null;
+
+function _anilistUpdateImportBadge({ percent, label, running }) {
+  const badge = document.getElementById('anilistImportBadge');
+  const text = document.getElementById('anilistImportBadgeText');
+  if (!badge || !text) return;
+
+  if (_anilistBadgeHideTimer) { clearTimeout(_anilistBadgeHideTimer); _anilistBadgeHideTimer = null; }
+
+  if (!running) {
+    text.textContent = label || 'Import complete';
+    // Leave the final message visible briefly instead of vanishing the
+    // instant it hits 100% — otherwise "done" reads the same as "never
+    // started" if you glance away for a second.
+    _anilistBadgeHideTimer = setTimeout(() => badge.classList.add('hidden'), 4000);
+    return;
+  }
+
+  badge.classList.remove('hidden');
+  text.textContent = `${label || 'Importing AniList…'} (${Math.round(percent)}%)`;
+}
+
+if (typeof anilistSubscribeImportProgress === 'function') {
+  anilistSubscribeImportProgress(_anilistUpdateImportBadge);
+}
+
 const _AL_IMPORT_LIMITS = {
   resolveEntriesMax: 80,
   resolveBatch: 2,
@@ -833,9 +885,11 @@ function _showAnilistSourcePicker(choices) {
 async function anilistImportLibrary(opts = {}) {
   const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
   const report = (percent, label, extra = {}) => {
+    const pct = Math.max(0, Math.min(100, Math.floor(percent)));
+    _anilistBroadcastImportProgress(pct, label);
     if (!onProgress) return;
     try {
-      onProgress({ percent: Math.max(0, Math.min(100, Math.floor(percent))), label, ...extra });
+      onProgress({ percent: pct, label, ...extra });
     } catch (_) {}
   };
 
@@ -1140,6 +1194,10 @@ async function anilistImportLibrary(opts = {}) {
     return { ok: false, error: err.message || 'Import failed' };
   } finally {
     _anilistImportInProgress = false;
+    // One more broadcast so subscribers (the floating badge in particular)
+    // see running:false and can hide themselves — report() only reads the
+    // flag at call time, and nothing calls report() again after this point.
+    _anilistBroadcastImportProgress(_anilistImportLastProgress.percent, _anilistImportLastProgress.label);
   }
 }
 
