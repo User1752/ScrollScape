@@ -554,6 +554,18 @@ function showSettings() {
               </div>
             </div>
             <div class="settings-section-card">
+              <p class="settings-section-title">Backup &amp; Restore</p>
+              <div class="setting-group">
+                <p class="setting-description" style="margin:0 0 0.6rem 0">Save your library, reading history, custom lists, achievements, settings and AniList links to a single file — or restore from one.</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <button class="btn secondary" id="btnExportBackup">Export Backup</button>
+                  <button class="btn secondary" id="btnImportBackup" style="color:var(--color-danger)">Import Backup</button>
+                  <input type="file" id="importBackupFileInput" accept=".json" style="display:none">
+                </div>
+                <p class="setting-description" style="margin-top:0.5rem">Your AniList login token isn't included for security — reconnect AniList (one click) after restoring. Downloaded/local manga files aren't included either, only their library entries.</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
               <p class="settings-section-title">Factory Reset</p>
               <div class="setting-group">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -692,6 +704,20 @@ function showSettings() {
       if (typeof renderLibrary === 'function') renderLibrary();
       if (typeof applyReaderBackground === 'function') applyReaderBackground();
       if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  }
+
+  const btnExportBackup = $("btnExportBackup");
+  if (btnExportBackup) btnExportBackup.onclick = () => exportBackup();
+
+  const btnImportBackup = $("btnImportBackup");
+  const importBackupFileInput = $("importBackupFileInput");
+  if (btnImportBackup && importBackupFileInput) {
+    btnImportBackup.onclick = () => importBackupFileInput.click();
+    importBackupFileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) importBackupFile(file);
+      e.target.value = '';
     };
   }
 

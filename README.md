@@ -20,6 +20,7 @@
 | **Reading progress** | Per-chapter markers, continue-reading, full history |
 | **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold), and display modes (Detailed Grid, Compact Grid, List) |
 | **Library migration** | Migrate manga between sources while preserving custom lists and reading status |
+| **Backup & Restore** | Export your entire library, history, custom lists, achievements, settings and AniList links to one file, and restore it later or on another install — **Settings → Advanced → Backup & Restore** |
 | **Custom cover picker** | Change manga covers with a visual picker (AniList + installed sources), custom URL input, and Google Images shortcut. In Library: right-click card -> Change Cover. In manga details: click the cover. |
 | **AniList Tracker** | OAuth login, search & link manga, sync chapter progress / score / status / dates automatically |
 | **Release calendar** | Monthly calendar with confirmed releases via OtakuCalendar integration and predicted chapter dates; confidence indicators (high/medium/low); chapter-offset correction for licensed manga |
@@ -136,6 +137,21 @@ To save chapters for offline reading directly in your ScrollScape library:
 
 ---
 
+## Backup & Restore
+
+Open **Settings → Advanced → Backup & Restore**.
+
+- **Export Backup** downloads a single `.json` file containing your library (favourites), reading history, custom lists, achievements/AP, purchased themes, settings, AniList sync stats/links, and per-manga UI state (bookshelf spine colours, read markers, reading progress).
+- **Import Backup** restores from that file — this **replaces** your current library, history and settings, so you'll be asked to confirm first.
+
+Two things are intentionally left out:
+- **Your AniList login token** — it's a live credential, not app data, so it isn't written to the file. Just reconnect AniList (one click in **Settings → Tracking**) after restoring.
+- **Downloaded/local manga files** (CBZ/CBR/ZIP/PDF originals and saved-offline chapter images) — only their library entries are backed up, not the files themselves in `Local/`.
+
+If you're restoring onto a different machine, make sure the same files exist under `data/sources/` first — a backup only references source IDs, it doesn't bundle the source plugin code.
+
+---
+
 ## Animated Wallpaper
 
 During reading, open **Settings → Reader Appearance** and enable **Animated Wallpaper**.
@@ -235,6 +251,7 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 | Calendar | `GET /api/calendar?year=&month=` |
 | Theme presets | `GET/PUT /api/theme-presets` |
 | Settings | `GET/POST /api/settings` |
+| Backup | `GET /api/backup/export` · `POST /api/backup/import` |
 | Reader wallpapers | `GET /api/reader-wallpapers` |
 | Utilities | `GET /api/proxy-image` · `POST /api/mangaupdates/search` · `POST /api/anilist` |
 
