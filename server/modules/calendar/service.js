@@ -1,5 +1,12 @@
 'use strict';
 
+// Pre-existing bug fixed here: resolveMangaDexId()/fetchBatchMangaChapters()
+// referenced a bare `limits` identifier with no import anywhere in this
+// file, so every call threw "limits is not defined" — silently caught and
+// treated as "title not found" / "no chapters", meaning MangaDex
+// resolution has never actually succeeded for any manga in production.
+const limits = require('../../config/limits');
+
 const CHAPTERS_PER_FEED = 96;
 const MAX_INTERVALS = 8;
 
@@ -14,8 +21,20 @@ const DAY_MS = 86_400_000;
 const MAX_PREDICTIONS = 8;
 const MIN_INTERVAL_HOURS = 12;
 
+// Sources whose own chapters() response includes a real, parseable
+// publishAt/date per chapter (verified by reading each source file —
+// the rest either omit the field entirely or explicitly set it to null).
+// Manga that can't be resolved to a MangaDex UUID would otherwise get no
+// calendar entry at all; for these sources only, fall back to computing
+// the release interval straight from the source's own chapter history
+// instead. Everything else (BatCave, AllManga, AsuraScans, MangaKatana,
+// MangaPill, VortexScans) has no chapter-level date data to fall back
+// on — those still land in noSchedule when MangaDex resolution fails.
+const NATIVE_DATE_SOURCES = new Set(['comichubfree', 'weebcentral']);
+
 function createCalendarService({ readStore, loadSourceFromFile }) {
   const sourceChapCache = new Map();
+  const nativeChapCache = new Map();
   const titleCache = new Map();
   const SOURCE_CHAP_TTL = 30 * 60_000;
 
@@ -230,6 +249,48 @@ function createCalendarService({ readStore, loadSourceFromFile }) {
     return new Map(results.map(result => [result.uuid, result.chapters]));
   }
 
+  // Fallback for manga that don't resolve to a MangaDex UUID but whose own
+  // installed source is in NATIVE_DATE_SOURCES — computes the release
+  // interval straight from that source's own dated chapter history,
+  // mirroring fetchBatchMangaChapters' shape/sort/filter so the rest of
+  // getCalendar() can treat either origin identically.
+  async function fetchNativeDatedChapters(manga) {
+    const cacheKey = `${manga.sourceId}:${manga.id}`;
+    const cached = nativeChapCache.get(cacheKey);
+    if (cached && (Date.now() - cached.ts) < SOURCE_CHAP_TTL) return cached.chapters;
+    try {
+      const src = loadSourceFromFile(manga.sourceId);
+      let timerId;
+      const result = await Promise.race([
+        src.chapters(manga.id),
+        new Promise((_, reject) => { timerId = setTimeout(() => reject(new Error('timeout')), MD_TIMEOUT_MS); }),
+      ]);
+      clearTimeout(timerId);
+      const chapters = (result?.chapters || [])
+        .map(ch => ({
+          date: new Date(ch.publishAt || ch.date || 0),
+          chapter: String(ch.chapter || '?').trim().slice(0, 20),
+          id: ch.id,
+        }))
+        .filter(ch => !isNaN(ch.date.getTime()) && ch.date.getTime() > 0)
+        .sort((a, b) => a.date - b.date);
+      nativeChapCache.set(cacheKey, { chapters, ts: Date.now() });
+      return chapters;
+    } catch (err) {
+      console.error('[calendar] native chapters error:', manga.title, err.message);
+      nativeChapCache.set(cacheKey, { chapters: [], ts: Date.now() });
+      return [];
+    }
+  }
+
+  async function fetchNativeDatedChaptersBatch(mangaList) {
+    const results = await Promise.all(mangaList.map(async (manga) => ({
+      key: `${manga.sourceId}:${manga.id}`,
+      chapters: await fetchNativeDatedChapters(manga),
+    })));
+    return new Map(results.map(r => [r.key, r.chapters]));
+  }
+
   async function fetchSourceLatestChapNum(manga) {
     const cacheKey = `${manga.sourceId}:${manga.id}`;
     const cached = sourceChapCache.get(cacheKey);
@@ -296,15 +357,26 @@ function createCalendarService({ readStore, loadSourceFromFile }) {
         const mdId = (manga.sourceId === 'mangadex' && UUID_RE.test(manga.id))
           ? manga.id
           : await resolveMangaDexId(manga.title);
-        return { manga, mdId };
+        // MangaDex resolution failed — fall back to the manga's own source
+        // history if (and only if) that source is known to carry real
+        // chapter dates (see NATIVE_DATE_SOURCES).
+        const useNative = mdId === null && NATIVE_DATE_SOURCES.has(manga.sourceId);
+        return { manga, mdId, useNative };
       })
     );
-    const valid = resolved.filter(e => e.mdId !== null);
+    // Manga with neither a MangaDex match nor a native-date source have no
+    // date data anywhere to build a calendar entry from — they still end
+    // up in noSchedule below, same as before.
+    const processable = resolved.filter(e => e.mdId !== null || e.useNative);
 
-    const [chaptersMap, sourceChapResults, otakuReleasesByDay] = await Promise.all([
-      fetchBatchMangaChapters(valid.map(e => e.mdId)),
-      Promise.all(valid.map(({ manga }) => (
-        manga.sourceId !== 'mangadex' ? fetchSourceLatestChapNum(manga) : Promise.resolve(null)
+    const [chaptersMap, nativeChaptersMap, sourceChapResults, otakuReleasesByDay] = await Promise.all([
+      fetchBatchMangaChapters(processable.filter(e => e.mdId !== null).map(e => e.mdId)),
+      fetchNativeDatedChaptersBatch(processable.filter(e => e.useNative).map(e => e.manga)),
+      Promise.all(processable.map(({ manga, useNative }) => (
+        // Only meaningful for the MangaDex path, to correct for MangaDex's
+        // chapter numbering lagging behind the real source (see chapOffset
+        // below) — native entries already use the source's own numbering.
+        (!useNative && manga.sourceId !== 'mangadex') ? fetchSourceLatestChapNum(manga) : Promise.resolve(null)
       ))),
       fetchOtakuCalendarReleases(year, month, releasing),
     ]);
@@ -316,16 +388,18 @@ function createCalendarService({ readStore, loadSourceFromFile }) {
       days[d].push(...volReleases);
     }
 
-    for (let i = 0; i < valid.length; i++) {
-      const { manga, mdId } = valid[i];
-      const dated = chaptersMap.get(mdId) || [];
+    for (let i = 0; i < processable.length; i++) {
+      const { manga, mdId, useNative } = processable[i];
+      const dated = useNative
+        ? (nativeChaptersMap.get(`${manga.sourceId}:${manga.id}`) || [])
+        : (chaptersMap.get(mdId) || []);
       const sourceLatestChap = sourceChapResults[i];
 
       if (!dated.length) continue;
 
       const mdLastChapNum = parseFloat(dated[dated.length - 1].chapter);
       let chapOffset = 0;
-      if (sourceLatestChap !== null && isFinite(sourceLatestChap) &&
+      if (!useNative && sourceLatestChap !== null && isFinite(sourceLatestChap) &&
           isFinite(mdLastChapNum) && sourceLatestChap > mdLastChapNum) {
         chapOffset = Math.round(sourceLatestChap - mdLastChapNum);
       }
