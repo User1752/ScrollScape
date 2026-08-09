@@ -153,7 +153,13 @@ function _renderGenreOverview() {
 // Heatmap range options — weeks chosen so each spans full week-columns
 // covering roughly the named period (month rounds 30 days up to 5 full
 // weeks; year matches GitHub's own ~53-column contribution graph).
-const HEATMAP_RANGES = { week: 1, month: 5, year: 53 };
+const HEATMAP_RANGES = { month: 5, year: 53 };
+// Fixed pixel size per cell/column — not 1fr. A flexible track stretches
+// to fill 100% of the row regardless of column count, which looks right
+// at 53 columns (Year) but leaves huge gaps between columns at 5 (Month):
+// each column would span 1/5 of the whole card width. A fixed size keeps
+// cells packed tightly together at any column count instead.
+const HEATMAP_CELL_PX = 14;
 const HEATMAP_RANGE_STORAGE_KEY = 'scrollscape_analytics_heatmap_range';
 
 function _getHeatmapRange() {
@@ -232,9 +238,9 @@ function _renderReadingActivityHeatmap(analytics) {
   const daysInRange = weeks.flat().filter(d => d.inRange);
   const totalChapters = daysInRange.reduce((s, d) => s + d.count, 0);
   const activeDays = daysInRange.filter(d => d.count > 0).length;
-  const rangeLabel = range === 'week' ? '1 week' : range === 'year' ? '1 year' : '1 month';
+  const rangeLabel = range === 'year' ? '1 year' : '1 month';
 
-  const gridColumns = `repeat(${weekCount}, 1fr)`;
+  const gridColumns = `repeat(${weekCount}, ${HEATMAP_CELL_PX}px)`;
 
   el.innerHTML = `
     <div class="heatmap-months" style="grid-template-columns:${gridColumns}">${monthLabels.map(m => `<span>${m}</span>`).join('')}</div>
