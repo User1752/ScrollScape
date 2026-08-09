@@ -20,6 +20,7 @@ function registerAppRoutes(app) {
   const { registerSettingsRoutes } = require('./settings');
   const { registerBackupRoutes } = require('./backup');
   const { registerOpdsRoutes } = require('./opds');
+  const { registerMihonImportRoutes } = require('./mihon-import');
 
   registerProxyRoutes(app);
   registerRepoRoutes(app);
@@ -41,6 +42,7 @@ function registerAppRoutes(app) {
   registerSettingsRoutes(app);
   registerBackupRoutes(app);
   registerOpdsRoutes(app);
+  registerMihonImportRoutes(app);
 }
 
 module.exports = { registerAppRoutes };

@@ -566,6 +566,16 @@ function showSettings() {
               </div>
             </div>
             <div class="settings-section-card">
+              <p class="settings-section-title">Import from Tachiyomi / Mihon</p>
+              <div class="setting-group">
+                <p class="setting-description" style="margin:0 0 0.6rem 0">Import a Tachiyomi or Mihon library backup (.tachibk). Titles, covers, genres, reading progress and categories come across as best as they can — chapters from a source ScrollScape doesn't recognise import as metadata only; use Migrate afterward to re-link them to a live source here.</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <button class="btn secondary" id="btnImportMihon">Import Tachiyomi/Mihon Backup</button>
+                  <input type="file" id="importMihonFileInput" accept=".tachibk,.proto.gz,.gz" style="display:none">
+                </div>
+              </div>
+            </div>
+            <div class="settings-section-card">
               <p class="settings-section-title">OPDS Catalog</p>
               <div class="setting-group">
                 <p class="setting-description" style="margin:0 0 0.6rem 0">Browse this library from an external e-reader app (KOReader, Moon+ Reader, Calibre, etc.) by pointing it at this catalog URL.</p>
@@ -728,6 +738,17 @@ function showSettings() {
       } catch (_) {
         showToast('OPDS', 'Could not copy — select and copy the URL manually.', 'warning');
       }
+    };
+  }
+
+  const btnImportMihon = $("btnImportMihon");
+  const importMihonFileInput = $("importMihonFileInput");
+  if (btnImportMihon && importMihonFileInput) {
+    btnImportMihon.onclick = () => importMihonFileInput.click();
+    importMihonFileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) importMihonBackupFile(file);
+      importMihonFileInput.value = '';
     };
   }
 

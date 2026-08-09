@@ -122,3 +122,34 @@ async function importBackupFile(file) {
     showToast('Error', `Failed to import backup: ${e.message}`, 'error');
   }
 }
+
+async function importMihonBackupFile(file) {
+  const confirmed = confirm(
+    `Import "${file.name}" from Tachiyomi/Mihon?\n\n` +
+    `This ADDS to your current library (won't remove anything). Manga from a source ` +
+    `ScrollScape doesn't recognise import as metadata only — use Migrate afterward to ` +
+    `re-link them. Continue?`
+  );
+  if (!confirmed) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const resp = await fetch('/api/import/mihon', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'Import failed');
+
+    showToast(
+      'Tachiyomi/Mihon Import',
+      `Imported ${data.imported} of ${data.totalInBackup} manga` +
+      (data.unresolvedSource ? ` (${data.unresolvedSource} as metadata-only — use Migrate to re-link)` : '') +
+      (data.categoriesCreated ? `. Created ${data.categoriesCreated} new categories.` : '.'),
+      'success'
+    );
+    await refreshState();
+  } catch (e) {
+    dbg.warn(dbg.ERR_SETTINGS, 'Mihon import failed', e);
+    showToast('Error', `Failed to import Tachiyomi/Mihon backup: ${e.message}`, 'error');
+  }
+}

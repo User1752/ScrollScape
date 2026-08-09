@@ -1,0 +1,57 @@
+// Minimal schema for reading Tachiyomi/Mihon library backups (.tachibk / .proto.gz —
+// gzip-compressed protobuf). Only the fields ScrollScape's importer actually
+// uses are declared; everything else in a real backup (app preferences,
+// extension repo lists, etc.) is simply ignored by protobufjs when decoding.
+// Field numbers below match the source app's own model definitions.
+syntax = "proto2";
+package tachiyomi;
+
+message Backup {
+  repeated BackupManga backupManga = 1;
+  repeated BackupCategory backupCategories = 2;
+  repeated BackupSource backupSources = 101;
+}
+
+message BackupSource {
+  optional string name = 1;
+  optional int64 sourceId = 2;
+}
+
+message BackupCategory {
+  optional string name = 1;
+  optional int64 order = 2;
+  optional int64 id = 3;
+}
+
+message BackupManga {
+  optional int64 source = 1;
+  optional string url = 2;
+  optional string title = 3;
+  optional string artist = 4;
+  optional string author = 5;
+  optional string description = 6;
+  repeated string genre = 7;
+  optional int32 status = 8;
+  optional string thumbnailUrl = 9;
+  optional int64 dateAdded = 13;
+  repeated BackupChapter chapters = 16;
+  repeated int64 categories = 17;
+  optional bool favorite = 100 [default = true];
+  repeated BackupHistory history = 104;
+  optional int64 lastModifiedAt = 106;
+  optional string notes = 110;
+}
+
+message BackupChapter {
+  optional string url = 1;
+  optional string name = 2;
+  optional bool read = 4;
+  optional bool bookmark = 5;
+  optional float chapterNumber = 9;
+  optional int64 sourceOrder = 10;
+}
+
+message BackupHistory {
+  optional string url = 1;
+  optional int64 lastRead = 2;
+}

@@ -75,6 +75,9 @@ localRoutes.configure({ localDir: LOCAL_DIR, upload });
 const opdsRoutes = require('./server/routes/opds');
 opdsRoutes.configure({ localDir: LOCAL_DIR });
 
+const mihonImportRoutes = require('./server/routes/mihon-import');
+mihonImportRoutes.configure({ upload });
+
 const themePresetRoutes = require('./server/routes/theme-presets');
 themePresetRoutes.configure({ presetsDir: THEME_PRESETS_DIR });
 
