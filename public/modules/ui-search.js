@@ -1516,7 +1516,17 @@ async function loadSimilarManga(result, sourceId) {
       const normTitle = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
       const currentTitleKey = normTitle(result.title);
       const favoriteIdsBySource = new Set((state.favorites || []).map(m => `${m.sourceId}::${m.id}`));
+      const targetGenresLower = new Set(genres.map(g => String(g).toLowerCase()));
 
+      // byGenres() is a "discover" browse endpoint, not a "similar to X"
+      // one — it doesn't rank by how closely a result actually matches the
+      // genres asked for, and (confirmed against a real MangaDex manga
+      // tagged Action/Superhero/Drama) a rare tag like "Superhero" can end
+      // up effectively ignored, leaving results that only share the broad,
+      // generic ones. Score every candidate by genre overlap with the
+      // manga being viewed and sort by that, instead of trusting the
+      // source's own ordering — so cards that share the more specific tags
+      // float to the top rather than "any action manga".
       const seenTitles = new Set();
       list = (data.results || [])
         .filter(m => {
@@ -1527,7 +1537,16 @@ async function loadSimilarManga(result, sourceId) {
           seenTitles.add(titleKey);
           return true;
         })
-        .map(m => ({ ...m, sourceId }))
+        .map(m => {
+          const mGenres = (m.genres || []).map(g => String(g).toLowerCase());
+          const overlap = mGenres.filter(g => targetGenresLower.has(g)).length;
+          return { ...m, sourceId, _tagOverlap: overlap };
+        })
+        // Keep genre-tagged results sharing at least one tag; results with
+        // no genre data at all (some sources omit it from search results)
+        // are kept but ranked last rather than dropped outright.
+        .filter(m => (m.genres || []).length === 0 || m._tagOverlap > 0)
+        .sort((a, b) => b._tagOverlap - a._tagOverlap)
         .slice(0, 12);
 
       if (state.settings.hideNsfw === true) list = list.filter(m => !isNsfwManga(m));
