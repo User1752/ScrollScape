@@ -95,6 +95,16 @@
   margin-bottom: 1.25rem;
 }
 
+/* The heatmap's own cells are fixed-size (see HEATMAP_CELL_PX in
+   ui-analytics-view.js), so unlike the other analytics sections this
+   card's content doesn't need — and shouldn't stretch to — the full
+   container width: at 5 columns (Month) that leaves a huge empty card.
+   Shrink it to whichever is wider, the header row or the grid itself. */
+.analytics-section--heatmap {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .analytics-section h3 {
   font-size: 0.95rem;
   font-weight: 700;
