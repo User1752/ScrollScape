@@ -1495,6 +1495,17 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
 // manga doesn't refire every source's call again.
 const _similarMangaCache = new Map();
 
+// "Batman: Justice Buster" -> "Batman" — cutting at the first colon/dash
+// isolates the franchise/series name from a subtitle, which is what a
+// title search actually needs to catch other entries in the same
+// franchise (e.g. other Batman manga) that byGenres alone would never
+// surface, since genre tags say nothing about being the same franchise.
+function _extractFranchiseKeyword(title) {
+  const t = String(title || '').trim();
+  const cut = t.split(/[:\-–—]/)[0].trim();
+  return cut.length >= 3 ? cut : t;
+}
+
 async function loadSimilarManga(result, sourceId) {
   const section = $("similarMangaSection");
   const row = $("similarMangaRow");
@@ -1524,28 +1535,57 @@ async function loadSimilarManga(result, sourceId) {
       // manga — rather than trusting any single source's own ordering —
       // is what actually keeps this "similar", regardless of which
       // source(s) happen to have a matching title.
-      const perSource = await Promise.all(sourceIds.map(async (sid) => {
-        try {
-          const data = await api(`/api/source/${sid}/byGenres`, {
-            method: "POST",
-            body: JSON.stringify({ genres: genres.slice(0, 3) }),
-          });
-          return (data.results || []).map(m => ({ ...m, sourceId: sid }));
-        } catch (_) {
-          return [];
-        }
-      }));
+      const franchiseKeyword = _extractFranchiseKeyword(result.title);
+      const franchiseKeywordLower = franchiseKeyword.toLowerCase();
+
+      const [perSourceGenres, perSourceFranchise] = await Promise.all([
+        Promise.all(sourceIds.map(async (sid) => {
+          try {
+            const data = await api(`/api/source/${sid}/byGenres`, {
+              method: "POST",
+              body: JSON.stringify({ genres: genres.slice(0, 3) }),
+            });
+            return (data.results || []).map(m => ({ ...m, sourceId: sid }));
+          } catch (_) {
+            return [];
+          }
+        })),
+        // Same-franchise search ("Batman" -> other Batman manga) — genre
+        // overlap alone can't catch this, since two entries in the same
+        // franchise don't necessarily share every tag, and plenty of
+        // unrelated manga share the same broad genres.
+        Promise.all(sourceIds.map(async (sid) => {
+          try {
+            const data = await api(`/api/source/${sid}/search`, {
+              method: "POST",
+              body: JSON.stringify({ query: franchiseKeyword, page: 1 }),
+            });
+            return (data.results || [])
+              .filter(m => String(m.title || '').toLowerCase().includes(franchiseKeywordLower))
+              .map(m => ({ ...m, sourceId: sid }));
+          } catch (_) {
+            return [];
+          }
+        })),
+      ]);
 
       const seenTitles = new Set();
-      list = perSource.flat()
-        .filter(m => {
-          if (String(m.id) === String(result.id) && m.sourceId === sourceId) return false;
-          const titleKey = normTitle(m.title || m.id);
-          if (titleKey === currentTitleKey || seenTitles.has(titleKey)) return false;
-          if (favoriteIdsBySource.has(`${m.sourceId}::${m.id}`)) return false;
-          seenTitles.add(titleKey);
-          return true;
-        })
+      const dedupe = (m) => {
+        if (String(m.id) === String(result.id) && m.sourceId === sourceId) return false;
+        const titleKey = normTitle(m.title || m.id);
+        if (titleKey === currentTitleKey || seenTitles.has(titleKey)) return false;
+        if (favoriteIdsBySource.has(`${m.sourceId}::${m.id}`)) return false;
+        seenTitles.add(titleKey);
+        return true;
+      };
+
+      // Franchise matches go first regardless of genre overlap — being the
+      // same series is a stronger "you might also like" signal than any
+      // amount of shared tags.
+      const franchiseMatches = perSourceFranchise.flat().filter(dedupe).map(m => ({ ...m, _tagOverlap: Infinity }));
+
+      const genreMatches = perSourceGenres.flat()
+        .filter(dedupe)
         .map(m => {
           const mGenres = (m.genres || []).map(g => String(g).toLowerCase());
           const overlap = mGenres.filter(g => targetGenresLower.has(g)).length;
@@ -1555,8 +1595,9 @@ async function loadSimilarManga(result, sourceId) {
         // no genre data at all (some sources omit it from search results)
         // are kept but ranked last rather than dropped outright.
         .filter(m => (m.genres || []).length === 0 || m._tagOverlap > 0)
-        .sort((a, b) => b._tagOverlap - a._tagOverlap)
-        .slice(0, 12);
+        .sort((a, b) => b._tagOverlap - a._tagOverlap);
+
+      list = [...franchiseMatches, ...genreMatches].slice(0, 12);
 
       if (state.settings.hideNsfw === true) list = list.filter(m => !isNsfwManga(m));
       _similarMangaCache.set(cacheKey, list);
