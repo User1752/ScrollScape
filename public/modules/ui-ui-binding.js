@@ -193,6 +193,15 @@ function bindUI() {
   if (advInput) advInput.onkeypress = (e) => { if (e.key === "Enter") advancedSearch(); };
   if (randBtn)  randBtn.onclick  = openRandomPickerDrawer;
 
+  const advAllSourcesToggle = $("advancedSearchAllSourcesToggle");
+  const advSourceSelectForSearch = $("advancedSourceSelect");
+  if (advAllSourcesToggle) {
+    advAllSourcesToggle.onchange = (e) => {
+      if (advSourceSelectForSearch) advSourceSelectForSearch.disabled = e.target.checked;
+      advancedSearch();
+    };
+  }
+
   // Initialize advanced filters
   initAdvancedFilters();
 

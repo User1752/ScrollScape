@@ -12,6 +12,14 @@
   margin-bottom: 2rem;
 }
 
+/* "Search all sources" mode (see advancedSearchAllSources() in
+   ui-advanced-search.js) holds one .search-source-group per source
+   instead of manga-card grid items directly — same convention as
+   .search-dropdown.grouped-by-source in search-inline-dropdown.css. */
+.results-grid.grouped-by-source {
+  display: block;
+}
+
 .manga-card {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(22, 21, 29, 0.8) 100%);
   border-radius: 12px;

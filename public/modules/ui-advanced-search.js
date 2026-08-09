@@ -378,6 +378,12 @@ function _applyAdvFilters(results, query, selectedGenres, publicationStatus, con
 async function advancedSearch(page = 1) {
   updateAdvancedSearchFilterVisibility(state.currentSourceId);
 
+  const advAllToggle = $("advancedSearchAllSourcesToggle");
+  if (advAllToggle && advAllToggle.checked) {
+    return advancedSearchAllSources();
+  }
+  $("advancedResults")?.classList.remove("grouped-by-source");
+
   const caps = getAdvancedSourceCapabilities(state.currentSourceId);
   const query   = $("advancedSearchInput").value.trim();
   const orderBy = caps.orderBy ? $("advancedOrderBy").value : "relevance";
@@ -516,6 +522,111 @@ async function advancedSearch(page = 1) {
   renderMangaGrid(resultsDiv, pageResults);
   $("advancedSearchStatus").textContent = `${pageResults.length} result(s) found — Page ${page}`;
   renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
+}
+
+// Same "Search all sources" idea as the home search (see searchAllSources()
+// in ui-search.js), adapted for Advanced Search's filters. Scoped down the
+// same way: only the first native page per source (capped at
+// ADV_ALL_SOURCES_PER_SOURCE_LIMIT results), not the multi-page "fill-up"
+// accumulation advancedSearch() does for a single source — running that
+// fill-up loop (up to ADV_MAX_API_PAGES native calls) across every source
+// at once would be far too slow/heavy. Filters are sent as-is to every
+// source without the per-source capability gating advancedSearch() applies
+// for a single selected source — a source that doesn't support a given
+// filter already ignores it server-side (see ADV_SOURCE_CAPABILITIES),
+// same as the home search's "All Sources" mode.
+const ADV_ALL_SOURCES_PER_SOURCE_LIMIT = 20;
+const ADV_ALL_SOURCES_CONCURRENCY = 3;
+
+async function advancedSearchAllSources() {
+  const resultsDiv = $("advancedResults");
+  const pg = $("advancedSearchPagination");
+  if (pg) pg.innerHTML = "";
+  if (!resultsDiv) return;
+
+  const sources = getSelectableSources();
+  if (!sources.length) {
+    $("advancedSearchStatus").textContent = "No installed sources to search.";
+    resultsDiv.classList.remove("grouped-by-source");
+    resultsDiv.innerHTML = "";
+    return;
+  }
+
+  const query = $("advancedSearchInput").value.trim();
+  const orderBy = $("advancedOrderBy")?.value || "relevance";
+  const publicationStatus = $("advancedPublicationStatus")?.value || "";
+  const contentRating = state.settings.hideNsfw ? "" : ($("advancedContentRating")?.value || "");
+  const format = $("advancedFormat")?.value || "";
+  let selectedGenres = Array.from(document.querySelectorAll('#genreGrid input[type="checkbox"]:checked')).map(cb => cb.value);
+  if (state.settings.hideNsfw) selectedGenres = selectedGenres.filter(g => !isNsfwTag(g));
+  const needsClientFilter = !!(publicationStatus || contentRating || format || selectedGenres.length > 0);
+
+  state.advSearchPage = 1;
+  state._advAcc = null; // all-sources mode doesn't use the single-source fill-up accumulator
+  $("advancedSearchStatus").textContent = `Searching ${sources.length} source(s)...`;
+
+  resultsDiv.classList.add("grouped-by-source");
+  resultsDiv.innerHTML = sources.map(s => `
+    <div class="search-source-group" data-source-id="${escapeHtml(s.id)}">
+      <div class="search-source-group-header">
+        <span class="search-source-group-name">${escapeHtml(s.name)}</span>
+        <span class="search-source-group-status">Searching…</span>
+      </div>
+      <div class="search-source-group-grid"></div>
+    </div>
+  `).join("");
+
+  let totalResults = 0;
+  let doneCount = 0;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < sources.length) {
+      const source = sources[cursor++];
+      const groupEl = resultsDiv.querySelector(`.search-source-group[data-source-id="${source.id}"]`);
+      const statusEl = groupEl?.querySelector(".search-source-group-status");
+      const gridEl = groupEl?.querySelector(".search-source-group-grid");
+
+      try {
+        let result;
+        if (selectedGenres.length > 0) {
+          result = await api(`/api/source/${source.id}/byGenres`, {
+            method: "POST",
+            body: JSON.stringify({ genres: selectedGenres, page: 1, orderBy, publicationStatus, contentRating, format })
+          });
+        } else {
+          result = await api(`/api/source/${source.id}/search`, {
+            method: "POST",
+            body: JSON.stringify({ query: query || "", page: 1, orderBy, publicationStatus, contentRating, format })
+          });
+        }
+        const rawResults = result.results || [];
+        let normalizedResults = rawResults.map(m => normalizeSourceSearchResult(m, source.id)).filter(Boolean);
+        if (needsClientFilter) {
+          normalizedResults = _applyAdvFilters(normalizedResults, query, selectedGenres, publicationStatus, contentRating, format);
+        }
+        const filtered = (await _filterMangaWithoutChapters(normalizedResults, source.id)).slice(0, ADV_ALL_SOURCES_PER_SOURCE_LIMIT);
+
+        totalResults += filtered.length;
+        if (statusEl) statusEl.textContent = filtered.length ? `${filtered.length} result(s)` : "No results";
+        if (filtered.length && gridEl) {
+          renderMangaGrid(gridEl, filtered);
+        } else if (groupEl) {
+          groupEl.style.display = "none";
+        }
+      } catch (e) {
+        if (statusEl) statusEl.textContent = "Unavailable";
+        if (groupEl) groupEl.style.display = "none";
+      }
+
+      doneCount++;
+      $("advancedSearchStatus").textContent = doneCount < sources.length
+        ? `Searching... (${doneCount}/${sources.length} sources done, ${totalResults} result(s) so far)`
+        : `${totalResults} result(s) found across ${sources.length} source(s)`;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(ADV_ALL_SOURCES_CONCURRENCY, sources.length) }, worker));
 }
 
 async function randomManga(options = {}) {
