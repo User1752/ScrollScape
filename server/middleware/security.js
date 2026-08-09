@@ -49,13 +49,19 @@ function applySecurityHeaders(app) {
     // blob: URL, which without this falls back to default-src 'self' and
     // gets silently blocked (no console-visible network error, just a
     // blank reader) — same class of issue as the PDF.js worker, same fix.
+    // connect-src blob: is yet another layer of the same problem: epub.js's
+    // book.coverUrl() resolves to a blob: URL too, and our own code fetch()es
+    // that URL to read the cover's bytes before re-uploading them as the
+    // library thumbnail — without blob: here that fetch is blocked (visibly,
+    // this time — a CSP violation in the console) and the cover silently
+    // never gets generated.
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: blob: https:; " +
-      "connect-src 'self' https://api.anilist.co https://api.mangaupdates.com https://cdn.jsdelivr.net; " +
+      "connect-src 'self' blob: https://api.anilist.co https://api.mangaupdates.com https://cdn.jsdelivr.net; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
       "worker-src blob: 'self'; " +
       "frame-src blob: 'self'; " +

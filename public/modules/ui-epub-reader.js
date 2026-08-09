@@ -109,6 +109,16 @@ async function openEpubReader(epubUrl) {
   }
   _renderEpubToc();
   _bindEpubControls();
+
+  // Percentage in the 'relocated' event only works once book.locations has
+  // been populated — it's what maps a CFI to a location index and back.
+  // Generated in the background (walks every spine section) so it doesn't
+  // delay the initial page render; reportLocation() re-emits 'relocated'
+  // once it's ready so the % shown catches up to wherever the reader
+  // already landed.
+  _epubBook.locations.generate(1024).then(() => {
+    _epubRendition?.reportLocation();
+  }).catch(() => {});
 }
 
 function _renderEpubToc() {
