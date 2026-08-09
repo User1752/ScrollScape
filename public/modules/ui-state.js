@@ -15,6 +15,7 @@ async function refreshState() {
     state.favorites     = libData.favorites || [];
     state.history       = libData.history   || [];
     state.coverOverrides = libData.coverOverrides || {};
+    state.mangaTags      = libData.mangaTags || {};
     state.readingStatus = statusData.readingStatus || {};
 
     // Load custom lists (categories) and AniList sync metadata

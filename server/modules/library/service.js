@@ -84,6 +84,10 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
     return contentService.updateLibraryCover({ mangaId, sourceId, cover });
   }
 
+  async function updateMangaTags({ mangaId, sourceId, tags } = {}) {
+    return contentService.updateMangaTags({ mangaId, sourceId, tags });
+  }
+
   async function addHistoryEntry({ mangaId, sourceId, manga, chapterId, chapterName } = {}) {
     return contentService.addHistoryEntry({ mangaId, sourceId, manga, chapterId, chapterName });
   }
@@ -490,6 +494,7 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
     addToLibrary,
     removeFromLibrary,
     updateLibraryCover,
+    updateMangaTags,
     addHistoryEntry,
     removeHistoryEntry,
     clearHistory,

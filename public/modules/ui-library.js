@@ -726,6 +726,101 @@ function _libRatingKey(mangaId) {
   return _libStoreKeyPart(mangaId);
 }
 
+// Same "id:sourceId(or 'unknown')" shape as coverOverrides/readingStatus —
+// see store.mangaTags in server/modules/store/schema.js.
+function _libTagsKey(mangaId, sourceId) {
+  return _libStatusKey(mangaId, sourceId);
+}
+
+function getMangaTags(mangaId, sourceId) {
+  return state.mangaTags?.[_libTagsKey(mangaId, sourceId)] || [];
+}
+
+async function showEditTagsModal(manga, sourceId) {
+  document.querySelector('.edit-tags-modal')?.remove();
+
+  let tags = [...getMangaTags(manga.id, sourceId)];
+
+  const modal = document.createElement('div');
+  modal.className = 'settings-modal edit-tags-modal';
+
+  const renderChips = () => tags.length
+    ? tags.map((t, i) => `
+        <span class="category-chip tag-chip" style="display:inline-flex;align-items:center;gap:0.3rem">
+          ${escapeHtml(t)}
+          <button type="button" class="tag-remove-btn" data-idx="${i}" title="Remove tag" style="background:none;border:none;color:inherit;cursor:pointer;font-size:0.9em;line-height:1;padding:0">&times;</button>
+        </span>`).join('')
+    : '<span class="muted" style="font-size:0.85rem">No tags yet.</span>';
+
+  modal.innerHTML = `
+    <div class="settings-content" style="max-width:460px">
+      <div class="settings-header">
+        <h2>Edit Tags</h2>
+        <button class="btn secondary" id="closeTagsModal">&#x2715;</button>
+      </div>
+      <div class="settings-body">
+        <p class="setting-description" style="margin-top:0">${escapeHtml(manga.title || '')}</p>
+        <div id="tagsChipList" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.8rem;min-height:1.6rem">${renderChips()}</div>
+        <div class="setting-group" style="display:flex;gap:8px">
+          <input type="text" id="newTagInput" class="input" maxlength="60" placeholder="e.g. artist:oda, parody:one_piece" autocomplete="off" style="flex:1">
+          <button class="btn secondary" id="addTagBtn">Add</button>
+        </div>
+        <p class="setting-description">Use a "namespace:value" convention (e.g. "artist:name") to keep tags organised — plain tags work too. Smart categories and the library search box can both match on these.</p>
+        <div class="setting-group" style="display:flex;gap:8px">
+          <button class="btn primary" id="saveTagsBtn">Save</button>
+          <button class="btn secondary" id="closeTagsModal2">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  $('closeTagsModal').onclick  = () => modal.remove();
+  $('closeTagsModal2').onclick = () => modal.remove();
+
+  const bindTagRemove = () => {
+    $('tagsChipList').querySelectorAll('.tag-remove-btn').forEach(btn => {
+      btn.onclick = () => { tags.splice(Number(btn.dataset.idx), 1); refreshChips(); };
+    });
+  };
+  const refreshChips = () => { $('tagsChipList').innerHTML = renderChips(); bindTagRemove(); };
+  bindTagRemove();
+
+  const addTag = () => {
+    const input = $('newTagInput');
+    const val = input.value.trim();
+    if (!val) return;
+    if (!tags.some(t => t.toLowerCase() === val.toLowerCase())) tags.push(val);
+    input.value = '';
+    refreshChips();
+    input.focus();
+  };
+  $('addTagBtn').onclick = addTag;
+  $('newTagInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addTag(); }
+  });
+
+  $('saveTagsBtn').onclick = async () => {
+    const saveBtn = $('saveTagsBtn');
+    saveBtn.disabled = true;
+    try {
+      const data = await api('/api/library/tags', {
+        method: 'POST',
+        body: JSON.stringify({ mangaId: manga.id, sourceId, tags }),
+      });
+      state.mangaTags = data.mangaTags || state.mangaTags;
+      showToast('Tags', 'Saved.', 'success');
+      modal.remove();
+      renderLibrary();
+    } catch (err) {
+      showToast('Error', err.message || 'Could not save tags.', 'error');
+      saveBtn.disabled = false;
+    }
+  };
+
+  setTimeout(() => $('newTagInput')?.focus(), 50);
+}
+
 function _syncLibrarySelectionWithFavorites() {
   const valid = new Set((state.favorites || []).map(m => _libMangaKey(m.id, m.sourceId)));
   _librarySelectedKeys = new Set([..._librarySelectedKeys].filter(k => valid.has(k)));
@@ -995,7 +1090,8 @@ function _matchesSmartCategory(manga, query) {
   if (query.genre) {
     const needle = query.genre.toLowerCase();
     const genres = _getEnrichedGenres(manga).map(g => String(g).toLowerCase());
-    if (!genres.some(g => g.includes(needle))) return false;
+    const tags = getMangaTags(manga.id, manga.sourceId || 'local').map(t => String(t).toLowerCase());
+    if (!genres.some(g => g.includes(needle)) && !tags.some(t => t.includes(needle))) return false;
   }
   return true;
 }
@@ -1183,8 +1279,10 @@ function renderLibrary() {
     if (!hideReason && trackerFilter === 'anilist') {
       if (typeof _alGetLink !== 'function' || !_alGetLink(manga.id)) hideReason = `No AniList link`;
     }
-    if (!hideReason && searchQuery && !String(manga.title || '').toLowerCase().includes(searchQuery)) {
-      hideReason = `Search mismatch`;
+    if (!hideReason && searchQuery) {
+      const titleMatch = String(manga.title || '').toLowerCase().includes(searchQuery);
+      const tagMatch = getMangaTags(manga.id, manga.sourceId).some(t => t.toLowerCase().includes(searchQuery));
+      if (!titleMatch && !tagMatch) hideReason = `Search mismatch`;
     }
 
     if (hideReason) {
@@ -1212,7 +1310,11 @@ function renderLibrary() {
 
   const filteredLocalManga = state.localManga.filter(manga => {
     if (hideNsfw && _isNsfwEnriched(manga)) return false;
-    if (searchQuery && !String(manga.title || '').toLowerCase().includes(searchQuery)) return false;
+    if (searchQuery) {
+      const titleMatch = String(manga.title || '').toLowerCase().includes(searchQuery);
+      const tagMatch = getMangaTags(manga.id, manga.sourceId || 'local').some(t => t.toLowerCase().includes(searchQuery));
+      if (!titleMatch && !tagMatch) return false;
+    }
     return true;
   });
 
@@ -1303,6 +1405,7 @@ function renderLibrary() {
           return list ? `<span class="category-chip">${escapeHtml(list.name)}</span>` : '';
         }).join('')
       : '';
+    const tagChips = getMangaTags(manga.id, manga.sourceId).map(t => `<span class="category-chip tag-chip">${escapeHtml(t)}</span>`).join('');
 
     const isSelected = _librarySelectedKeys.has(_libMangaKey(manga.id, manga.sourceId));
     const coverUrl = normalizeImageUrl(manga.cover);
@@ -1361,7 +1464,7 @@ function renderLibrary() {
           <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
           <p class="library-card-author">${escapeHtml(manga.author || "")}</p>
           ${(status && badgeLoc !== 'cover' && !state.settings.hideLibraryStatusAndChapters ? `<div style="margin-top:0.3rem"><span class="status-badge status-badge-${status}">${statusLabel(status)}</span></div>` : "")}
-          ${catChips ? `<div class="category-chips">${catChips}</div>` : ''}
+          ${catChips || tagChips ? `<div class="category-chips">${catChips}${tagChips}</div>` : ''}
           ${currentRating ? `<span class="card-score-badge">${currentRating}<span class="card-score-badge-max">/10</span></span>` : ""}
         </div>
       </div>`;
@@ -1424,7 +1527,10 @@ function renderLibrary() {
           <div class="library-card-info">
             <h3 class="library-card-title">${escapeHtml(manga.title)}</h3>
             <p class="library-card-author">${localTypeLabel}</p>
-
+            ${(() => {
+              const localTagChips = getMangaTags(manga.id, 'local').map(t => `<span class="category-chip tag-chip">${escapeHtml(t)}</span>`).join('');
+              return localTagChips ? `<div class="category-chips">${localTagChips}</div>` : '';
+            })()}
             ${localRating ? `<span class="card-score-badge">${localRating}<span class="card-score-badge-max">/10</span></span>` : ""}
           </div>
         </div>`;
@@ -1975,6 +2081,7 @@ async function showLibraryContextMenu(pointOrEvent, mangaInput, mangaCategories)
     <div class="ctx-categories-header" style="padding-top:0.55rem;padding-bottom:0.35rem">${bulkPrefix} manga actions</div>
     <button class="context-item" id="ctxDownloadAll">${_ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>')} ${isBulk ? `Download All Chapters (${actionMangas.length})` : 'Download All'}</button>
     <div class="context-divider"></div>
+    ${!isBulk ? `<button class="context-item" id="ctxEditTags">${_ico('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>')} Edit Tags</button><div class="context-divider"></div>` : ''}
     ${!isBulk && sourceId !== 'local' ? `<button class="context-item" id="ctxChangeCover">${_ico('<rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>')} Change Cover</button><button class="context-item" id="ctxMigrateOne">${_ico('<path d="M8 7h13M13 3l4 4-4 4"/><path d="M16 17H3"/><path d="M7 13l-4 4 4 4"/>')} Migrate this manga</button><div class="context-divider"></div>` : ''}
     <button class="context-item ${currentStatus === 'completed' ? 'ctx-item-active' : ''}" id="ctxMarkCompleted">${_ico('<polyline points="20 6 9 17 4 12"/>')} ${isBulk ? 'Mark Selected as Completed' : 'Mark as Completed'}</button>
     <button class="context-item ${currentStatus === 'reading'   ? 'ctx-item-active' : ''}" id="ctxMarkReading">${_ico('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>')} ${isBulk ? 'Mark Selected as Reading' : 'Mark as Reading'}</button>
@@ -2023,6 +2130,14 @@ async function showLibraryContextMenu(pointOrEvent, mangaInput, mangaCategories)
     showToast('Removed', ok ? `${ok} manga removed${fail ? `, ${fail} failed` : ''}` : 'No manga removed', fail ? 'warning' : 'info');
     _closeLibraryContextMenu();
   };
+
+  const editTagsBtn = menu.querySelector('#ctxEditTags');
+  if (editTagsBtn) {
+    editTagsBtn.onclick = () => {
+      _closeLibraryContextMenu();
+      showEditTagsModal(manga, sourceId);
+    };
+  }
 
   const changeCoverBtn = menu.querySelector('#ctxChangeCover');
   if (changeCoverBtn) {

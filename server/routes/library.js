@@ -40,6 +40,10 @@ function registerLibraryRoutes(router) {
     res.json(await libraryService.updateLibraryCover(req.body || {}));
   }));
 
+  router.post('/api/library/tags', asyncHandler(async (req, res) => {
+    res.json(await libraryService.updateMangaTags(req.body || {}));
+  }));
+
   router.post('/api/history/add', asyncHandler(async (req, res) => {
     res.json(await libraryService.addHistoryEntry(req.body || {}));
   }));

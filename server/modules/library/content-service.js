@@ -135,7 +135,56 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
     if (normalizeFavoritesSourceIds(store)) {
       await writeStore(store);
     }
-    return { favorites: store.favorites || [], history: store.history || [], coverOverrides: store.coverOverrides || {} };
+    return {
+      favorites: store.favorites || [],
+      history: store.history || [],
+      coverOverrides: store.coverOverrides || {},
+      mangaTags: store.mangaTags || {},
+    };
+  }
+
+  // Namespaced tags (e.g. "artist:oda", "parody:one_piece") — a free-form
+  // sidecar dict, same key shape as coverOverrides, covering both favorites
+  // and local manga (local imports pass sourceId: 'local'). Deliberately not
+  // stored on the manga object itself — see schema.js's store.mangaTags
+  // comment for why.
+  function sanitizeTagList(tags) {
+    if (!Array.isArray(tags)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const raw of tags) {
+      const t = String(raw ?? '').trim().slice(0, 60);
+      const lower = t.toLowerCase();
+      if (!t || seen.has(lower)) continue;
+      seen.add(lower);
+      out.push(t);
+      if (out.length >= 30) break;
+    }
+    return out;
+  }
+
+  async function updateMangaTags({ mangaId, sourceId, tags } = {}) {
+    const missing = [];
+    if (isBadIdentityValue(mangaId)) missing.push('id');
+    if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+    if (missing.length > 0) {
+      const err = new Error('mangaId and sourceId required');
+      err.statusCode = 400;
+      err.code = 'INVALID_LIBRARY_PAYLOAD';
+      err.details = { missing };
+      throw err;
+    }
+
+    const store = await readStore();
+    if (!store.mangaTags || typeof store.mangaTags !== 'object') store.mangaTags = {};
+
+    const key = coverOverrideKey(mangaId, sourceId);
+    const clean = sanitizeTagList(tags);
+    if (clean.length) store.mangaTags[key] = clean;
+    else delete store.mangaTags[key];
+
+    await writeStore(store);
+    return { ok: true, tags: clean, mangaTags: store.mangaTags };
   }
 
   function isBadIdentityValue(value) {
@@ -372,6 +421,7 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
     addToLibrary,
     removeFromLibrary,
     updateLibraryCover,
+    updateMangaTags,
     addHistoryEntry,
     removeHistoryEntry,
     clearHistory,

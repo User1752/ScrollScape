@@ -16,6 +16,14 @@ function normaliseStore(store) {
   store.settings = store.settings || {};
   store.settings.flaresolverrUrl = store.settings.flaresolverrUrl || '';
   store.settings.comicVineApiKey = store.settings.comicVineApiKey || '';
+  // mangaTags is a sidecar dict (mirrors coverOverrides): { "mangaId:sourceId": ["artist:oda", ...] }.
+  // Kept separate from the favorite/local-manga object itself rather than a field
+  // on it, since every place that rebuilds a favorite spreads it through
+  // safeManga()'s fixed allow-list (server/modules/common/sanitize.js) and would
+  // otherwise silently drop an unlisted field the next time that manga is
+  // re-added, migrated, or resynced from AniList.
+  store.mangaTags = (store.mangaTags && typeof store.mangaTags === 'object') ? store.mangaTags : {};
+
   store.customLists = (Array.isArray(store.customLists) ? store.customLists : []).map(l => ({
     ...l,
     isDynamic: l.isDynamic === true,

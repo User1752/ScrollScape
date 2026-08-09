@@ -28,6 +28,8 @@ const state = {
   history: [],
   /** @type {Record<string, string>} key "mangaId:sourceId" -> custom cover URL */
   coverOverrides: {},
+  /** @type {Record<string, string[]>} key "mangaId:sourceId" -> namespaced tags, e.g. "artist:oda" */
+  mangaTags: {},
   /** @type {Set<string>} Keys of the form "mangaId:chapterId" */
   readChapters: new Set(),
   /** @type {Set<string>} Flagged chapters (same key format) */
