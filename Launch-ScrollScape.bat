@@ -94,6 +94,18 @@ if exist "!FLARESOLVERR_EXE!" (
         set /p FS_PID=<"%TEMP%\fs_pid.txt"
         del "%TEMP%\fs_pid.txt" >nul 2>&1
     )
+    REM Start-Process only confirms the exe launched, not that FlareSolverr
+    REM actually came up listening on 8191 (it can exit right after launch
+    REM on a bad install, a port conflict, etc.) - wait_port is the same
+    REM check already used for the main server's port, reused here so a
+    REM silent FlareSolverr failure doesn't look identical to success.
+    call :wait_port 8191
+    if errorlevel 1 (
+        echo.
+        call :err "FlareSolverr did not come up on port 8191" "Cloudflare-protected sources (e.g. BatCave) will fail until it's running - try running tools\flaresolverr\flaresolverr.exe directly to see why."
+    ) else (
+        echo   [ OK ]  FlareSolverr is listening on port 8191.
+    )
 )
 
 call :start_node
