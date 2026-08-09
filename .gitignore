@@ -8,6 +8,10 @@ data/cache/
 data/tmp/
 data/theme-presets/
 data/error-log.json
+# Local/ (repo root) is where imported manga/books actually live today —
+# server.js migrates the old data/local/ into this new location on first
+# run. data/local/ above is kept for anyone still on an unmigrated copy.
+/Local/
 
 # Manga/comics source scrapers — self-contained plug-in .js files (the
 # source-loader auto-installs anything dropped in here, see
