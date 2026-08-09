@@ -238,6 +238,10 @@ function bindUI() {
   const btnMigrate = $("btnMigrateLibrary");
   if (btnMigrate) btnMigrate.onclick = () => showMigrateModal();
 
+  // Duplicate scan button
+  const btnDupes = $("btnScanDuplicates");
+  if (btnDupes) btnDupes.onclick = () => showDuplicateScanModal();
+
   // Language toggle button
   const langBtn = $("langToggleBtn");
   if (langBtn) {

@@ -40,6 +40,7 @@
   <link rel="stylesheet" href="./css-modules/reading-status-selector.css">
   <link rel="stylesheet" href="./css-modules/reviews-ratings.css">
   <link rel="stylesheet" href="./css-modules/custom-lists.css">
+  <link rel="stylesheet" href="./css-modules/duplicate-scan.css?v=1">
   <link rel="stylesheet" href="./css-modules/analytics-dashboard.css">
   <link rel="stylesheet" href="./css-modules/achievements.css">
     <link rel="stylesheet" href="./css-modules/button.css">
@@ -303,6 +304,10 @@
             <button class="lib-side-btn" id="btnMigrateLibrary" title="Migrate manga between sources">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
               <span class="lib-side-label">Migrate</span>
+            </button>
+            <button class="lib-side-btn" id="btnScanDuplicates" title="Scan library for duplicates">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span class="lib-side-label">Find<br>Dupes</span>
             </button>
             <button class="lib-side-btn" id="importLocalBtn" title="Import local manga" onclick="showImportModal()">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lib-side-svg"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -1037,6 +1042,7 @@
   <script src="./modules/ui-settings-modal.js?v=5" defer></script>
   <script src="./modules/ui-custom-lists-view.js?v=10" defer></script>
   <script src="./modules/ui-migrate.js" defer></script>
+  <script src="./modules/ui-duplicates.js?v=1" defer></script>
   <script src="./modules/ui-analytics-view.js" defer></script>
   <script src="./modules/ui-achievements.js" defer></script>
   <script src="./modules/ui-dragon-ball-easter-egg-helpers.js" defer></script>
