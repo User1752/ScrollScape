@@ -13,7 +13,10 @@
   height: 100%;
   min-height: 0;
   justify-content: center;
-  padding: 1.5rem 3vw;
+  /* Extra top padding: .reader-title floats absolutely over this area
+     (see reader.css), and 1.5rem left it butting right up against the
+     first line of book text. */
+  padding: 3.25rem 3vw 1.5rem;
   box-sizing: border-box;
 }
 
@@ -24,7 +27,11 @@
   background: var(--bg-secondary);
   border-radius: 8px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
+  /* Fallback only: epub.js sizes its paginated columns to fit this box
+     exactly, so normally nothing overflows — but if it ever does (an
+     unusually tall inline element, an extreme font-size setting), auto
+     lets it scroll instead of silently clipping. */
+  overflow: auto;
 }
 
 /* EPUB pages are turned via corner taps or the sidebar buttons as the
@@ -45,6 +52,30 @@
 
 .epub-reader .reader-corner-nav:hover {
   transform: translateY(50%) scale(1.05);
+}
+
+/* With the sidebar open, its 310px panel occupies the same right: 18px
+   spot the "next page" button sits at by default — shift the button
+   clear of it instead of letting it float on top of the TOC list. */
+.epub-reader:not(.reader-sidebar-collapsed) .reader-corner-nav-right {
+  right: 328px;
+}
+
+@media (max-width: 900px) {
+  .epub-reader:not(.reader-sidebar-collapsed) .reader-corner-nav-right {
+    right: calc(min(88vw, 310px) + 18px);
+  }
+}
+
+/* Same "always visible" reasoning as the corner-nav above: the sidebar
+   toggle arrow normally only appears on mouse-proximity to its own
+   button (wired up for the manga/PDF reader in
+   _bindReaderArrowProximity), which was never wired for the EPUB reader
+   — leaving it permanently invisible and unclickable here. Skip that
+   whole proximity dance and just always show it. */
+.epub-reader .reader-sidebar-arrow {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .epub-toc-section {
