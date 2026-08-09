@@ -1487,11 +1487,12 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
 
 // ── "You might also like" — similar manga based on the manga currently
 // being viewed, not the aggregate library-wide profile the Home page's
-// loadRecommendations() (ui-calendar.js) uses. Scoped to the SAME source as
-// the manga being viewed (its genres already use that source's own
-// vocabulary — spanning sources would need each one's own alias table, like
-// byGenres() itself does per-source, to stay accurate). Session-cached per
-// (sourceId, mangaId) so re-opening the same manga doesn't refire the call.
+// loadRecommendations() (ui-calendar.js) uses. Queries every installed
+// source (not just the one the viewed manga is on) — genre-overlap scoring
+// below is what keeps results actually similar despite each source having
+// its own tag vocabulary/aliasing, rather than restricting to one source to
+// dodge that mismatch. Session-cached per mangaId so re-opening the same
+// manga doesn't refire every source's call again.
 const _similarMangaCache = new Map();
 
 async function loadSimilarManga(result, sourceId) {
@@ -1501,46 +1502,54 @@ async function loadSimilarManga(result, sourceId) {
   section.classList.add('hidden');
 
   const genres = (result?.genres || []).filter(Boolean);
-  if (!genres.length || !sourceId) return;
+  if (!genres.length) return;
 
-  const cacheKey = `${sourceId}:${result.id}`;
+  const cacheKey = String(result.id);
   let list = _similarMangaCache.get(cacheKey);
 
   if (!list) {
     try {
-      const data = await api(`/api/source/${sourceId}/byGenres`, {
-        method: "POST",
-        body: JSON.stringify({ genres: genres.slice(0, 3) }),
-      });
-
+      const sourceIds = (typeof getSelectableSourceIds === 'function' ? getSelectableSourceIds() : [sourceId]).filter(Boolean);
+      const targetGenresLower = new Set(genres.map(g => String(g).toLowerCase()));
       const normTitle = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
       const currentTitleKey = normTitle(result.title);
       const favoriteIdsBySource = new Set((state.favorites || []).map(m => `${m.sourceId}::${m.id}`));
-      const targetGenresLower = new Set(genres.map(g => String(g).toLowerCase()));
 
       // byGenres() is a "discover" browse endpoint, not a "similar to X"
       // one — it doesn't rank by how closely a result actually matches the
-      // genres asked for, and (confirmed against a real MangaDex manga
-      // tagged Action/Superhero/Drama) a rare tag like "Superhero" can end
-      // up effectively ignored, leaving results that only share the broad,
-      // generic ones. Score every candidate by genre overlap with the
-      // manga being viewed and sort by that, instead of trusting the
-      // source's own ordering — so cards that share the more specific tags
-      // float to the top rather than "any action manga".
+      // genres asked for (confirmed live: a Batman/DC manga tagged Action/
+      // Superhero/Drama surfaced only generic action shounen sharing
+      // nothing but "Action"). Fetching every source in parallel and then
+      // scoring/sorting every candidate by genre overlap with the viewed
+      // manga — rather than trusting any single source's own ordering —
+      // is what actually keeps this "similar", regardless of which
+      // source(s) happen to have a matching title.
+      const perSource = await Promise.all(sourceIds.map(async (sid) => {
+        try {
+          const data = await api(`/api/source/${sid}/byGenres`, {
+            method: "POST",
+            body: JSON.stringify({ genres: genres.slice(0, 3) }),
+          });
+          return (data.results || []).map(m => ({ ...m, sourceId: sid }));
+        } catch (_) {
+          return [];
+        }
+      }));
+
       const seenTitles = new Set();
-      list = (data.results || [])
+      list = perSource.flat()
         .filter(m => {
-          if (String(m.id) === String(result.id)) return false;
+          if (String(m.id) === String(result.id) && m.sourceId === sourceId) return false;
           const titleKey = normTitle(m.title || m.id);
           if (titleKey === currentTitleKey || seenTitles.has(titleKey)) return false;
-          if (favoriteIdsBySource.has(`${sourceId}::${m.id}`)) return false;
+          if (favoriteIdsBySource.has(`${m.sourceId}::${m.id}`)) return false;
           seenTitles.add(titleKey);
           return true;
         })
         .map(m => {
           const mGenres = (m.genres || []).map(g => String(g).toLowerCase());
           const overlap = mGenres.filter(g => targetGenresLower.has(g)).length;
-          return { ...m, sourceId, _tagOverlap: overlap };
+          return { ...m, _tagOverlap: overlap };
         })
         // Keep genre-tagged results sharing at least one tag; results with
         // no genre data at all (some sources omit it from search results)
