@@ -150,7 +150,21 @@ function _renderGenreOverview() {
   `;
 }
 
-const ACTIVITY_HEATMAP_WEEKS = 20;
+// Heatmap range options — weeks chosen so each spans full week-columns
+// covering roughly the named period (month rounds 30 days up to 5 full
+// weeks; year matches GitHub's own ~53-column contribution graph).
+const HEATMAP_RANGES = { week: 1, month: 5, year: 53 };
+const HEATMAP_RANGE_STORAGE_KEY = 'scrollscape_analytics_heatmap_range';
+
+function _getHeatmapRange() {
+  const saved = localStorage.getItem(HEATMAP_RANGE_STORAGE_KEY);
+  return HEATMAP_RANGES[saved] ? saved : 'month';
+}
+
+function _setHeatmapRange(range) {
+  if (!HEATMAP_RANGES[range]) return;
+  localStorage.setItem(HEATMAP_RANGE_STORAGE_KEY, range);
+}
 
 function _activityDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -158,26 +172,28 @@ function _activityDateKey(d) {
 
 /**
  * GitHub-style contribution heatmap of reading activity, built from
- * analytics.readingSessions (each session already carries a date + how
- * many chapters were read in it — no new endpoint needed).
+ * analytics.dailyChapterCounts — a per-day total kept independently of
+ * readingSessions' 200-entry cap so history doesn't silently go blank for
+ * active readers (see recordSession() in server/modules/analytics/service.js).
  */
 function _renderReadingActivityHeatmap(analytics) {
   const el = $('readingActivityHeatmap');
   if (!el) return;
 
-  const chaptersByDay = new Map();
-  for (const s of (analytics.readingSessions || [])) {
-    const d = new Date(s.date);
-    if (isNaN(d)) continue;
-    const key = _activityDateKey(d);
-    chaptersByDay.set(key, (chaptersByDay.get(key) || 0) + (Number(s.chaptersRead) || 1));
-  }
+  const range = _getHeatmapRange();
+  const weekCount = HEATMAP_RANGES[range];
+
+  document.querySelectorAll('#heatmapRangeToggle .heatmap-range-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.range === range);
+  });
+
+  const chaptersByDay = new Map(Object.entries(analytics.dailyChapterCounts || {}));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   // Start on the Sunday of (today - N weeks) so columns are full weeks.
   const start = new Date(today);
-  start.setDate(start.getDate() - (ACTIVITY_HEATMAP_WEEKS * 7 - 1) - today.getDay());
+  start.setDate(start.getDate() - (weekCount * 7 - 1) - today.getDay());
 
   const maxCount = Math.max(1, ...chaptersByDay.values());
   const levelOf = (count) => {
@@ -195,7 +211,7 @@ function _renderReadingActivityHeatmap(analytics) {
   let cursor = new Date(start);
   let lastMonth = -1;
 
-  for (let w = 0; w < ACTIVITY_HEATMAP_WEEKS; w++) {
+  for (let w = 0; w < weekCount; w++) {
     const days = [];
     for (let d = 0; d < 7; d++) {
       const inRange = cursor <= today;
@@ -210,10 +226,15 @@ function _renderReadingActivityHeatmap(analytics) {
     weeks.push(days);
   }
 
-  const totalChapters = [...chaptersByDay.values()].reduce((s, v) => s + v, 0);
-  const activeDays = chaptersByDay.size;
+  // Totals should reflect the full range shown, not just the days present
+  // in chaptersByDay (which may include activity outside the current
+  // window from prior ranges).
+  const daysInRange = weeks.flat().filter(d => d.inRange);
+  const totalChapters = daysInRange.reduce((s, d) => s + d.count, 0);
+  const activeDays = daysInRange.filter(d => d.count > 0).length;
+  const rangeLabel = range === 'week' ? '1 week' : range === 'year' ? '1 year' : '1 month';
 
-  const gridColumns = `repeat(${ACTIVITY_HEATMAP_WEEKS}, 1fr)`;
+  const gridColumns = `repeat(${weekCount}, 1fr)`;
 
   el.innerHTML = `
     <div class="heatmap-months" style="grid-template-columns:${gridColumns}">${monthLabels.map(m => `<span>${m}</span>`).join('')}</div>
@@ -224,7 +245,7 @@ function _renderReadingActivityHeatmap(analytics) {
       ).join('')).join('')}
     </div>
     <div class="heatmap-footer">
-      <span class="heatmap-summary">${totalChapters} chapters read across ${activeDays} active day${activeDays === 1 ? '' : 's'} (last ${ACTIVITY_HEATMAP_WEEKS} weeks)</span>
+      <span class="heatmap-summary">${totalChapters} chapters read across ${activeDays} active day${activeDays === 1 ? '' : 's'} (last ${rangeLabel})</span>
       <div class="heatmap-legend">
         <span>Less</span>
         ${[0, 1, 2, 3, 4].map(l => `<span class="heatmap-cell" data-level="${l}"></span>`).join('')}
@@ -232,6 +253,18 @@ function _renderReadingActivityHeatmap(analytics) {
       </div>
     </div>
   `;
+}
+
+function _bindHeatmapRangeToggle() {
+  const toggle = $('heatmapRangeToggle');
+  if (!toggle || toggle._bound) return;
+  toggle._bound = true;
+  toggle.querySelectorAll('.heatmap-range-btn').forEach(btn => {
+    btn.onclick = () => {
+      _setHeatmapRange(btn.dataset.range);
+      _renderReadingActivityHeatmap((state.analytics?.analytics) || {});
+    };
+  });
 }
 
 async function renderAnalyticsView() {
@@ -244,6 +277,7 @@ async function renderAnalyticsView() {
     _renderStatCards(data, a, dist);
     _renderStatusDistribution(dist);
     _renderGenreOverview();
+    _bindHeatmapRangeToggle();
     _renderReadingActivityHeatmap(a);
   } catch (e) {
     dbg.error(dbg.ERR_ANALYTICS, 'Analytics error', e);

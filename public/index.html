@@ -369,7 +369,14 @@
 
             <!-- Reading activity heatmap -->
             <div class="analytics-section">
-              <h3><i data-feather="activity"></i> <span data-i18n="analytics.readingActivity">Reading Activity</span></h3>
+              <div class="analytics-section-header-row">
+                <h3><i data-feather="activity"></i> <span data-i18n="analytics.readingActivity">Reading Activity</span></h3>
+                <div class="heatmap-range-toggle" id="heatmapRangeToggle">
+                  <button type="button" class="heatmap-range-btn" data-range="week">Week</button>
+                  <button type="button" class="heatmap-range-btn" data-range="month">Month</button>
+                  <button type="button" class="heatmap-range-btn" data-range="year">Year</button>
+                </div>
+              </div>
               <div id="readingActivityHeatmap" class="activity-heatmap"></div>
             </div>
           </div>

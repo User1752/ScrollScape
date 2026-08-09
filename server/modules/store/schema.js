@@ -45,6 +45,23 @@ function normaliseStore(store) {
     dailyStreak: 0,
     lastReadDate: null,
   };
+
+  // dailyChapterCounts backs the reading-activity heatmap with per-day
+  // totals that persist independently of readingSessions' 200-entry cap
+  // (see analytics/service.js's recordSession) — added after
+  // readingSessions already existed, so backfill it once from whatever
+  // session history survived the cap instead of starting existing users
+  // off with an empty chart.
+  if (!store.analytics.dailyChapterCounts || typeof store.analytics.dailyChapterCounts !== 'object') {
+    const counts = {};
+    for (const s of (store.analytics.readingSessions || [])) {
+      const d = new Date(s.date);
+      if (isNaN(d)) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      counts[key] = (counts[key] || 0) + (Number(s.chaptersRead) || 1);
+    }
+    store.analytics.dailyChapterCounts = counts;
+  }
 }
 
 module.exports = { normaliseStore };

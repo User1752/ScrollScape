@@ -116,6 +116,56 @@
   flex-shrink: 0;
 }
 
+/* Header row for sections that also need a control next to the title
+   (e.g. the heatmap's Week/Month/Year toggle) — moves the divider/spacing
+   from h3 onto the row itself so it spans the full width with the title
+   on the left and the control on the right, instead of a short underline
+   trailing only the title's own text width. */
+.analytics-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.analytics-section-header-row h3 {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.heatmap-range-toggle {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.heatmap-range-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.heatmap-range-btn:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  color: var(--text-primary);
+}
+
+.heatmap-range-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-strong, #fff);
+}
+
 /* ── Status distribution: single segmented bar + legend ─────────────────── */
 /* Fixed, theme-independent hues so each status stays visually distinct even
    under accent colours that would otherwise blend reading/plan-to-read/etc. */

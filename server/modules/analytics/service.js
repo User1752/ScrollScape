@@ -48,7 +48,8 @@ function createAnalyticsService({ readStore, writeStore }) {
     a.totalTimeSpent = (a.totalTimeSpent || 0) + mins;
     a.totalChaptersRead = (a.totalChaptersRead || 0) + 1;
 
-    const todayStr = new Date().toDateString();
+    const now = new Date();
+    const todayStr = now.toDateString();
     const yesterdayStr = new Date(Date.now() - 86_400_000).toDateString();
 
     if (a.lastReadDate !== todayStr) {
@@ -59,6 +60,15 @@ function createAnalyticsService({ readStore, writeStore }) {
       }
       a.lastReadDate = todayStr;
     }
+
+    // Per-day totals for the reading-activity heatmap — kept separate from
+    // readingSessions below (capped at 200 entries) so the heatmap's
+    // history doesn't silently go blank for active readers once that cap
+    // is hit; this map isn't capped since even years of daily entries stay
+    // tiny (one small number per calendar day).
+    a.dailyChapterCounts = a.dailyChapterCounts || {};
+    const dayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    a.dailyChapterCounts[dayKey] = (a.dailyChapterCounts[dayKey] || 0) + safeReadCount;
 
     a.readingSessions = a.readingSessions || [];
     a.readingSessions.unshift({
