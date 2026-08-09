@@ -368,6 +368,12 @@
 
 .heatmap-cell {
   width: 100%;
+  /* Column width is 100%/weekCount — fine at 53 columns (Year), but at
+     1 or 5 columns (Week/Month) each column spans most of the row, which
+     combined with aspect-ratio:1 would blow each cell up to a giant
+     square. Cap it to a sane fixed size regardless of column count. */
+  max-width: 14px;
+  max-height: 14px;
   aspect-ratio: 1;
   border-radius: 2px;
   background: rgba(255,255,255,0.06);
