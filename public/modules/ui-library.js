@@ -1277,12 +1277,6 @@ function renderLibrary() {
         spineImgNode = `<div class="manga-spine-strip" style="position:absolute; inset:0; display:flex; align-items:stretch; justify-content:center; overflow:hidden; z-index:2; pointer-events:none; border-radius:inherit;">${stripContent}</div>`;
       }
     }
-    const coverImgMarkup = coverUrl && !coverUrl.endsWith('.pdf')
-      ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">`
-      : (manga.cover
-          ? '<div class="book3d-placeholder"><span class="book3d-placeholder-icon">&#128196;</span><span class="book3d-placeholder-label">NO COVER</span></div>'
-          : '<div class="book3d-placeholder"><span class="book3d-placeholder-icon">?</span><span class="book3d-placeholder-label">UNKNOWN</span></div>');
-
     // Bookshelf 2.5D markup: calibre style spine resting, cover on hover
     const shelf25dCoverMarkup = coverUrl && !coverUrl.endsWith('.pdf')
       ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">`

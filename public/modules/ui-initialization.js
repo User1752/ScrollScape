@@ -6,7 +6,6 @@
   initTheme();
   applyTranslations();
   loadSettings();
-  console.log('[ScrollScape] Settings loaded:', JSON.stringify(state.settings));
   var activeCustom = getActiveCustom();
   var activeTheme = getActiveTheme();
   if (activeCustom && activeTheme !== 'default') {

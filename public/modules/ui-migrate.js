@@ -702,15 +702,7 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
       title:        info.title || manga.title,
       cover:        info.cover || manga.cover || '',
     });
-    console.log('[MIGRATION] Prepared migration:', {
-      fromMangaId: manga.id,
-      fromSourceId,
-      toMangaId: info.mangaId,
-      toSourceId,
-      title: info.title || manga.title
-    });
   }
-  console.log('[MIGRATION] Total migrations to send:', migrations.length);
 
   if (!migrations.length) {
     if (btn) { btn.disabled = false; btn.textContent = 'Migrate Selected'; }
