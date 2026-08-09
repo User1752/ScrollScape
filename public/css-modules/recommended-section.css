@@ -5,3 +5,11 @@
   margin-bottom: 2rem;
 }
 
+.similar-manga-section {
+  margin: 2rem 0;
+}
+
+.similar-manga-section.hidden {
+  display: none;
+}
+

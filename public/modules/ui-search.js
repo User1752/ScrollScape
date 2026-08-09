@@ -1207,6 +1207,12 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
           <div id="detailRatingWrap" class="detail-rating-wrap"></div>
         </div>
       </div>
+      <section id="similarMangaSection" class="similar-manga-section hidden">
+        <div class="section-header">
+          <h3>You might also like</h3>
+        </div>
+        <div id="similarMangaRow" class="popular-row"></div>
+      </section>
     `;
 
     // Reroll random
@@ -1425,6 +1431,7 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
 
     // Render reading status
     renderReadingStatusSection(result.id, state.currentSourceId);
+    loadSimilarManga(result, state.currentSourceId);
     await loadChapters();
     $("searchStatus").textContent = "";
   } catch (e) {
@@ -1476,6 +1483,66 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
     $("searchStatus").textContent = "Could not load manga details.";
     showToast("Error", "Could not load manga details.", "error");
   }
+}
+
+// ── "You might also like" — similar manga based on the manga currently
+// being viewed, not the aggregate library-wide profile the Home page's
+// loadRecommendations() (ui-calendar.js) uses. Scoped to the SAME source as
+// the manga being viewed (its genres already use that source's own
+// vocabulary — spanning sources would need each one's own alias table, like
+// byGenres() itself does per-source, to stay accurate). Session-cached per
+// (sourceId, mangaId) so re-opening the same manga doesn't refire the call.
+const _similarMangaCache = new Map();
+
+async function loadSimilarManga(result, sourceId) {
+  const section = $("similarMangaSection");
+  const row = $("similarMangaRow");
+  if (!section || !row) return;
+  section.classList.add('hidden');
+
+  const genres = (result?.genres || []).filter(Boolean);
+  if (!genres.length || !sourceId) return;
+
+  const cacheKey = `${sourceId}:${result.id}`;
+  let list = _similarMangaCache.get(cacheKey);
+
+  if (!list) {
+    try {
+      const data = await api(`/api/source/${sourceId}/byGenres`, {
+        method: "POST",
+        body: JSON.stringify({ genres: genres.slice(0, 3) }),
+      });
+
+      const normTitle = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30);
+      const currentTitleKey = normTitle(result.title);
+      const favoriteIdsBySource = new Set((state.favorites || []).map(m => `${m.sourceId}::${m.id}`));
+
+      const seenTitles = new Set();
+      list = (data.results || [])
+        .filter(m => {
+          if (String(m.id) === String(result.id)) return false;
+          const titleKey = normTitle(m.title || m.id);
+          if (titleKey === currentTitleKey || seenTitles.has(titleKey)) return false;
+          if (favoriteIdsBySource.has(`${sourceId}::${m.id}`)) return false;
+          seenTitles.add(titleKey);
+          return true;
+        })
+        .map(m => ({ ...m, sourceId }))
+        .slice(0, 12);
+
+      if (state.settings.hideNsfw === true) list = list.filter(m => !isNsfwManga(m));
+      _similarMangaCache.set(cacheKey, list);
+    } catch (_) {
+      return; // Best-effort — a source hiccup here shouldn't disturb the details page.
+    }
+  }
+
+  if (!list.length) return;
+  row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
+  bindMangaCards(row);
+  if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(row);
+  initRowAutoScroll(row);
+  section.classList.remove('hidden');
 }
 
 function renderDetailRating(mangaId) {
