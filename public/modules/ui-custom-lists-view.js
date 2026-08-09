@@ -33,14 +33,14 @@ async function showManageCategoriesModal() {
     }
     return `<div class="lists-grid" style="margin-top:1rem">` +
       state.customLists.map(list => {
-        const count = list.mangaItems?.length || 0;
+        const count = list.isDynamic ? countSmartCategoryMatches(list) : (list.mangaItems?.length || 0);
         return `
           <div class="list-card" data-list-id="${escapeHtml(list.id)}">
             <div class="list-card-actions">
               <button class="btn-icon btn-icon-edit"   data-action="edit"   data-list-id="${escapeHtml(list.id)}" title="Edit">&#9998;</button>
               <button class="btn-icon btn-icon-delete" data-action="delete" data-list-id="${escapeHtml(list.id)}" title="Delete">&#128465;</button>
             </div>
-            <div class="list-card-title">${escapeHtml(list.name)}</div>
+            <div class="list-card-title">${escapeHtml(list.name)}${list.isDynamic ? ' <span class="category-chip" title="Auto-matches manga by filter">Smart</span>' : ''}</div>
             <div class="list-card-meta">
               <span class="list-card-count">${count} manga</span>
             </div>
@@ -101,10 +101,26 @@ async function showManageCategoriesModal() {
 
 // ── Create / Edit modal ───────────────────────────────────────────────────────
 
+const SMART_CATEGORY_STATUS_OPTIONS = [
+  { value: '', label: 'Any status' },
+  { value: 'reading', label: 'Reading' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on_hold', label: 'On Hold' },
+  { value: 'plan_to_read', label: 'Plan to Read' },
+  { value: 'dropped', label: 'Dropped' },
+];
+
 function showListFormModal(list = null, onDone = null) {
   document.querySelector('.list-form-modal')?.remove();
 
   const isEdit = !!list;
+  const isDynamicInit = !!(list && list.isDynamic);
+  const fq = (list && list.filterQuery) || {};
+
+  const sourceOptions = [{ value: '', label: 'Any source' }].concat(
+    Object.keys(state.installedSources || {}).map(id => ({ value: id, label: state.installedSources[id]?.name || id }))
+  );
+
   const modal  = document.createElement('div');
   modal.className = 'settings-modal list-form-modal';
   modal.innerHTML = `
@@ -119,6 +135,40 @@ function showListFormModal(list = null, onDone = null) {
           <input type="text" id="listNameInput" class="input" maxlength="100"
                  value="${isEdit ? escapeHtml(list.name) : ''}" placeholder="Category name…" autocomplete="off">
         </div>
+        <div class="setting-group">
+          <label class="toggle-label">
+            <span class="toggle-text">Smart category — auto-match manga instead of adding manually</span>
+            <input type="checkbox" id="listIsDynamicToggle" ${isDynamicInit ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="listFilterFields" style="${isDynamicInit ? '' : 'display:none'}">
+          <div class="setting-group">
+            <label>Reading status</label>
+            <select id="listFilterStatus" class="input">
+              ${SMART_CATEGORY_STATUS_OPTIONS.map(o => `<option value="${o.value}" ${fq.status === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Source</label>
+            <select id="listFilterSource" class="input">
+              ${sourceOptions.map(o => `<option value="${escapeHtml(o.value)}" ${fq.sourceId === o.value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Minimum rating</label>
+            <select id="listFilterRating" class="input">
+              <option value="0" ${!fq.ratingMin ? 'selected' : ''}>Any rating</option>
+              ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${fq.ratingMin === n ? 'selected' : ''}>${n}+</option>`).join('')}
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Genre/tag contains</label>
+            <input type="text" id="listFilterGenre" class="input" maxlength="100"
+                   value="${escapeHtml(fq.genre || '')}" placeholder="e.g. isekai, romance…" autocomplete="off">
+          </div>
+          <p class="setting-description">Manga matching every filter set above will show up in this category automatically. Genre matching only works once genre data has been cached for that manga (e.g. after opening it at least once).</p>
+        </div>
         <div class="setting-group" style="display:flex;gap:8px">
           <button class="btn primary" id="saveListBtn">${isEdit ? 'Save Changes' : 'Create'}</button>
           <button class="btn secondary" id="closeListForm2">Cancel</button>
@@ -131,19 +181,32 @@ function showListFormModal(list = null, onDone = null) {
   $('closeListForm').onclick  = () => modal.remove();
   $('closeListForm2').onclick = () => modal.remove();
 
+  $('listIsDynamicToggle').onchange = (e) => {
+    $('listFilterFields').style.display = e.target.checked ? '' : 'none';
+  };
+
   $('saveListBtn').onclick = async () => {
     const name = $('listNameInput').value.trim();
     if (!name) { showToast('Category', 'Name is required.', 'warning'); return; }
+
+    const isDynamic = $('listIsDynamicToggle').checked;
+    const filterQuery = isDynamic ? {
+      status: $('listFilterStatus').value || undefined,
+      sourceId: $('listFilterSource').value || undefined,
+      ratingMin: Number($('listFilterRating').value) || undefined,
+      genre: $('listFilterGenre').value.trim() || undefined,
+    } : null;
 
     const saveBtn = $('saveListBtn');
     saveBtn.disabled = true;
 
     try {
+      const body = { name, isDynamic, filterQuery };
       if (isEdit) {
-        await api(`/api/lists/${list.id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+        await api(`/api/lists/${list.id}`, { method: 'PUT', body: JSON.stringify(body) });
         showToast('Category', `"${name}" updated.`, 'success');
       } else {
-        await api('/api/lists', { method: 'POST', body: JSON.stringify({ name }) });
+        await api('/api/lists', { method: 'POST', body: JSON.stringify(body) });
         showToast('Category', `"${name}" created.`, 'success');
       }
       modal.remove();
@@ -189,15 +252,19 @@ function showListDetailModal(list, onDone = null) {
   modal.className = 'settings-modal list-detail-modal';
 
   const renderItems = () => {
-    const items = list.mangaItems || [];
+    const items = list.isDynamic
+      ? [...(state.favorites || []), ...(state.localManga || [])].filter(m => m?.id && _matchesSmartCategory(m, list.filterQuery))
+      : (list.mangaItems || []);
     if (items.length === 0) {
-      return `<div class="muted" style="padding:2rem 0;text-align:center">No manga in this category yet.<br>Add manga from the Library or manga detail page.</div>`;
+      return list.isDynamic
+        ? `<div class="muted" style="padding:2rem 0;text-align:center">No manga currently matches this category's filters.</div>`
+        : `<div class="muted" style="padding:2rem 0;text-align:center">No manga in this category yet.<br>Add manga from the Library or manga detail page.</div>`;
     }
     return `<div class="lists-grid" style="margin-top:1rem">` +
       items.map(m => `
         <div class="list-card" style="cursor:default">
           <div class="list-card-actions">
-            <button class="btn-icon btn-icon-delete" data-action="remove-from-list" data-manga-id="${escapeHtml(m.id)}" title="Remove from category">&#x2715;</button>
+            ${list.isDynamic ? '' : `<button class="btn-icon btn-icon-delete" data-action="remove-from-list" data-manga-id="${escapeHtml(m.id)}" title="Remove from category">&#x2715;</button>`}
           </div>
           <div style="display:flex;gap:10px;align-items:center">
             ${m.cover ? `<img src="${escapeHtml(normalizeImageUrl(m.cover))}" alt="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:40px;height:56px;background:var(--bg-tertiary);border-radius:4px;flex-shrink:0"></div>'}
@@ -212,10 +279,11 @@ function showListDetailModal(list, onDone = null) {
   modal.innerHTML = `
     <div class="settings-content" style="max-width:700px;max-height:80vh;overflow-y:auto">
       <div class="settings-header">
-        <h2>${escapeHtml(list.name)}</h2>
+        <h2>${escapeHtml(list.name)}${list.isDynamic ? ' <span class="category-chip">Smart</span>' : ''}</h2>
         <button class="btn secondary" id="closeListDetail">&#x2715;</button>
       </div>
       <div class="settings-body">
+        ${list.isDynamic ? `<p class="setting-description" style="margin-top:0">Membership updates automatically — matched live from this category's filters, not manually curated.</p>` : ''}
         <div id="listDetailItems">${renderItems()}</div>
       </div>
     </div>`;
@@ -278,12 +346,15 @@ async function showCategoryModal(manga) {
       </div>`;
     }
     return state.customLists.map(l => {
-      const checked = currentCategoryIds.includes(l.id);
-      const count   = l.mangaItems?.length || 0;
+      // Smart categories match live off a filter, not manual assignment —
+      // shown read-only here (reflecting the manga's current match state)
+      // rather than as something this modal can toggle.
+      const checked = l.isDynamic ? _matchesSmartCategory(manga, l.filterQuery) : currentCategoryIds.includes(l.id);
+      const count   = l.isDynamic ? countSmartCategoryMatches(l) : (l.mangaItems?.length || 0);
       return `
-        <label class="cat-modal-row ${checked ? 'cat-modal-row--checked' : ''}">
-          <input type="checkbox" class="category-checkbox" value="${escapeHtml(l.id)}" ${checked ? 'checked' : ''}>
-          <span class="cat-modal-row__name">${escapeHtml(l.name)}</span>
+        <label class="cat-modal-row ${checked ? 'cat-modal-row--checked' : ''}" ${l.isDynamic ? 'title="Smart category — matches automatically, can\'t be toggled here"' : ''}>
+          <input type="checkbox" class="category-checkbox" value="${escapeHtml(l.id)}" ${checked ? 'checked' : ''} ${l.isDynamic ? 'disabled data-dynamic="1"' : ''}>
+          <span class="cat-modal-row__name">${escapeHtml(l.name)}${l.isDynamic ? ' <span class="category-chip">Smart</span>' : ''}</span>
           <span class="cat-modal-row__count">${count}</span>
         </label>`;
     }).join('');
@@ -326,7 +397,7 @@ async function showCategoryModal(manga) {
   };
 
   $('saveCatBtn').onclick = async () => {
-    const checked = [...modal.querySelectorAll('.category-checkbox:checked')].map(cb => cb.value);
+    const checked = [...modal.querySelectorAll('.category-checkbox:checked:not([data-dynamic])')].map(cb => cb.value);
     const saveBtn = $('saveCatBtn');
     saveBtn.disabled = true;
     try {

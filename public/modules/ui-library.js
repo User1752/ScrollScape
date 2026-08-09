@@ -934,9 +934,85 @@ function cycleLibrarySort() {
   setLibrarySortMode(LIBRARY_SORT_MODES[(idx + 1) % LIBRARY_SORT_MODES.length].key);
 }
 
+// Build a genres enrichment map from history (history entries have full genre data,
+// while favorites added via import often have genres: []).
+// Keyed as "id:sourceId" for direct lookup. Rebuilt fresh each renderLibrary()
+// call (reset there) so it never serves stale data across a session.
+let _histGenresMap = null;
+function _getEnrichedGenres(manga) {
+  if ((manga.genres || []).length > 0) return manga.genres;
+  if (!_histGenresMap) {
+    _histGenresMap = new Map();
+    for (const h of (state.history || [])) {
+      if ((h.genres || []).length > 0) {
+        _histGenresMap.set(`${h.id}:${h.sourceId || ''}`, h.genres);
+        // also index by anilistId if present
+        if (h.anilistId) _histGenresMap.set(`anilist:${h.anilistId}`, h.genres);
+      }
+    }
+    // also pull from readingStatus manga entries
+    for (const rs of Object.values(state.readingStatus || {})) {
+      const rsm = rs.manga;
+      if (rsm && (rsm.genres || []).length > 0) {
+        _histGenresMap.set(`${rsm.id}:${rsm.sourceId || ''}`, rsm.genres);
+      }
+    }
+  }
+  const key = `${manga.id}:${manga.sourceId || ''}`;
+  if (_histGenresMap.has(key)) return _histGenresMap.get(key);
+  // For AniList-sourced entries, also try matching by anilistId
+  if (manga.anilistId) {
+    const aKey = `anilist:${manga.anilistId}`;
+    if (_histGenresMap.has(aKey)) return _histGenresMap.get(aKey);
+  }
+  return [];
+}
+function _isNsfwEnriched(manga) {
+  if (!manga) return false;
+  const enrichedGenres = _getEnrichedGenres(manga);
+  if (enrichedGenres.length > 0) {
+    const enriched = Object.assign({}, manga, { genres: enrichedGenres });
+    return isNsfwManga(enriched);
+  }
+  return isNsfwManga(manga);
+}
+
+// Evaluates a smart category's filterQuery against one manga. All set
+// fields are AND-ed together; an unset field is ignored. Reuses
+// _getEnrichedGenres() since most stored favorites carry genres: []
+// until backfilled from history/readingStatus (see that function above).
+function _matchesSmartCategory(manga, query) {
+  if (!query) return false;
+  if (query.status) {
+    const st = state.readingStatus[_libStatusKey(manga.id, manga.sourceId)]?.status || '';
+    if (st !== query.status) return false;
+  }
+  if (query.sourceId && (manga.sourceId || '') !== query.sourceId) return false;
+  if (query.ratingMin) {
+    const r = state.ratings[_libRatingKey(manga.id)] || 0;
+    if (r < query.ratingMin) return false;
+  }
+  if (query.genre) {
+    const needle = query.genre.toLowerCase();
+    const genres = _getEnrichedGenres(manga).map(g => String(g).toLowerCase());
+    if (!genres.some(g => g.includes(needle))) return false;
+  }
+  return true;
+}
+
+// Live match count for a dynamic category — used by the Manage Categories
+// modal (ui-custom-lists-view.js), which doesn't have access to
+// renderLibrary()'s internal reverse-index and shouldn't need to.
+function countSmartCategoryMatches(list) {
+  if (!list?.isDynamic || !list.filterQuery) return 0;
+  const allLibraryManga = [...(state.favorites || []), ...(state.localManga || [])];
+  return allLibraryManga.filter(m => m?.id && _matchesSmartCategory(m, list.filterQuery)).length;
+}
+
 function renderLibrary() {
   const grid = $("library");
   if (!grid) return;
+  _histGenresMap = null; // force a fresh rebuild for this render pass
   const bookshelf3dEnabled = state.settings.libraryBookshelf3d === true;
   const isBookshelf25d  = bookshelf3dEnabled;
   grid.classList.toggle('library-grid-bookshelf-25d', isBookshelf25d);
@@ -988,48 +1064,6 @@ function renderLibrary() {
     });
   }
 
-  // Build a genres enrichment map from history (history entries have full genre data,
-  // while favorites added via import often have genres: []).
-  // Keyed as "id:sourceId" for direct lookup.
-  let _histGenresMap = null;
-  function _getEnrichedGenres(manga) {
-    if ((manga.genres || []).length > 0) return manga.genres;
-    if (!_histGenresMap) {
-      _histGenresMap = new Map();
-      for (const h of (state.history || [])) {
-        if ((h.genres || []).length > 0) {
-          _histGenresMap.set(`${h.id}:${h.sourceId || ''}`, h.genres);
-          // also index by anilistId if present
-          if (h.anilistId) _histGenresMap.set(`anilist:${h.anilistId}`, h.genres);
-        }
-      }
-      // also pull from readingStatus manga entries
-      for (const rs of Object.values(state.readingStatus || {})) {
-        const rsm = rs.manga;
-        if (rsm && (rsm.genres || []).length > 0) {
-          _histGenresMap.set(`${rsm.id}:${rsm.sourceId || ''}`, rsm.genres);
-        }
-      }
-    }
-    const key = `${manga.id}:${manga.sourceId || ''}`;
-    if (_histGenresMap.has(key)) return _histGenresMap.get(key);
-    // For AniList-sourced entries, also try matching by anilistId
-    if (manga.anilistId) {
-      const aKey = `anilist:${manga.anilistId}`;
-      if (_histGenresMap.has(aKey)) return _histGenresMap.get(aKey);
-    }
-    return [];
-  }
-  function _isNsfwEnriched(manga) {
-    if (!manga) return false;
-    const enrichedGenres = _getEnrichedGenres(manga);
-    if (enrichedGenres.length > 0) {
-      const enriched = Object.assign({}, manga, { genres: enrichedGenres });
-      return isNsfwManga(enriched);
-    }
-    return isNsfwManga(manga);
-  }
-
   // Build a reverse-index: mangaId -> [listId, ...]
   const mangaCategories = {};
   for (const list of (state.customLists || [])) {
@@ -1038,6 +1072,25 @@ function renderLibrary() {
       const key = `${item.id}:${item.sourceId || ''}`;
       if (!mangaCategories[key]) mangaCategories[key] = [];
       mangaCategories[key].push(list.id);
+    }
+  }
+
+  // Dynamic ("smart") categories have no manually-curated mangaItems —
+  // membership is instead computed live against each manga's current
+  // status/rating/source/genre, then folded into the same reverse-index
+  // shape above so the category filter dropdown and card chips (both
+  // built from mangaCategories) need no further special-casing.
+  const smartLists = (state.customLists || []).filter(l => l.isDynamic && l.filterQuery);
+  if (smartLists.length) {
+    const allLibraryManga = [...(state.favorites || []), ...(state.localManga || [])];
+    for (const manga of allLibraryManga) {
+      if (!manga?.id) continue;
+      for (const list of smartLists) {
+        if (!_matchesSmartCategory(manga, list.filterQuery)) continue;
+        const key = `${manga.id}:${manga.sourceId || ''}`;
+        if (!mangaCategories[key]) mangaCategories[key] = [];
+        if (!mangaCategories[key].includes(list.id)) mangaCategories[key].push(list.id);
+      }
     }
   }
 

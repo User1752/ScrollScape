@@ -10,19 +10,42 @@ function createListService({ readStore, writeStore, safeManga }) {
     return { lists: store.customLists };
   }
 
-  async function createList({ name, description } = {}) {
+  // A dynamic ("smart") category has no manually-curated mangaItems — instead
+  // filterQuery is evaluated live, client-side, against each manga's current
+  // status/rating/source/genre (see _matchesSmartCategory in ui-library.js).
+  // Kept as a plain flat object (no nested query language) so it survives
+  // the backup export/import round trip with zero extra plumbing, same as
+  // every other field on a list.
+  function normalizeFilterQuery(filterQuery) {
+    if (!filterQuery || typeof filterQuery !== 'object') return null;
+    const q = {};
+    const status = String(filterQuery.status || '').trim();
+    if (status) q.status = status.slice(0, 50);
+    const sourceId = String(filterQuery.sourceId || '').trim();
+    if (sourceId) q.sourceId = sourceId.slice(0, 100);
+    const genre = String(filterQuery.genre || '').trim();
+    if (genre) q.genre = genre.slice(0, 100);
+    const ratingMin = Number(filterQuery.ratingMin);
+    if (Number.isFinite(ratingMin) && ratingMin > 0) q.ratingMin = Math.min(10, Math.max(0, ratingMin));
+    return Object.keys(q).length ? q : null;
+  }
+
+  async function createList({ name, description, isDynamic, filterQuery } = {}) {
     if (!name?.trim()) {
       const err = new Error('List name required');
       err.statusCode = 400;
       throw err;
     }
 
+    const dynamic = isDynamic === true;
     const store = await readStore();
     const list = {
       id: `list_${Date.now()}`,
       name: name.trim().slice(0, 100),
       description: String(description || '').slice(0, 500),
       mangaItems: [],
+      isDynamic: dynamic,
+      filterQuery: dynamic ? normalizeFilterQuery(filterQuery) : null,
       createdAt: new Date().toISOString(),
     };
 
@@ -31,7 +54,7 @@ function createListService({ readStore, writeStore, safeManga }) {
     return { ok: true, list };
   }
 
-  async function updateList(listIdRaw, { name, description } = {}) {
+  async function updateList(listIdRaw, { name, description, isDynamic, filterQuery } = {}) {
     const listId = normalizeListId(listIdRaw);
 
     if (listId === 'manga-categories') {
@@ -51,6 +74,15 @@ function createListService({ readStore, writeStore, safeManga }) {
 
     if (name) list.name = name.trim().slice(0, 100);
     if (description !== undefined) list.description = String(description).slice(0, 500);
+    if (isDynamic !== undefined) {
+      list.isDynamic = isDynamic === true;
+      list.filterQuery = list.isDynamic ? normalizeFilterQuery(filterQuery) : null;
+      // Switching a category to dynamic drops any manually-curated members —
+      // membership from here on is computed live from filterQuery instead.
+      if (list.isDynamic) list.mangaItems = [];
+    } else if (filterQuery !== undefined && list.isDynamic) {
+      list.filterQuery = normalizeFilterQuery(filterQuery);
+    }
 
     await writeStore(store);
     return { ok: true, list };

@@ -16,7 +16,12 @@ function normaliseStore(store) {
   store.settings = store.settings || {};
   store.settings.flaresolverrUrl = store.settings.flaresolverrUrl || '';
   store.settings.comicVineApiKey = store.settings.comicVineApiKey || '';
-  store.customLists = Array.isArray(store.customLists) ? store.customLists : [];
+  store.customLists = (Array.isArray(store.customLists) ? store.customLists : []).map(l => ({
+    ...l,
+    isDynamic: l.isDynamic === true,
+    filterQuery: l.isDynamic === true && l.filterQuery && typeof l.filterQuery === 'object' ? l.filterQuery : null,
+    mangaItems: Array.isArray(l.mangaItems) ? l.mangaItems : [],
+  }));
   store.achievements = Array.isArray(store.achievements) ? store.achievements : [];
 
   // Achievement Points wallet, purchased shop themes, and active theme —
