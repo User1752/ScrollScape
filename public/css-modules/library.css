@@ -86,62 +86,8 @@ body:has(#view-library:not(.hidden)) .main-container {
 }
 
 .library-grid-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.library-grid-list .library-card {
-  flex-direction: row;
-  align-items: stretch;
-  height: auto;
-}
-
-.library-grid-list .library-card:hover {
-  transform: none;
-}
-
-.library-grid-list .library-card-cover {
-  width: 56px;
-  min-width: 56px;
-  aspect-ratio: 3/4;
-  flex-shrink: 0;
-}
-
-.library-grid-list .no-cover {
-  font-size: 1.1rem;
-}
-
-.library-grid-list .library-card-info {
-  flex: 1;
-  min-width: 0;
-  padding: 0.5rem 1rem;
-  flex-direction: row;
-  align-items: center;
-  gap: 1rem;
-}
-
-.library-grid-list .library-card-title {
   display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 0;
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
-.library-grid-list .library-card-author {
-  flex: 0 1 160px;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.library-grid-list .category-chips,
-.library-grid-list .card-score-badge {
-  flex: 0 0 auto;
+  gap: 0;
 }
 
 .library-display-controls {

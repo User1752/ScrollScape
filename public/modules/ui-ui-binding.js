@@ -234,10 +234,6 @@ function bindUI() {
   const btnSort = $("btnSortLibrary");
   if (btnSort) btnSort.onclick = () => openLibrarySortDrawer();
 
-  // Gallery/list view toggle
-  const btnViewToggle = $("btnToggleLibraryView");
-  if (btnViewToggle) btnViewToggle.onclick = () => toggleLibraryViewMode();
-
   // Migrate library button
   const btnMigrate = $("btnMigrateLibrary");
   if (btnMigrate) btnMigrate.onclick = () => showMigrateModal();
