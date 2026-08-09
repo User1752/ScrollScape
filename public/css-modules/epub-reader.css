@@ -72,10 +72,21 @@
    button (wired up for the manga/PDF reader in
    _bindReaderArrowProximity), which was never wired for the EPUB reader
    — leaving it permanently invisible and unclickable here. Skip that
-   whole proximity dance and just always show it. */
+   whole proximity dance and just always show it.
+   Also moved up near the title instead of vertically centered: centered
+   is where the corner-nav buttons above now always sit too (right: 328px
+   vs. this button's 318px when the sidebar is open — a 24px horizontal
+   overlap at the same height), so the two were stacking on top of
+   each other. */
 .epub-reader .reader-sidebar-arrow {
   opacity: 1;
   pointer-events: auto;
+  top: 4rem;
+  transform: none;
+}
+
+.epub-reader:not(.reader-sidebar-collapsed) .reader-sidebar-arrow {
+  transform: rotate(180deg);
 }
 
 .epub-toc-section {
