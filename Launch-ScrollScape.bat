@@ -102,7 +102,7 @@ if exist "!FLARESOLVERR_EXE!" (
     call :wait_port 8191
     if errorlevel 1 (
         echo.
-        call :err "FlareSolverr did not come up on port 8191" "Cloudflare-protected sources (e.g. BatCave) will fail until it's running - try running tools\flaresolverr\flaresolverr.exe directly to see why."
+        call :err "FlareSolverr did not come up on port 8191" "Cloudflare-protected sources such as BatCave will fail until it's running - try running tools\flaresolverr\flaresolverr.exe directly to see why."
     ) else (
         echo   [ OK ]  FlareSolverr is listening on port 8191.
     )
