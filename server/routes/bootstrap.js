@@ -21,7 +21,9 @@ function registerAppRoutes(app) {
   const { registerBackupRoutes } = require('./backup');
   const { registerOpdsRoutes } = require('./opds');
   const { registerMihonImportRoutes } = require('./mihon-import');
+  const { registerAuthRoutes } = require('./auth');
 
+  registerAuthRoutes(app);
   registerProxyRoutes(app);
   registerRepoRoutes(app);
   registerLocalRoutes(app);

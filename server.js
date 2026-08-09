@@ -99,6 +99,20 @@ applySecurityHeaders(app);
 // Static assets are excluded so the UI loads without restriction.
 app.use('/api', rateLimiter(limits.apiRateLimitWindowMs, limits.apiRateLimitMaxRequests));
 app.use('/api', apiTimeout(limits.sourceCallTimeoutMs || 30000));
+// /opds/* sits outside /api (see server/routes/opds.js) specifically so a
+// slow chapter-zip request isn't cut off by apiTimeout — but that also means
+// it skips the /api rate limiter above. /opds/download in particular builds
+// a real CBZ (or fetches N page images from an external source) per request,
+// so it gets its own, stricter limit rather than being left uncapped.
+app.use('/opds/download', rateLimiter(60_000, 20));
+
+// Optional single-password gate — off by default (see
+// server/modules/auth/service.js). Only guards /api/*; static assets stay
+// reachable so the SPA shell can load and render its own login screen.
+const { createAuthService } = require('./server/modules/auth/service');
+const { createAuthGate } = require('./server/middleware/auth-gate');
+const authService = createAuthService({ readStore: storeModule.readStore, writeStore: storeModule.writeStore });
+app.use('/api', createAuthGate(authService));
 
 // ── Route registration ────────────────────────────────────────────────────────
 // ORDER MATTERS:

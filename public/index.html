@@ -41,6 +41,7 @@
   <link rel="stylesheet" href="./css-modules/reviews-ratings.css">
   <link rel="stylesheet" href="./css-modules/custom-lists.css">
   <link rel="stylesheet" href="./css-modules/duplicate-scan.css?v=1">
+  <link rel="stylesheet" href="./css-modules/auth-gate.css?v=1">
   <link rel="stylesheet" href="./css-modules/analytics-dashboard.css">
   <link rel="stylesheet" href="./css-modules/achievements.css">
     <link rel="stylesheet" href="./css-modules/button.css">
@@ -104,6 +105,18 @@
       <div class="shenlong-text">Your wish has been granted!</div>
       <div class="shenlong-ap">+50 AP</div>
     </div>
+  </div>
+
+  <!-- Optional password gate — hidden unless a password has been set in
+       Settings and the current browser has no valid session yet. -->
+  <div id="authGateOverlay" class="auth-gate-overlay hidden">
+    <form id="authGateForm" class="auth-gate-box">
+      <h2>ScrollScape is locked</h2>
+      <p class="auth-gate-desc">Enter the access password to continue.</p>
+      <input type="password" id="authGatePasswordInput" class="input" placeholder="Password" autocomplete="current-password" autofocus>
+      <p id="authGateError" class="auth-gate-error hidden"></p>
+      <button type="submit" class="btn primary" id="authGateSubmitBtn">Unlock</button>
+    </form>
   </div>
 
   <div class="app-shell">
@@ -1039,7 +1052,7 @@
   <script src="./modules/ui-pdf-reader.js" defer></script>
   <script src="./modules/ui-epub-reader.js?v=2" defer></script>
   <script src="./modules/ui-backup.js?v=1" defer></script>
-  <script src="./modules/ui-settings-modal.js?v=7" defer></script>
+  <script src="./modules/ui-settings-modal.js?v=8" defer></script>
   <script src="./modules/ui-custom-lists-view.js?v=10" defer></script>
   <script src="./modules/ui-migrate.js" defer></script>
   <script src="./modules/ui-duplicates.js?v=1" defer></script>
@@ -1053,6 +1066,7 @@
   <script src="./modules/ui-view-management.js" defer></script>
   <script src="./modules/ui-scroll-to-top.js" defer></script>
   <script src="./modules/ui-ui-binding.js?v=10" defer></script>
+  <script src="./modules/ui-auth-gate.js?v=1" defer></script>
   <script src="./modules/ui-initialization.js" defer></script>
   <script src="./app.js?v=5" defer></script>
 </body>

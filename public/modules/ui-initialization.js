@@ -3,6 +3,8 @@
 // ============================================================================
 
 (async function main() {
+  await checkAuthGate();
+
   initTheme();
   applyTranslations();
   loadSettings();

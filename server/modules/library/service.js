@@ -393,6 +393,31 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
           console.warn('[MIGRATION][BACKEND] No reviews to copy for manga:', fromMangaId);
         }
 
+        // Carry over coverOverrides and mangaTags — both are sidecar dicts
+        // keyed by the exact same "mangaId:sourceId" shape as readingStatus
+        // (safeStatusKey), but migrateLibrary previously only ever moved
+        // favorites/readingStatus/reviews/customLists, silently orphaning a
+        // custom cover or any tags under the old key.
+        const oldCompositeKey = safeStatusKey(fromMangaId, fromSourceIdRaw);
+        if (oldCompositeKey !== newKey) {
+          if (store.coverOverrides?.[oldCompositeKey] && !store.coverOverrides[newKey]) {
+            store.coverOverrides[newKey] = store.coverOverrides[oldCompositeKey];
+          }
+          if (store.coverOverrides) delete store.coverOverrides[oldCompositeKey];
+
+          if (store.mangaTags?.[oldCompositeKey]?.length) {
+            const merged = [...(store.mangaTags[newKey] || []), ...store.mangaTags[oldCompositeKey]];
+            const seen = new Set();
+            store.mangaTags[newKey] = merged.filter((tag) => {
+              const lower = tag.toLowerCase();
+              if (seen.has(lower)) return false;
+              seen.add(lower);
+              return true;
+            });
+            delete store.mangaTags[oldCompositeKey];
+          }
+        }
+
         for (const list of (store.customLists || [])) {
           const idx = list.mangaItems.findIndex(
             i => i.id === fromMangaId && normSourceId(i.sourceId) === fromSourceIdRaw

@@ -587,6 +587,22 @@ function showSettings() {
               </div>
             </div>
             <div class="settings-section-card">
+              <p class="settings-section-title">Access Password</p>
+              <div class="setting-group">
+                <p class="setting-description" id="accessPasswordStatus" style="margin:0 0 0.6rem 0">Loading…</p>
+                <div id="accessPasswordCurrentGroup" style="display:none;margin-bottom:0.6rem">
+                  <label for="accessPasswordCurrentInput">Current password</label>
+                  <input type="password" id="accessPasswordCurrentInput" class="input" autocomplete="current-password">
+                </div>
+                <label for="accessPasswordNewInput">New password (leave empty to remove the lock)</label>
+                <input type="password" id="accessPasswordNewInput" class="input" autocomplete="new-password">
+                <div class="setting-group" style="display:flex;gap:8px;margin-top:0.6rem">
+                  <button class="btn secondary" id="btnSaveAccessPassword">Save</button>
+                </div>
+                <p class="setting-description" style="margin-top:0.5rem">Only gates the app itself — the OPDS catalog stays unauthenticated since external e-reader apps can't fill in a login form.</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
               <p class="settings-section-title">Factory Reset</p>
               <div class="setting-group">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -725,6 +741,47 @@ function showSettings() {
       if (typeof renderLibrary === 'function') renderLibrary();
       if (typeof applyReaderBackground === 'function') applyReaderBackground();
       if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  }
+
+  const accessPasswordStatusEl = $("accessPasswordStatus");
+  if (accessPasswordStatusEl) {
+    fetch('/api/auth/status').then(r => r.json()).then(status => {
+      accessPasswordStatusEl.textContent = status.passwordSet
+        ? 'A password is currently set.'
+        : 'No password set — ScrollScape is fully open right now.';
+      $("accessPasswordCurrentGroup").style.display = status.passwordSet ? '' : 'none';
+    }).catch(() => {
+      accessPasswordStatusEl.textContent = 'Could not check current status.';
+    });
+  }
+
+  const btnSaveAccessPassword = $("btnSaveAccessPassword");
+  if (btnSaveAccessPassword) {
+    btnSaveAccessPassword.onclick = async () => {
+      const newPassword = $("accessPasswordNewInput")?.value || '';
+      const currentPassword = $("accessPasswordCurrentInput")?.value || '';
+      btnSaveAccessPassword.disabled = true;
+      try {
+        const resp = await fetch('/api/auth/set-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword, currentPassword }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || 'Could not update the password.');
+        showToast('Access Password', newPassword ? 'Password set.' : 'Password removed — ScrollScape is now open.', 'success');
+        $("accessPasswordNewInput").value = '';
+        $("accessPasswordCurrentInput").value = '';
+        if (accessPasswordStatusEl) {
+          accessPasswordStatusEl.textContent = data.passwordSet ? 'A password is currently set.' : 'No password set — ScrollScape is fully open right now.';
+          $("accessPasswordCurrentGroup").style.display = data.passwordSet ? '' : 'none';
+        }
+      } catch (err) {
+        showToast('Error', err.message || 'Could not update the password.', 'error');
+      } finally {
+        btnSaveAccessPassword.disabled = false;
+      }
     };
   }
 

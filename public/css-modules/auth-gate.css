@@ -1,0 +1,53 @@
+/* ============================================================================
+   AUTH GATE — optional single-password lock screen
+   ============================================================================ */
+.auth-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-dark);
+}
+
+.auth-gate-overlay.hidden {
+  display: none;
+}
+
+.auth-gate-box {
+  width: min(360px, 90vw);
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 12px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+.auth-gate-box h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.auth-gate-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.auth-gate-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-danger);
+  text-align: center;
+}
+
+.auth-gate-error.hidden {
+  display: none;
+}
