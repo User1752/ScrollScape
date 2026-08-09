@@ -22,15 +22,18 @@ const MAX_PREDICTIONS = 8;
 const MIN_INTERVAL_HOURS = 12;
 
 // Sources whose own chapters() response includes a real, parseable
-// publishAt/date per chapter (verified by reading each source file —
-// the rest either omit the field entirely or explicitly set it to null).
-// Manga that can't be resolved to a MangaDex UUID would otherwise get no
-// calendar entry at all; for these sources only, fall back to computing
-// the release interval straight from the source's own chapter history
-// instead. Everything else (BatCave, AllManga, AsuraScans, MangaKatana,
-// MangaPill, VortexScans) has no chapter-level date data to fall back
-// on — those still land in noSchedule when MangaDex resolution fails.
-const NATIVE_DATE_SOURCES = new Set(['comichubfree', 'weebcentral']);
+// publishAt/date per chapter (verified by reading each source file, and
+// for kingofshojo by fetching a real page — its .chapterdate text turned
+// out to be an actual date ("August 9, 2026") once parsed with new Date(),
+// not relative text, see data/sources/kingofshojo.js). The rest either
+// omit the field entirely or explicitly set it to null. Manga that can't
+// be resolved to a MangaDex UUID would otherwise get no calendar entry at
+// all; for these sources only, fall back to computing the release
+// interval straight from the source's own chapter history instead.
+// Everything else (BatCave, AllManga, AsuraScans, MangaKatana, MangaPill,
+// VortexScans) has no chapter-level date data to fall back on — those
+// still land in noSchedule when MangaDex resolution fails.
+const NATIVE_DATE_SOURCES = new Set(['comichubfree', 'weebcentral', 'kingofshojo']);
 
 function createCalendarService({ readStore, loadSourceFromFile }) {
   const sourceChapCache = new Map();
