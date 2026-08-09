@@ -489,6 +489,17 @@ function showSettings() {
                   </label>
                   <p class="setting-description">Automatically adds completed manga to a "Read" category when importing</p>
                 </div>
+                <div class="setting-group">
+                  <label for="anilistImportCategorySelect">Import into category</label>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <select id="anilistImportCategorySelect" class="input" style="flex:1">
+                      <option value="">— None (mix with library) —</option>
+                      ${(state.customLists || []).map(l => `<option value="${escapeHtml(l.id)}" ${state.settings.anilistImportCategoryId === l.id ? 'selected' : ''}>${escapeHtml(l.name)}</option>`).join('')}
+                    </select>
+                    <button class="btn secondary" id="btnNewAnilistImportCategory" title="Create a new category">+ New</button>
+                  </div>
+                  <p class="setting-description">Every manga imported from AniList (not just Completed) also gets added to this category, so it doesn't mix in with the rest of your library.</p>
+                </div>
                 <div class="setting-group" style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn primary" id="btnAniListImportNow">Import Library Now</button>
                   <button class="btn secondary" id="btnAniListDisconnect">Disconnect</button>
@@ -1397,6 +1408,29 @@ function showSettings() {
     alAutoCatToggle.onchange = (e) => {
       state.settings.anilistAutoCategorize = e.target.checked;
       saveSettings();
+    };
+  }
+  const alImportCategorySelect = $('anilistImportCategorySelect');
+  if (alImportCategorySelect) {
+    alImportCategorySelect.onchange = (e) => {
+      state.settings.anilistImportCategoryId = e.target.value;
+      saveSettings();
+    };
+  }
+  const btnNewAlImportCategory = $('btnNewAnilistImportCategory');
+  if (btnNewAlImportCategory) {
+    btnNewAlImportCategory.onclick = () => {
+      showListFormModal(null, async () => {
+        await _listsReload();
+        const newList = state.customLists[state.customLists.length - 1];
+        if (newList) {
+          state.settings.anilistImportCategoryId = newList.id;
+          saveSettings();
+        }
+        showSettings();
+        const trackingTabBtn = document.querySelector('.settings-nav-item[data-tab="tab-tracking"]');
+        if (trackingTabBtn) trackingTabBtn.click();
+      });
     };
   }
   const btnImportNow = $('btnAniListImportNow');

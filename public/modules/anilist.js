@@ -997,6 +997,67 @@ async function anilistImportLibrary(opts = {}) {
       dbg.error(dbg.ERR_ANILIST, 'Progress import failed', progErr);
     }
 
+    // Assigns every entry in targetEntries to listId, preserving whatever
+    // categories each manga is already in (fetches current membership,
+    // adds listId if missing, PUTs the merged set) — shared by both the
+    // "Completed -> Read" auto-categorize below and the "everything -> a
+    // category you pick" block after it, so re-running an import multiple
+    // times stays idempotent (the includes() guard skips manga already in
+    // the target list) instead of duplicating membership.
+    async function _anilistAssignEntriesToList(targetEntries, listId) {
+      for (const en of targetEntries) {
+        const resolved = resolutionMap.get(String(en.anilistId));
+        const mangaId  = resolved ? String(resolved.mangaId)  : String(en.anilistId);
+        const sourceId = resolved ? resolved.sourceId         : 'anilist';
+        const cover    = resolved ? (resolved.cover || en.cover) : en.cover;
+        let curCatIds = [];
+        try {
+          const d = await api(`/api/lists/manga/${encodeURIComponent(mangaId)}/categories?sourceId=${encodeURIComponent(sourceId)}`);
+          curCatIds = d.categoryIds || [];
+        } catch (_) {}
+        if (curCatIds.includes(listId)) continue;
+
+        curCatIds = [...curCatIds, listId];
+        const payload = {
+          mangaId,
+          sourceId,
+          categoryIds: curCatIds,
+          mangaData: { id: mangaId, title: en.title, cover, sourceId },
+        };
+        try {
+          await api('/api/lists/manga-categories', {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+        } catch (err) {
+          const msg = String(err?.message || '').toLowerCase();
+          const isRouteConflict = msg.includes('list not found') || msg.includes('category not found');
+          if (!isRouteConflict) throw err;
+
+          const current = await api(`/api/lists/manga/${encodeURIComponent(payload.mangaId)}/categories?sourceId=${encodeURIComponent(payload.sourceId)}`);
+          const currentIds = new Set(current.categoryIds || []);
+          const freshLists = await api('/api/lists');
+          const validIds = new Set((freshLists.lists || []).map(l => l.id));
+          const targetIds = new Set((payload.categoryIds || []).filter(id => validIds.has(id)));
+
+          const toAdd = [...targetIds].filter(id => !currentIds.has(id));
+          const toRemove = [...currentIds].filter(id => !targetIds.has(id));
+
+          for (const lid of toAdd) {
+            await api(`/api/lists/${encodeURIComponent(lid)}/manga`, {
+              method: 'POST',
+              body: JSON.stringify({ mangaData: payload.mangaData }),
+            });
+          }
+          for (const lid of toRemove) {
+            await api(`/api/lists/${encodeURIComponent(lid)}/manga/${encodeURIComponent(payload.mangaId)}`, {
+              method: 'DELETE',
+            });
+          }
+        }
+      }
+    }
+
     // Auto-categorize: add COMPLETED manga to a "Read" category if enabled
     if (state.settings.anilistAutoCategorize) {
       report(92, 'Applying categories…');
@@ -1017,68 +1078,41 @@ async function anilistImportLibrary(opts = {}) {
             state.customLists = listsData.lists || [];
           }
 
-          // Batch-assign each completed manga to the Read list
-          for (const en of completedEntries) {
-            // Prefer resolved source entry; fall back to anilist placeholder
-            const resolved = resolutionMap.get(String(en.anilistId));
-            const mangaId  = resolved ? String(resolved.mangaId)  : String(en.anilistId);
-            const sourceId = resolved ? resolved.sourceId         : 'anilist';
-            const cover    = resolved ? (resolved.cover || en.cover) : en.cover;
-            // Get current categories so we don't lose existing ones
-            let curCatIds = [];
-            try {
-              const d = await api(`/api/lists/manga/${encodeURIComponent(mangaId)}/categories?sourceId=${encodeURIComponent(sourceId)}`);
-              curCatIds = d.categoryIds || [];
-            } catch (_) {}
-            if (!curCatIds.includes(readList.id)) {
-              curCatIds = [...curCatIds, readList.id];
-              const payload = {
-                mangaId,
-                sourceId,
-                categoryIds: curCatIds,
-                mangaData: { id: mangaId, title: en.title, cover, sourceId },
-              };
-              try {
-                await api('/api/lists/manga-categories', {
-                  method: 'PUT',
-                  body: JSON.stringify(payload),
-                });
-              } catch (err) {
-                const msg = String(err?.message || '').toLowerCase();
-                const isRouteConflict = msg.includes('list not found') || msg.includes('category not found');
-                if (!isRouteConflict) throw err;
+          await _anilistAssignEntriesToList(completedEntries, readList.id);
 
-                const current = await api(`/api/lists/manga/${encodeURIComponent(payload.mangaId)}/categories?sourceId=${encodeURIComponent(payload.sourceId)}`);
-                const currentIds = new Set(current.categoryIds || []);
-                const freshLists = await api('/api/lists');
-                const validIds = new Set((freshLists.lists || []).map(l => l.id));
-                const targetIds = new Set((payload.categoryIds || []).filter(id => validIds.has(id)));
-
-                const toAdd = [...targetIds].filter(id => !currentIds.has(id));
-                const toRemove = [...currentIds].filter(id => !targetIds.has(id));
-
-                for (const listId of toAdd) {
-                  await api(`/api/lists/${encodeURIComponent(listId)}/manga`, {
-                    method: 'POST',
-                    body: JSON.stringify({ mangaData: payload.mangaData }),
-                  });
-                }
-                for (const listId of toRemove) {
-                  await api(`/api/lists/${encodeURIComponent(listId)}/manga/${encodeURIComponent(payload.mangaId)}`, {
-                    method: 'DELETE',
-                  });
-                }
-              }
-            }
-          }
-
-          // Reload lists and refresh library chips
-          const finalLists = await api('/api/lists');
-          state.customLists = finalLists.lists || [];
+          state.customLists = (await api('/api/lists')).lists || [];
           renderLibrary();
         } catch (catErr) {
           dbg.error(dbg.ERR_ANILIST, 'Auto-categorize failed', catErr);
         }
+      }
+    }
+
+    // Import into a user-picked category: unlike the Completed-only "Read"
+    // list above, this puts EVERY imported entry into one category, so a
+    // user re-importing (or connecting) AniList can keep those entries
+    // visibly separate from manga they added directly in ScrollScape.
+    const importCategoryId = state.settings.anilistImportCategoryId;
+    if (importCategoryId && entries.length > 0) {
+      report(96, 'Adding to your chosen category…');
+      try {
+        const listsData = await api('/api/lists');
+        state.customLists = listsData.lists || [];
+        const targetList = state.customLists.find(l => l.id === importCategoryId);
+        if (targetList) {
+          await _anilistAssignEntriesToList(entries, targetList.id);
+          state.customLists = (await api('/api/lists')).lists || [];
+          renderLibrary();
+        } else {
+          // The chosen category was deleted/renamed since — don't silently
+          // recreate a new one under a different id; surface it instead so
+          // the user re-picks a category rather than getting confused about
+          // where their import went.
+          dbg.warn(dbg.ERR_ANILIST, 'Configured AniList import category no longer exists', { importCategoryId });
+          showToast('AniList Import', 'Your chosen import category no longer exists — pick another one in Settings.', 'warning');
+        }
+      } catch (catErr) {
+        dbg.error(dbg.ERR_ANILIST, 'Import-into-category failed', catErr);
       }
     }
 

@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS = {
   anilistAutoSync: true,
   anilistAutoImportOnConnect: false,
   anilistAutoCategorize: true,
+  anilistImportCategoryId: '',
   autoWebtoonDetect: true,
   pageFlipAnimation: true,
   displayMode: 'detailed',
