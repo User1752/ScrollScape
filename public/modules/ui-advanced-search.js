@@ -132,7 +132,7 @@ const BATCAVE_GENRES = [
 const NSFW_BATCAVE_GENRES = new Set(['Mature']);
 
 let _defaultGenreGridHtml = null;
-let _genreGridSource = null; // which list is currently rendered: 'batcave' or 'default'
+let _genreGridSource = null; // which list is currently rendered: 'batcave', 'default', or 'merged'
 
 function applyGenreGridForSource(sourceId) {
   const grid = $('genreGrid');
@@ -159,6 +159,74 @@ function applyGenreGridForSource(sourceId) {
     grid.innerHTML = _defaultGenreGridHtml;
   }
   _genreGridSource = targetSource;
+}
+
+// Parses the cached default genre grid HTML into a plain list instead of
+// hardcoding a second copy of index.html's genre checkboxes that could
+// silently drift out of sync with the markup there.
+function getDefaultGenreList() {
+  if (_defaultGenreGridHtml === null) return [];
+  const tmp = document.createElement('div');
+  tmp.innerHTML = _defaultGenreGridHtml;
+  return [...tmp.querySelectorAll('.genre-check')]
+    .map(label => ({ name: label.querySelector('input')?.value || '', nsfw: label.dataset.nsfw === '1' }))
+    .filter(g => g.name);
+}
+
+// The two taxonomies a genre value can belong to. Only BatCave has its own
+// (comics, not manga) — every other installed source shares the default
+// manga list, so this doesn't need a per-source lookup table.
+function getSourceGenreTaxonomy(sourceId) {
+  return sourceId === 'batcave'
+    ? BATCAVE_GENRES
+    : getDefaultGenreList().map(g => g.name);
+}
+
+// Union of both taxonomies for "Search all sources", alphabetised so a
+// merged ~70-entry list (default manga genres + BatCave's comic genres,
+// overlapping ones like "Horror"/"Romance" collapsed into one) is actually
+// browsable instead of two unrelated lists awkwardly concatenated.
+function buildMergedGenreList() {
+  const byKey = new Map(); // lowercase name -> { name, nsfw }
+  const add = (name, nsfw) => {
+    const key = name.toLowerCase();
+    const existing = byKey.get(key);
+    if (existing) existing.nsfw = existing.nsfw || nsfw;
+    else byKey.set(key, { name, nsfw });
+  };
+  getDefaultGenreList().forEach(g => add(g.name, g.nsfw));
+  BATCAVE_GENRES.forEach(name => add(name, NSFW_BATCAVE_GENRES.has(name)));
+  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function applyMergedGenreGrid() {
+  const grid = $('genreGrid');
+  if (!grid) return;
+  // Guard against wiping out checkboxes the user already ticked, same
+  // reasoning as applyGenreGridForSource (called on every search, not
+  // just when the toggle is first switched on).
+  if (_genreGridSource === 'merged') return;
+  grid.innerHTML = buildMergedGenreList().map(g => {
+    const nsfwAttr = g.nsfw ? ' data-nsfw="1"' : '';
+    return `<label class="genre-check"${nsfwAttr}><input type="checkbox" value="${escapeHtml(g.name)}"><span>${escapeHtml(g.name)}</span></label>`;
+  }).join('');
+  _genreGridSource = 'merged';
+}
+
+// "Search all sources" doesn't have one real source to gate filter
+// visibility by (updateAdvancedSearchFilterVisibility normally hides
+// controls a single selected source doesn't support) — every control
+// should stay available since different sources in the batch support
+// different things.
+function showAllAdvancedFilterControls() {
+  ['advancedOrderBy', 'advancedFormat', 'advancedPublicationStatus'].forEach(id => {
+    const group = $(id)?.closest('.filter-group');
+    if (group) group.style.display = '';
+  });
+  const contentRatingGroup = $('advancedContentRatingGroup');
+  if (contentRatingGroup) contentRatingGroup.style.display = state.settings.hideNsfw ? 'none' : '';
+  const genreGroup = $('genreFilterGroup');
+  if (genreGroup) genreGroup.style.display = '';
 }
 
 // The values here are the only ones batcave.js actually has real data for
@@ -376,12 +444,18 @@ function _applyAdvFilters(results, query, selectedGenres, publicationStatus, con
 }
 
 async function advancedSearch(page = 1) {
-  updateAdvancedSearchFilterVisibility(state.currentSourceId);
-
   const advAllToggle = $("advancedSearchAllSourcesToggle");
   if (advAllToggle && advAllToggle.checked) {
+    // Don't gate filter visibility/genre taxonomy by whichever single
+    // source happens to be parked in the (now disabled) source dropdown —
+    // show every control and the merged genre list instead.
+    applyMergedGenreGrid();
+    showAllAdvancedFilterControls();
+    applyAdvancedSearchNsfwVisibility();
     return advancedSearchAllSources();
   }
+
+  updateAdvancedSearchFilterVisibility(state.currentSourceId);
   $("advancedResults")?.classList.remove("grouped-by-source");
 
   const caps = getAdvancedSourceCapabilities(state.currentSourceId);
@@ -530,11 +604,14 @@ async function advancedSearch(page = 1) {
 // ADV_ALL_SOURCES_PER_SOURCE_LIMIT results), not the multi-page "fill-up"
 // accumulation advancedSearch() does for a single source — running that
 // fill-up loop (up to ADV_MAX_API_PAGES native calls) across every source
-// at once would be far too slow/heavy. Filters are sent as-is to every
-// source without the per-source capability gating advancedSearch() applies
-// for a single selected source — a source that doesn't support a given
-// filter already ignores it server-side (see ADV_SOURCE_CAPABILITIES),
-// same as the home search's "All Sources" mode.
+// at once would be far too slow/heavy. Non-genre filters (sort, status,
+// format) are sent as-is to every source — a source that doesn't support
+// one already ignores it server-side (see ADV_SOURCE_CAPABILITIES).
+// Genres are the one filter that isn't just "supported or not": the
+// merged grid (see buildMergedGenreList) mixes two real taxonomies, so
+// each source only gets sent the genres that actually exist in its own
+// list (see getSourceGenreTaxonomy) — sources with none of the selected
+// genres are skipped outright rather than queried with a wrong filter.
 const ADV_ALL_SOURCES_PER_SOURCE_LIMIT = 20;
 const ADV_ALL_SOURCES_CONCURRENCY = 3;
 
@@ -587,12 +664,30 @@ async function advancedSearchAllSources() {
       const statusEl = groupEl?.querySelector(".search-source-group-status");
       const gridEl = groupEl?.querySelector(".search-source-group-grid");
 
+      // The merged genre grid mixes two taxonomies (default manga genres +
+      // BatCave's own comic genres) — only pass a source the genres that
+      // actually exist in ITS taxonomy, so e.g. picking "Superhero" doesn't
+      // get sent to MangaDex, which has no idea what that is.
+      const sourceTaxonomy = selectedGenres.length ? new Set(getSourceGenreTaxonomy(source.id).map(g => g.toLowerCase())) : null;
+      const sourceGenres = sourceTaxonomy ? selectedGenres.filter(g => sourceTaxonomy.has(g.toLowerCase())) : [];
+      const genreMismatch = selectedGenres.length > 0 && sourceGenres.length === 0;
+
+      if (genreMismatch) {
+        if (statusEl) statusEl.textContent = "No matching genres";
+        if (groupEl) groupEl.style.display = "none";
+        doneCount++;
+        $("advancedSearchStatus").textContent = doneCount < sources.length
+          ? `Searching... (${doneCount}/${sources.length} sources done, ${totalResults} result(s) so far)`
+          : `${totalResults} result(s) found across ${sources.length} source(s)`;
+        continue;
+      }
+
       try {
         let result;
-        if (selectedGenres.length > 0) {
+        if (sourceGenres.length > 0) {
           result = await api(`/api/source/${source.id}/byGenres`, {
             method: "POST",
-            body: JSON.stringify({ genres: selectedGenres, page: 1, orderBy, publicationStatus, contentRating, format })
+            body: JSON.stringify({ genres: sourceGenres, page: 1, orderBy, publicationStatus, contentRating, format })
           });
         } else {
           result = await api(`/api/source/${source.id}/search`, {
@@ -603,7 +698,7 @@ async function advancedSearchAllSources() {
         const rawResults = result.results || [];
         let normalizedResults = rawResults.map(m => normalizeSourceSearchResult(m, source.id)).filter(Boolean);
         if (needsClientFilter) {
-          normalizedResults = _applyAdvFilters(normalizedResults, query, selectedGenres, publicationStatus, contentRating, format);
+          normalizedResults = _applyAdvFilters(normalizedResults, query, sourceGenres, publicationStatus, contentRating, format);
         }
         const filtered = (await _filterMangaWithoutChapters(normalizedResults, source.id)).slice(0, ADV_ALL_SOURCES_PER_SOURCE_LIMIT);
 
