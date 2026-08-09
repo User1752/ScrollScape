@@ -69,7 +69,7 @@ function renderHistoryView() {
     return `
       <div class="history-item" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(m.sourceId || "")}" data-chapter-id="${escapeHtml(chapterId)}" data-chapter-name="${escapeHtml(chapterName)}">
         <div class="history-cover">
-          ${coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async">` : (m.cover ? `<div class="no-cover">&#128196;</div>` : `<div class="no-cover">?</div>`) }
+          ${coverUrl && !coverUrl.endsWith('.pdf') && !coverUrl.endsWith('.epub') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async">` : (m.cover ? `<div class="no-cover">&#128196;</div>` : `<div class="no-cover">?</div>`) }
         </div>
         <div class="history-info">
           <h3 class="history-title">${escapeHtml(m.title)}</h3>

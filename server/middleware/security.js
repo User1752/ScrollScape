@@ -43,7 +43,12 @@ function applySecurityHeaders(app) {
     res.setHeader('Referrer-Policy',         'no-referrer');
 
     // CSP — allows same-origin content plus trusted CDNs used by the UI.
-    // worker-src blob: is required for the PDF.js web worker spawned via a blob URL.
+    // worker-src blob: is required for the PDF.js web worker spawned via a
+    // blob URL. frame-src blob: is the same requirement one layer up, for
+    // epub.js: it renders each EPUB "page" into an <iframe> backed by a
+    // blob: URL, which without this falls back to default-src 'self' and
+    // gets silently blocked (no console-visible network error, just a
+    // blank reader) — same class of issue as the PDF.js worker, same fix.
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; " +
@@ -53,6 +58,7 @@ function applySecurityHeaders(app) {
       "connect-src 'self' https://api.anilist.co https://api.mangaupdates.com https://cdn.jsdelivr.net; " +
       "font-src 'self' data: https://fonts.gstatic.com; " +
       "worker-src blob: 'self'; " +
+      "frame-src blob: 'self'; " +
       "frame-ancestors 'none'"
     );
     next();

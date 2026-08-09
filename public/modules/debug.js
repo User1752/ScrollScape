@@ -25,6 +25,7 @@ const dbg = (() => {
   const ERR_API         = 'API';
   const ERR_ANILIST     = 'ANILIST';
   const ERR_PDF         = 'PDF';
+  const ERR_EPUB        = 'EPUB';
   const ERR_DOWNLOAD    = 'DOWNLOAD';
   const ERR_COVER       = 'COVER';
   const ERR_ANALYTICS   = 'ANALYTICS';
@@ -294,7 +295,7 @@ const dbg = (() => {
   return {
     // error codes
     ERR_SETTINGS, ERR_STATE, ERR_SOURCE, ERR_API,
-    ERR_ANILIST, ERR_PDF, ERR_DOWNLOAD, ERR_COVER,
+    ERR_ANILIST, ERR_PDF, ERR_EPUB, ERR_DOWNLOAD, ERR_COVER,
     ERR_ANALYTICS, ERR_ACHIEVE, ERR_MANGAUPD, ERR_GLOBAL,
     // logging
     error, warn, info,

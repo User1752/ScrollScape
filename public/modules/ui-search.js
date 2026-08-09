@@ -758,7 +758,7 @@ async function searchSourceCoverChoices(query, sourceId, page = 1) {
   });
   return {
     items: (result?.results || [])
-      .filter(item => item?.cover && !String(item.cover).endsWith('.pdf'))
+      .filter(item => item?.cover && !String(item.cover).endsWith('.pdf') && !String(item.cover).endsWith('.epub'))
       .map(item => ({
         id: item.id,
         title: item.title || query,
@@ -1164,7 +1164,7 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
     // Render detail card
     $("details").innerHTML = `
       <div class="manga-details">
-        ${result.cover && !result.cover.endsWith('.pdf') ? `
+        ${result.cover && !result.cover.endsWith('.pdf') && !result.cover.endsWith('.epub') ? `
           <div class="manga-cover">
             <button type="button" class="cover-anilist-link cover-picker-trigger" title="Change cover">
               <img src="${escapeHtml(normalizeImageUrl(result.cover))}" alt="${escapeHtml(result.title)}">

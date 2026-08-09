@@ -1140,7 +1140,7 @@ async function showTrackerModal(manga) {
   document.body.appendChild(modal);
 
   // Build modal shell once: left sidebar (current manga) + right main panel
-  const currentCover = manga.cover && !manga.cover.endsWith('.pdf') ? manga.cover : null;
+  const currentCover = manga.cover && !manga.cover.endsWith('.pdf') && !manga.cover.endsWith('.epub') ? manga.cover : null;
   modal.innerHTML = `
     <div class="tracker-content">
       <div class="tracker-header">

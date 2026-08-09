@@ -39,10 +39,10 @@ function onImportFileSelected(event) {
 }
 
 function setImportFile(file) {
-  const allowed = ['.cbz', '.cbr', '.zip', '.pdf'];
+  const allowed = ['.cbz', '.cbr', '.zip', '.pdf', '.epub'];
   const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
   if (!allowed.includes(ext)) {
-    if ($("importError")) { $("importError").textContent = "Unsupported format. Use CBZ, CBR, ZIP or PDF."; $("importError").classList.remove("hidden"); }
+    if ($("importError")) { $("importError").textContent = "Unsupported format. Use CBZ, CBR, ZIP, PDF or EPUB."; $("importError").classList.remove("hidden"); }
     return;
   }
   _importFile = file;
@@ -127,6 +127,37 @@ async function submitImport() {
       }
     }
 
+    // For EPUBs, ask epub.js for the book's own declared cover image
+    // (falls back to nothing if the EPUB doesn't define one — same
+    // "best effort" spirit as the PDF branch above).
+    if (_importFile.name.toLowerCase().endsWith('.epub') && window.ePub && data.manga?.id) {
+      try {
+        if (labelEl) labelEl.textContent = "Generating cover...";
+        const fileUrl = URL.createObjectURL(_importFile);
+        const book = ePub(fileUrl);
+        const coverUrl = await book.coverUrl();
+        if (coverUrl) {
+          const blob = await (await fetch(coverUrl)).blob();
+          const coverResp = await fetch(`/api/local/${data.manga.id}/cover`, {
+            method: 'POST',
+            headers: { 'Content-Type': blob.type || 'image/jpeg' },
+            body: blob
+          });
+          if (coverResp.ok) {
+            const coverData = await coverResp.json();
+            data.manga.cover = coverData.cover;
+            const idx = state.localManga.findIndex(m => m.id === data.manga.id);
+            if (idx !== -1) state.localManga[idx].cover = coverData.cover;
+          }
+          URL.revokeObjectURL(coverUrl);
+        }
+        book.destroy();
+        URL.revokeObjectURL(fileUrl);
+      } catch (coverErr) {
+        dbg.warn(dbg.ERR_COVER, 'EPUB cover generation failed', coverErr);
+      }
+    }
+
     showToast("Imported!", data.manga.title, "success");
     setTimeout(() => {
       closeImportModal();
@@ -174,6 +205,46 @@ async function generateMissingPDFCovers() {
       }
     } catch (e) {
       dbg.warn(dbg.ERR_COVER, `Cover generation failed for ${manga.id}`, e);
+    }
+  }
+  if (pending.length > 0) renderLibrary();
+}
+
+async function generateMissingEpubCovers() {
+  // Wait up to 10 s for epub.js to load from CDN (same convention as the
+  // PDF.js wait above).
+  if (!window.ePub) {
+    await new Promise(resolve => {
+      let waited = 0;
+      const iv = setInterval(() => {
+        waited += 250;
+        if (window.ePub || waited >= 10000) { clearInterval(iv); resolve(); }
+      }, 250);
+    });
+  }
+  if (!window.ePub) return;
+  const pending = state.localManga.filter(m => m.cover && m.cover.endsWith('.epub'));
+  for (const manga of pending) {
+    let book = null;
+    try {
+      book = ePub(manga.cover);
+      const coverUrl = await book.coverUrl();
+      if (!coverUrl) continue; // EPUB has no declared cover image — leave as-is
+      const blob = await (await fetch(coverUrl)).blob();
+      URL.revokeObjectURL(coverUrl);
+      const resp = await fetch(`/api/local/${manga.id}/cover`, {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || 'image/jpeg' },
+        body: blob
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        manga.cover = data.cover;
+      }
+    } catch (e) {
+      dbg.warn(dbg.ERR_COVER, `EPUB cover generation failed for ${manga.id}`, e);
+    } finally {
+      if (book) book.destroy();
     }
   }
   if (pending.length > 0) renderLibrary();

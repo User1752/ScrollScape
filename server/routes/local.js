@@ -1,5 +1,5 @@
 /**
- * routes/local.js — Local manga (CBZ / CBR / ZIP / PDF) import and virtual-source endpoints
+ * routes/local.js — Local manga (CBZ / CBR / ZIP / PDF / EPUB) import and virtual-source endpoints
  *
  * This module handles:
  *  1. Virtual "local" source endpoints used by the reader:
@@ -128,7 +128,7 @@ function registerLocalRoutes(router) {
   }));
 
   // ── POST /api/local/import ────────────────────────────────────────────────
-  // Accepts a single CBZ / CBR / ZIP / PDF file via multipart/form-data.
+  // Accepts a single CBZ / CBR / ZIP / PDF / EPUB file via multipart/form-data.
   router.post('/api/local/import', upload.single('file'), asyncHandler(async (req, res) => {
     res.json(await localService.importArchive(req.file, req.body || {}));
   }));

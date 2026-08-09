@@ -59,6 +59,7 @@
   <link rel="stylesheet" href="./css-modules/manga-detail-page-rating-widget.css">
   <link rel="stylesheet" href="./css-modules/library-card-rating-widget.css">
   <link rel="stylesheet" href="./css-modules/book-reader-rtl-double-page-spread-3d-flip.css?v=7">
+  <link rel="stylesheet" href="./css-modules/epub-reader.css">
   <link rel="stylesheet" href="./css-modules/color-themes-override-primary-family.css">
   <link rel="stylesheet" href="./css-modules/sidebar-ap-badge.css">
   <link rel="stylesheet" href="./css-modules/achievements-page.css">
@@ -71,6 +72,10 @@
   <link rel="stylesheet" href="./css-modules/ui-checkbox.css">
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js" defer crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer crossorigin="anonymous"></script>
+  <!-- EPUB reading (local book import): epub.js needs JSZip loaded first as
+       a global (it reads window.JSZip itself, not a bundled copy). -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js" defer crossorigin="anonymous"></script>
   <style>
     /* Icon sizing classes */
     .icon-small { width: 16px; height: 16px; }
@@ -758,6 +763,72 @@
       </div>
 
       <!-- ==================================================================
+           EPUB READER (local book import) — separate from the manga/PDF
+           reader above: EPUB content reflows to the viewport/font size
+           instead of being discrete page images, so it gets its own
+           epub.js-backed viewer instead of the page-counter/spread engine.
+      ================================================================== -->
+      <div id="epubReader" class="reader epub-reader hidden">
+        <div class="reader-topbar">
+          <div id="epubReaderTitle" class="reader-title"></div>
+        </div>
+
+        <button id="epubSidebarToggle" class="reader-sidebar-arrow" title="Show or hide reader panel" aria-label="Toggle reader panel">
+          &#10095;
+        </button>
+
+        <div class="reader-layout">
+          <button id="epubPrevCorner" class="reader-corner-nav reader-corner-nav-left" aria-label="Previous page">
+            <span class="reader-corner-icon" aria-hidden="true">&#x25C0;</span>
+          </button>
+          <button id="epubNextCorner" class="reader-corner-nav reader-corner-nav-right" aria-label="Next page">
+            <span class="reader-corner-icon" aria-hidden="true">&#x25B6;</span>
+          </button>
+
+          <div id="epubViewerWrap" class="epub-viewer-wrap">
+            <div id="epubViewer" class="epub-viewer"></div>
+          </div>
+
+          <aside id="epubSidebar" class="reader-sidebar" aria-label="EPUB reader controls">
+            <div class="reader-sidebar-section">
+              <p class="reader-sidebar-heading">Navigation</p>
+              <div class="reader-nav">
+                <button id="epubPrevBtn" class="btn-nav">&#x25C0; Prev</button>
+                <span id="epubProgress" class="page-info"></span>
+                <button id="epubNextBtn" class="btn-nav">Next &#x25B6;</button>
+              </div>
+            </div>
+
+            <div class="reader-sidebar-section">
+              <p class="reader-sidebar-heading">Text Size</p>
+              <div class="reader-controls">
+                <button id="epubFontDown" class="btn-zoom" title="Smaller text">A&minus;</button>
+                <span id="epubFontLevel" class="zoom-level">100%</span>
+                <button id="epubFontUp" class="btn-zoom" title="Larger text">A+</button>
+              </div>
+            </div>
+
+            <div class="reader-sidebar-section">
+              <p class="reader-sidebar-heading">Page Theme</p>
+              <div class="reader-controls">
+                <button id="epubThemeLight" class="btn-zoom" title="Light page">&#9728;</button>
+                <button id="epubThemeDark" class="btn-zoom" title="Dark page">&#9790;</button>
+              </div>
+            </div>
+
+            <div class="reader-sidebar-section epub-toc-section">
+              <p class="reader-sidebar-heading">Table of Contents</p>
+              <div id="epubToc" class="epub-toc"></div>
+            </div>
+
+            <div class="reader-sidebar-section">
+              <button id="closeEpubReader" class="btn-nav btn-reader-close">Close Reader</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- ==================================================================
            CONTEXT MENU (right-click on library cards)
       ================================================================== -->
       <div id="contextMenu" class="context-menu hidden">
@@ -791,10 +862,10 @@
         <div id="importDropZone" class="import-drop-zone" onclick="document.getElementById('importFileInput').click()">
           <div class="import-drop-icon">&#128194;</div>
           <p class="import-drop-label">Click or drag &amp; drop a file here</p>
-          <p class="import-drop-hint">Supported formats: <strong>CBZ &bull; CBR &bull; ZIP &bull; PDF</strong></p>
+          <p class="import-drop-hint">Supported formats: <strong>CBZ &bull; CBR &bull; ZIP &bull; PDF &bull; EPUB</strong></p>
           <div id="importFileName" class="import-file-name hidden"></div>
         </div>
-        <input type="file" id="importFileInput" accept=".cbz,.cbr,.zip,.pdf" style="display:none" onchange="onImportFileSelected(event)">
+        <input type="file" id="importFileInput" accept=".cbz,.cbr,.zip,.pdf,.epub" style="display:none" onchange="onImportFileSelected(event)">
         <div class="import-form-group">
           <label for="importTitleInput">Title <span class="import-optional">(optional — defaults to filename)</span></label>
           <input type="text" id="importTitleInput" class="form-control" placeholder="Manga title...">
@@ -948,6 +1019,7 @@
   <script src="./modules/ui-book-reader-rtl-double-page-spread-with-3d-page-flip.js?v=10" defer></script>
   <script src="./modules/ui-ltr-western-double-page-spread-left-first-with-the-same-3-d-flip-engine.js?v=6" defer></script>
   <script src="./modules/ui-pdf-reader.js" defer></script>
+  <script src="./modules/ui-epub-reader.js" defer></script>
   <script src="./modules/ui-backup.js" defer></script>
   <script src="./modules/ui-settings-modal.js?v=5" defer></script>
   <script src="./modules/ui-custom-lists-view.js?v=9" defer></script>

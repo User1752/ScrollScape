@@ -90,6 +90,10 @@ function createLocalService({
       return { isPDF: true, pdfUrl: chapter.pdfUrl, pages: [] };
     }
 
+    if (chapter.isEpub) {
+      return { isEpub: true, epubUrl: chapter.epubUrl, pages: [] };
+    }
+
     return { pages: chapter.pages.map(img => ({ img })) };
   }
 
@@ -188,8 +192,8 @@ function createLocalService({
       const titleBase = (body.title || path.basename(origName, path.extname(origName)))
         .replace(/[_-]+/g, ' ').trim() || 'Local Manga';
 
-      if (!['.cbz', '.cbr', '.zip', '.pdf'].includes(ext)) {
-        const err = new Error('Unsupported format. Use CBZ, CBR, ZIP or PDF.');
+      if (!['.cbz', '.cbr', '.zip', '.pdf', '.epub'].includes(ext)) {
+        const err = new Error('Unsupported format. Use CBZ, CBR, ZIP, PDF or EPUB.');
         err.statusCode = 400;
         throw err;
       }
@@ -202,12 +206,24 @@ function createLocalService({
       let pages = [];
       let chapterIsPDF = false;
       let pdfUrl = '';
+      let chapterIsEpub = false;
+      let epubUrl = '';
 
       if (ext === '.pdf') {
         const destPdf = path.join(mangaDir, 'original.pdf');
         await fsp.copyFile(tmpPath, destPdf);
         chapterIsPDF = true;
         pdfUrl = `/local-media/${mangaId}/original.pdf`;
+      } else if (ext === '.epub') {
+        // EPUB is handled entirely client-side by epub.js (public/modules/
+        // ui-epub-reader.js), the same "store the whole file, let a
+        // dedicated JS library render it" approach already used for PDF —
+        // unlike CBZ/CBR, there are no discrete page images to extract:
+        // EPUB content reflows per the reader's own viewport/font size.
+        const destEpub = path.join(mangaDir, 'original.epub');
+        await fsp.copyFile(tmpPath, destEpub);
+        chapterIsEpub = true;
+        epubUrl = `/local-media/${mangaId}/original.epub`;
       } else {
         let extracted = false;
 
@@ -265,7 +281,7 @@ function createLocalService({
         }
       }
 
-      const cover = pages[0] || (chapterIsPDF ? pdfUrl : '');
+      const cover = pages[0] || (chapterIsPDF ? pdfUrl : '') || (chapterIsEpub ? epubUrl : '');
       const meta = {
         id: mangaId,
         title: titleBase,
@@ -281,7 +297,9 @@ function createLocalService({
           date: new Date().toISOString(),
           isPDF: chapterIsPDF,
           pdfUrl: pdfUrl || null,
-          pages: chapterIsPDF ? [] : pages,
+          isEpub: chapterIsEpub,
+          epubUrl: epubUrl || null,
+          pages: (chapterIsPDF || chapterIsEpub) ? [] : pages,
         }],
       };
       await fsp.writeFile(path.join(mangaDir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8');

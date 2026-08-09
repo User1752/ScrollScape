@@ -1278,7 +1278,7 @@ function renderLibrary() {
       }
     }
     // Bookshelf 2.5D markup: calibre style spine resting, cover on hover
-    const shelf25dCoverMarkup = coverUrl && !coverUrl.endsWith('.pdf')
+    const shelf25dCoverMarkup = coverUrl && !coverUrl.endsWith('.pdf') && !coverUrl.endsWith('.epub')
       ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">`
       : `<div class="book25d-no-cover"><span>?</span></div>`;
     const shelf25dMarkup = `
@@ -1293,7 +1293,7 @@ function renderLibrary() {
     return `
       <div class="library-card${isSelected ? ' library-card-selected' : ''}${isBookshelf25d ? ' library-card-bookshelf-25d' : ''}" data-book-index="${index}" data-manga-id="${escapeHtml(manga.id)}" data-source-id="${escapeHtml(manga.sourceId || '')}" data-title="${escapeHtml(manga.title || '')}" title="${escapeHtml(manga.title || '')}"${bookshelfStyle}>
         <div class="library-card-cover">
-          ${isBookshelf25d ? shelf25dMarkup : (coverUrl && !coverUrl.endsWith('.pdf') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>'))}
+          ${isBookshelf25d ? shelf25dMarkup : (coverUrl && !coverUrl.endsWith('.pdf') && !coverUrl.endsWith('.epub') ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(manga.title)}" loading="lazy" decoding="async">` : (manga.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>'))}
           ${isBookshelf25d ? '' : statusBadge}
           ${isBookshelf25d ? '' : chaptersLeftBadge}
           ${isBookshelf25d ? '' : sourceLabel}
@@ -1461,7 +1461,7 @@ function renderLibrary() {
 
       const tFunc = typeof window.t === 'function' ? window.t : (k) => k.split('.').pop();
       
-      const coverMarkup = coverUrl && !coverUrl.endsWith('.pdf') 
+      const coverMarkup = coverUrl && !coverUrl.endsWith('.pdf') && !coverUrl.endsWith('.epub') 
         ? `<img src="${escapeHtml(coverUrl)}" class="${coverClass} interactive-cover" alt="Cover" title="${escapeHtml(tFunc('library.card.openMangaPage'))}" style="cursor: pointer" onerror="this.style.display='none'">` 
         : `<div class="${coverClass} no-cover interactive-cover" title="${escapeHtml(tFunc('library.card.openMangaPage'))}" style="cursor: pointer"><span>?</span></div>`;
 

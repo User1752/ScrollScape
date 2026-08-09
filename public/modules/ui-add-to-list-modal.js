@@ -573,7 +573,7 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
       await initPDFChapter(result.pdfUrl);
     }
 
-    if (!result?.isPDF && (!Array.isArray(result?.pages) || result.pages.length === 0)) {
+    if (!result?.isPDF && !result?.isEpub && (!Array.isArray(result?.pages) || result.pages.length === 0)) {
       throw new Error("This chapter has no public pages (it may be locked on the source).");
     }
 
@@ -620,6 +620,16 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
       // Refresh recommendations so "Based on:" label reflects updated consumption
       loadRecommendations();
     }).catch(() => {});
+
+    // EPUB: reflowable text has no discrete page images, so it gets its own
+    // epub.js-backed view (ui-epub-reader.js) instead of the page-counter/
+    // spread/webtoon rendering engine built for fixed page images below.
+    if (result.isEpub && result.epubUrl) {
+      await openEpubReader(result.epubUrl);
+      $("searchStatus").textContent = "";
+      loadChapters();
+      return;
+    }
 
     showReader();
     // Auto-detect manhwa/manhua and switch to webtoon mode for this session

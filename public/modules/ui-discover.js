@@ -522,7 +522,7 @@ function renderContinueReading() {
     return `
       <div class="continue-card" data-manga-id="${escapeHtml(m.id)}" data-source-id="${escapeHtml(resolvedSourceId)}">
         <div class="continue-card-cover">
-          ${coverUrl && !coverUrl.endsWith('.pdf')
+          ${coverUrl && !coverUrl.endsWith('.pdf') && !coverUrl.endsWith('.epub')
             ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
             : `<div class="no-cover">&#128196;</div>`}
           <div class="continue-card-play">&#9654;</div>
@@ -600,7 +600,7 @@ function mangaCardHTML(m) {
   return `
     <div class="manga-card" data-manga-id="${escapeHtml(m.id)}"${sourceAttr}>
       <div class="manga-card-cover">
-        ${coverUrl && !coverUrl.endsWith('.pdf')
+        ${coverUrl && !coverUrl.endsWith('.pdf') && !coverUrl.endsWith('.epub')
           ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
           : (m.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
         ${sourceLabel ? `<span class="all-pop-source-badge">${escapeHtml(sourceLabel)}</span>` : ""}

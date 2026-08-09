@@ -31,8 +31,9 @@ async function refreshState() {
     try {
       const localData = await api("/api/local/list");
       state.localManga = localData.localManga || [];
-      // Generate covers for any PDF manga that still has a .pdf cover
+      // Generate covers for any PDF/EPUB manga that still has a raw-file cover
       generateMissingPDFCovers();
+      generateMissingEpubCovers();
     } catch (_) { state.localManga = []; }
 
     try {

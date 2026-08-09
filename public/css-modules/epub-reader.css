@@ -1,0 +1,79 @@
+/* ============================================================================
+   EPUB READER
+   Reuses the base .reader / .reader-sidebar / .reader-corner-nav chrome
+   already styled in reader.css (same overlay, same collapsible sidebar,
+   same corner-tap buttons) — only the content viewer and TOC list below
+   are genuinely new to this reader.
+   ============================================================================ */
+
+.epub-viewer-wrap {
+  flex: 1;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  justify-content: center;
+  padding: 1.5rem 3vw;
+  box-sizing: border-box;
+}
+
+.epub-viewer {
+  width: 100%;
+  max-width: 900px;
+  height: 100%;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+/* EPUB pages are turned via corner taps or the sidebar buttons as the
+   primary navigation gesture — unlike the manga reader's corner-nav
+   (webtoon-only, shown on hover proximity), these should just always be
+   visible/clickable. */
+.epub-reader .reader-corner-nav {
+  opacity: 1;
+  pointer-events: auto;
+  bottom: 50%;
+  transform: translateY(50%);
+  min-width: 44px;
+  width: 44px;
+  height: 64px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.epub-reader .reader-corner-nav:hover {
+  transform: translateY(50%) scale(1.05);
+}
+
+.epub-toc-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.epub-toc {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.epub-toc-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.epub-toc-item:hover {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--text-primary);
+}

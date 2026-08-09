@@ -16,7 +16,7 @@
 |---|---|
 | **Multiple sources** | MangaDex, AllManga, MangaKatana, MangaPill, KingOfShojo, VortexScans, AsuraScans, WeebCentral, ComicHubFree, BatCave — add your own in `data/sources/` |
 | **Beta sources** | New/less-tested sources are hidden by default; enable them in **Settings → Advanced → Show beta sources** |
-| **Local files** | Import CBZ, CBR, ZIP and PDF files through the same reader |
+| **Local files** | Import CBZ, CBR, ZIP, PDF and EPUB files through the same reader — EPUB gets a dedicated reflowable-text view (font size, theme, table of contents) instead of the page-image viewer |
 | **Reading progress** | Per-chapter markers, continue-reading, full history |
 | **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold), and display modes (Detailed Grid, Compact Grid, List) |
 | **Library migration** | Migrate manga between sources while preserving custom lists and reading status |
@@ -76,7 +76,7 @@ server/
     proxy.js                  Image proxy + AniList GraphQL relay
     repos.js                  Repository management
     sources.js                Source install/uninstall + generic dispatcher
-    local.js                  Local manga (CBZ/CBR/ZIP/PDF) import & reader
+    local.js                  Local manga (CBZ/CBR/ZIP/PDF/EPUB) import & reader
     library.js                Favourites, history, reading status, library migration
     downloads.js              CBZ chapter / bulk downloads
     reviews.js                Per-manga ratings and reviews
@@ -118,14 +118,16 @@ docker/
 
 ## Local Manga & Offline Reading
 
-ScrollScape supports reading your own local manga files (CBZ, CBR, ZIP, PDF) and downloading chapters from online sources for offline reading.
+ScrollScape supports reading your own local manga and book files (CBZ, CBR, ZIP, PDF, EPUB) and downloading chapters from online sources for offline reading.
 
-### Importing Local Manga
+### Importing Local Manga & Books
 1. Open the **Library** tab.
 2. Click the **Import Local** button at the top.
-3. Select your `.cbz`, `.cbr`, `.zip`, or `.pdf` file.
+3. Select your `.cbz`, `.cbr`, `.zip`, `.pdf`, or `.epub` file.
 4. The manga will be processed and added to your library under the "Local" source. You can later change its cover and track its progress normally.
 Alternatively, you can manually copy your CBZ/ZIP files or image folders directly into the `Local/` directory (located in the project root or next to the `.bat` file) and they will be detected automatically.
+
+EPUB files open in a dedicated reader instead of the manga page viewer, since their text reflows to the screen size rather than being fixed page images: adjustable font size, a light/dark page theme, a table of contents drawer, and reading position saved by location within the book (not a page number, since that isn't fixed). Requires an internet connection on first open of any EPUB in a session — the reader (epub.js) loads from a CDN, same as the PDF viewer already does.
 
 ### Saving Chapters Offline
 To save chapters for offline reading directly in your ScrollScape library:
@@ -146,7 +148,7 @@ Open **Settings → Advanced → Backup & Restore**.
 
 Two things are intentionally left out:
 - **Your AniList login token** — it's a live credential, not app data, so it isn't written to the file. Just reconnect AniList (one click in **Settings → Tracking**) after restoring.
-- **Downloaded/local manga files** (CBZ/CBR/ZIP/PDF originals and saved-offline chapter images) — only their library entries are backed up, not the files themselves in `Local/`.
+- **Downloaded/local manga files** (CBZ/CBR/ZIP/PDF/EPUB originals and saved-offline chapter images) — only their library entries are backed up, not the files themselves in `Local/`.
 
 If you're restoring onto a different machine, make sure the same files exist under `data/sources/` first — a backup only references source IDs, it doesn't bundle the source plugin code.
 
@@ -218,7 +220,7 @@ Press **Ctrl+Shift+D** at any time to open the debug panel.
 
 | Level | Colour | Codes |
 |-------|--------|-------|
-| ERROR | red    | `API` `SOURCE` `STATE` `PDF` `ANILIST` `ANALYTICS` `ACHIEVEMENTS` `GLOBAL` |
+| ERROR | red    | `API` `SOURCE` `STATE` `PDF` `EPUB` `ANILIST` `ANALYTICS` `ACHIEVEMENTS` `GLOBAL` |
 | WARN  | amber  | `SETTINGS` `COVER` `ANILIST` `MANGAUPDATES` `SOURCE` |
 | INFO  | blue   | any   |
 

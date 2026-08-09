@@ -12,7 +12,7 @@
  *   server/routes/proxy.js         — image proxy (/api/proxy-image)
  *   server/routes/repos.js         — repository management (/api/repos, /api/state)
  *   server/routes/sources.js       — source install/uninstall + generic dispatcher
- *   server/routes/local.js         — local manga (CBZ/CBR/ZIP/PDF) import + reader
+ *   server/routes/local.js         — local manga (CBZ/CBR/ZIP/PDF/EPUB) import + reader
  *   server/routes/library.js       — favorites, history, reading status
  *   server/routes/downloads.js     — CBZ chapter/bulk downloads
  *   server/routes/reviews.js       — per-manga user reviews and ratings
