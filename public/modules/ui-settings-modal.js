@@ -182,6 +182,7 @@ function showSettings() {
                 <select id="displayModeSelect" class="input">
                   <option value="detailed" ${state.settings.displayMode === 'detailed' ? 'selected' : ''}>Detailed Grid</option>
                   <option value="compact" ${state.settings.displayMode === 'compact' ? 'selected' : ''}>Compact Grid</option>
+                  <option value="list" ${state.settings.displayMode === 'list' ? 'selected' : ''}>List View</option>
                 </select>
                 <p class="setting-description">Choose how manga are displayed in your library.</p>
               </div>

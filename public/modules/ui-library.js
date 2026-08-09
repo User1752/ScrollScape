@@ -773,6 +773,29 @@ function _updateLibrarySortLabel() {
   labelEl.textContent = mode?.label || 'Sort';
 }
 
+const LIBRARY_VIEW_TOGGLE_ICONS = {
+  // Feather "list" — shown while in list mode, since clicking switches to gallery.
+  list: '<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>',
+  // Feather "grid" — shown while in gallery mode, since clicking switches to list.
+  grid: '<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>',
+};
+
+function _updateLibraryViewToggleUI() {
+  const svgEl = $("libViewToggleSvg");
+  const labelEl = $("libViewToggleLabel");
+  if (!svgEl || !labelEl) return;
+  const isList = (state.settings.displayMode || 'detailed') === 'list';
+  svgEl.innerHTML = isList ? LIBRARY_VIEW_TOGGLE_ICONS.list : LIBRARY_VIEW_TOGGLE_ICONS.grid;
+  labelEl.textContent = isList ? 'List' : 'Gallery';
+}
+
+function toggleLibraryViewMode() {
+  const isList = (state.settings.displayMode || 'detailed') === 'list';
+  state.settings.displayMode = isList ? 'detailed' : 'list';
+  saveSettings();
+  renderLibrary();
+}
+
 function setLibrarySortMode(modeKey) {
   if (!LIBRARY_SORT_MODES.some(m => m.key === modeKey)) return;
   _libSortMode = modeKey;
@@ -945,7 +968,9 @@ function renderLibrary() {
   const displayMode = state.settings.displayMode || 'detailed';
   const mangasPerRow = state.settings.mangasPerRow || 6;
   grid.classList.remove('library-grid-compact', 'library-grid-detailed', 'library-grid-list', 'library-grid-compact-show-info');
-  if (displayMode === 'compact') {
+  if (displayMode === 'list') {
+    grid.classList.add('library-grid-list');
+  } else if (displayMode === 'compact') {
     grid.classList.add('library-grid-compact');
     if (state.settings.showCompactInfo) {
       grid.classList.add('library-grid-compact-show-info');
@@ -955,12 +980,15 @@ function renderLibrary() {
   }
   if (isBookshelf25d) {
     grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(32px, 58px))';
+  } else if (displayMode === 'list') {
+    grid.style.gridTemplateColumns = ''; // list rows are flex, not grid — see .library-grid-list
   } else {
     grid.style.gridTemplateColumns = `repeat(${mangasPerRow}, minmax(0, 1fr))`;
   }
 
   _syncLibrarySelectionWithFavorites();
   _updateLibrarySortLabel();
+  _updateLibraryViewToggleUI();
 
   const sourceNameFor = (sourceId) => {
     const sid = sourceId || '';
