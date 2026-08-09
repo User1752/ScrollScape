@@ -113,56 +113,76 @@ async function _filterMangaWithoutChapters(results, sourceId) {
 // their "1 2 3 … N" numbered pagination) — everyone else only ever knows
 // "is there a next page", so `totalPages` is undefined for them and this
 // just falls back to the plain "Page X" it always showed.
-function formatPageStatus(resultCount, page, totalPages) {
-  const base = `${resultCount} result(s) found — Page ${page}`;
-  return Number.isFinite(totalPages) && totalPages > 0 ? `${base} of ${totalPages}` : base;
+function formatLoadedStatus(loadedCount) {
+  return `${loadedCount} result(s) loaded`;
 }
 
-function renderPagination(containerId, currentPage, hasNextPage, callbackName) {
-  const container = $(containerId);
-  if (!container) return;
-  if (currentPage === 1 && !hasNextPage) {
-    container.innerHTML = "";
-    return;
+// ── Infinite-scroll "load more" controller ──────────────────────────────────
+// Replaces numbered Prev/Next pagination for search results: a small
+// sentinel element sits where the pagination controls used to be, and an
+// IntersectionObserver fires the caller's onLoadMore() once it scrolls near
+// the bottom. One instance is created per results host (search vs advanced
+// search) and reused across searches — attach()/showEnd()/clear() all
+// tear down any previous observer first, so switching searches never leaves
+// a stale observer watching a detached sentinel.
+function createLoadMoreController(hostId) {
+  let observer = null;
+  let loading = false;
+
+  function disconnect() {
+    if (observer) { observer.disconnect(); observer = null; }
   }
-  const btn = (page, label, active = false, disabled = false) =>
-    active
-      ? `<button class="pagination-number active">${label}</button>`
-      : `<button class="pagination-number${disabled ? " disabled" : ""}" ${
-          disabled ? "disabled" : `onclick="${callbackName}(${page})"`
-        }>${label}</button>`;
 
-  let nums = "";
-  if (currentPage > 2) nums += btn(1, "1");
-  if (currentPage > 3) nums += `<span class="pagination-ellipsis">…</span>`;
-  if (currentPage > 1) nums += btn(currentPage - 1, currentPage - 1);
-  nums += btn(currentPage, currentPage, true);
-  if (hasNextPage) nums += btn(currentPage + 1, currentPage + 1);
+  function clear() {
+    disconnect();
+    const host = $(hostId);
+    if (host) host.innerHTML = "";
+  }
 
-  container.innerHTML = `
-    <div class="pagination">
-      <button class="pagination-btn" ${
-        currentPage <= 1 ? "disabled" : `onclick="${callbackName}(${currentPage - 1})"`
-      }>← Prev</button>
-      <div class="pagination-numbers">${nums}</div>
-      <button class="pagination-btn" ${
-        !hasNextPage ? "disabled" : `onclick="${callbackName}(${currentPage + 1})"`
-      }>Next →</button>
-    </div>
-  `;
+  function showEnd(message = "No more results.") {
+    disconnect();
+    const host = $(hostId);
+    if (host) host.innerHTML = `<div class="load-more-status load-more-end">${escapeHtml(message)}</div>`;
+  }
+
+  async function trigger(onLoadMore) {
+    if (loading) return;
+    loading = true;
+    const statusEl = $(hostId)?.querySelector(".load-more-status");
+    if (statusEl) statusEl.textContent = "Loading more…";
+    try {
+      await onLoadMore();
+    } catch (_) {
+      showEnd("Could not load more results.");
+    } finally {
+      loading = false;
+    }
+  }
+
+  function attach(onLoadMore) {
+    const host = $(hostId);
+    if (!host) return;
+    disconnect();
+    host.innerHTML = `<div class="load-more-sentinel"><span class="load-more-status"></span></div>`;
+    const sentinel = host.querySelector(".load-more-sentinel");
+    // Start loading a bit before the sentinel is actually on screen so
+    // scrolling doesn't visibly stall waiting for the network.
+    observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) trigger(onLoadMore);
+    }, { rootMargin: "400px 0px 0px 0px" });
+    observer.observe(sentinel);
+  }
+
+  return {
+    show(hasNextPage, onLoadMore) {
+      if (!hasNextPage) { showEnd(); return; }
+      attach(onLoadMore);
+    },
+    clear,
+  };
 }
 
-function searchGoToPage(page) {
-  state.searchPage = page;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  search(page);
-}
-
-function advSearchGoToPage(page) {
-  state.advSearchPage = page;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  advancedSearch(page);
-}
+const _searchLoadMore = createLoadMoreController("searchPagination");
 
 function normalizeSourceSearchResult(raw, sourceId) {
   if (!raw || typeof raw !== 'object') return null;
@@ -243,7 +263,7 @@ async function _processSearchResults(rawResults, sourceId, query) {
   return _filterMangaWithoutChapters(results, sourceId);
 }
 
-window.search = async function search(page = 1) {
+window.search = async function search(page = 1, isLoadMore = false) {
   const query = $("searchInput").value.trim();
   const dropdown = $("searchDropdown");
   const searchAllToggle = $("searchAllSourcesToggle");
@@ -253,15 +273,15 @@ window.search = async function search(page = 1) {
   if (!query) {
     if (dropdown) { dropdown.innerHTML = ""; dropdown.classList.remove("grouped-by-source"); }
     $("searchStatus").textContent = "";
-    const pg = $("searchPagination"); if (pg) pg.innerHTML = "";
+    _searchLoadMore.clear();
     return;
   }
 
-  if (allSources) return searchAllSources(query);
+  if (allSources) { _searchLoadMore.clear(); return searchAllSources(query); }
 
   state.searchQuery = query;
   state.searchPage = page;
-  $("searchStatus").textContent = "Searching...";
+  if (!isLoadMore) $("searchStatus").textContent = "Searching...";
   try {
     const result = await api(`/api/source/${state.currentSourceId}/search`, {
       method: "POST",
@@ -272,20 +292,30 @@ window.search = async function search(page = 1) {
     state.searchHasNextPage = hasNextPage;
     if (!dropdown) return;
     dropdown.classList.remove("grouped-by-source");
-    if (!chapterFiltered.length) {
-      dropdown.innerHTML = `<div class="muted" style="padding:1rem">No results found for "${escapeHtml(query)}"</div>`;
-      $("searchStatus").textContent = "0 result(s) found";
-      renderPagination("searchPagination", page, false, "searchGoToPage");
-    } else {
+
+    if (!isLoadMore) {
+      if (!chapterFiltered.length) {
+        dropdown.innerHTML = `<div class="muted" style="padding:1rem">No results found for "${escapeHtml(query)}"</div>`;
+        $("searchStatus").textContent = "0 result(s) found";
+        _searchLoadMore.show(false);
+        return;
+      }
       dropdown.innerHTML = chapterFiltered.map(m => mangaCardHTML(m)).join("");
-      bindMangaCards(dropdown);
-      if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(dropdown);
-      $("searchStatus").textContent = formatPageStatus(chapterFiltered.length, page, result.totalPages);
-      renderPagination("searchPagination", page, hasNextPage, "searchGoToPage");
+    } else if (chapterFiltered.length) {
+      dropdown.insertAdjacentHTML("beforeend", chapterFiltered.map(m => mangaCardHTML(m)).join(""));
     }
+    bindMangaCards(dropdown);
+    if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(dropdown);
+    const loadedCount = dropdown.querySelectorAll(".manga-card").length;
+    $("searchStatus").textContent = formatLoadedStatus(loadedCount);
+    _searchLoadMore.show(hasNextPage, () => search(page + 1, true));
   } catch (e) {
-    $("searchStatus").textContent = "Could not search manga.";
-    const pg = $("searchPagination"); if (pg) pg.innerHTML = "";
+    if (!isLoadMore) {
+      $("searchStatus").textContent = "Could not search manga.";
+      _searchLoadMore.clear();
+    } else {
+      throw e; // let the load-more controller show its "could not load more" state
+    }
   }
 }
 

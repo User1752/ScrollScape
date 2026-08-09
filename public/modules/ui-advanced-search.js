@@ -13,7 +13,11 @@
 // 10 sources, and the fill-up path below only needs extra iterations for
 // BatCave or when a client-side filter is actually removing items.
 const ADV_PAGE_SIZE = 50;
-const ADV_MAX_API_PAGES = 20; // safety limit per user-page
+const ADV_MAX_API_PAGES = 20; // safety limit per "load more" chunk
+
+// Infinite-scroll controller for Advanced Search results — see
+// createLoadMoreController() in ui-search.js.
+const _advSearchLoadMore = createLoadMoreController("advancedSearchPagination");
 
 // Capability matrix based on practical API smoke tests per source.
 // Only filters that are known to work are shown/enabled in the UI.
@@ -443,7 +447,7 @@ function _applyAdvFilters(results, query, selectedGenres, publicationStatus, con
   return out;
 }
 
-async function advancedSearch(page = 1) {
+async function advancedSearch(page = 1, isLoadMore = false) {
   const advAllToggle = $("advancedSearchAllSourcesToggle");
   if (advAllToggle && advAllToggle.checked) {
     // Don't gate filter visibility/genre taxonomy by whichever single
@@ -452,6 +456,7 @@ async function advancedSearch(page = 1) {
     applyMergedGenreGrid();
     showAllAdvancedFilterControls();
     applyAdvancedSearchNsfwVisibility();
+    _advSearchLoadMore.clear(); // all-sources mode has no pagination of its own
     return advancedSearchAllSources();
   }
 
@@ -487,10 +492,11 @@ async function advancedSearch(page = 1) {
   }
 
   state.advSearchPage = page;
-  $("advancedSearchStatus").textContent = "Searching...";
+  if (!isLoadMore) $("advancedSearchStatus").textContent = "Searching...";
 
   // Determine if any client-side filter is active
   const needsClientFilter = !!(publicationStatus || contentRating || format || selectedGenres.length > 0);
+  const resultsDiv = $("advancedResults");
 
   // ── Fast path: no client filtering, use native API pagination ────────────
   if (!needsClientFilter) {
@@ -513,19 +519,29 @@ async function advancedSearch(page = 1) {
       const results = await _filterMangaWithoutChapters(normalizedResults, state.currentSourceId);
       const hasNextPage = result.hasNextPage || false;
       state.advSearchHasNextPage = hasNextPage;
-      const resultsDiv = $("advancedResults");
-      if (!results.length) {
+
+      if (!isLoadMore && !results.length) {
         resultsDiv.innerHTML = `<div class="muted">No results found</div>`;
         $("advancedSearchStatus").textContent = "0 result(s) found";
-        renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
+        _advSearchLoadMore.show(hasNextPage, () => advancedSearch(page + 1, true));
         return;
       }
-      renderMangaGrid(resultsDiv, results);
-      $("advancedSearchStatus").textContent = formatPageStatus(results.length, page, result.totalPages);
-      renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
+      if (!isLoadMore) {
+        renderMangaGrid(resultsDiv, results);
+      } else if (results.length) {
+        resultsDiv.insertAdjacentHTML("beforeend", results.map(m => mangaCardHTML(m)).join(""));
+        bindMangaCards(resultsDiv);
+        if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(resultsDiv);
+      }
+      $("advancedSearchStatus").textContent = formatLoadedStatus(resultsDiv.querySelectorAll(".manga-card").length);
+      _advSearchLoadMore.show(hasNextPage, () => advancedSearch(page + 1, true));
     } catch (e) {
-      $("advancedSearchStatus").textContent = "Could not search manga.";
-      renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
+      if (!isLoadMore) {
+        $("advancedSearchStatus").textContent = "Could not search manga.";
+        _advSearchLoadMore.clear();
+      } else {
+        throw e; // propagates to the load-more controller's own error state
+      }
     }
     return;
   }
@@ -534,18 +550,29 @@ async function advancedSearch(page = 1) {
   // Cache key: invalidate accumulator when source or any filter changes.
   const filterKey = [state.currentSourceId, query, selectedGenres.join(','), publicationStatus, contentRating, format, orderBy].join('|');
 
-  // Reset accumulator when filters change or navigating back to page 1
-  if (!state._advAcc || state._advAcc.filterKey !== filterKey || page === 1) {
-    state._advAcc = { results: [], apiPage: 0, hasMore: true, filterKey };
+  // Reset accumulator on a fresh search (not a scroll-triggered load-more) —
+  // renderedCount tracks how much of acc.results has already been painted
+  // into #advancedResults, since infinite scroll always appends the delta
+  // rather than re-slicing a specific "page".
+  if (!state._advAcc || state._advAcc.filterKey !== filterKey || !isLoadMore) {
+    state._advAcc = { results: [], apiPage: 0, hasMore: true, filterKey, renderedCount: 0 };
   }
 
   const acc = state._advAcc;
-  const target = page * ADV_PAGE_SIZE;
+  const target = acc.renderedCount + ADV_PAGE_SIZE;
   let fetchError = null;
+  // ADV_MAX_API_PAGES bounds how many native-page fetches ONE load-more
+  // round can make (so a heavily filtered search can't spin forever on a
+  // single scroll trigger) — it's a per-round budget, not a lifetime one,
+  // so acc.apiPage itself (which must keep advancing through the source's
+  // real pagination across the whole scroll session) is never the thing
+  // being capped here.
+  let attemptsThisRound = 0;
 
   // Keep fetching API pages until we have enough filtered results (or run out)
-  while (acc.results.length < target && acc.hasMore && acc.apiPage < ADV_MAX_API_PAGES) {
+  while (acc.results.length < target && acc.hasMore && attemptsThisRound < ADV_MAX_API_PAGES) {
     acc.apiPage++;
+    attemptsThisRound++;
     // Each iteration below can take several seconds (cover enrichment against
     // ComicVine/LOCG runs server-side per item) — without this, the status
     // text sits frozen on "Searching..." for that whole time and looks stuck.
@@ -576,26 +603,36 @@ async function advancedSearch(page = 1) {
     }
   }
 
-  if (fetchError && acc.results.length === 0) {
-    $("advancedSearchStatus").textContent = "Could not search manga.";
-    renderPagination("advancedSearchPagination", page, false, "advSearchGoToPage");
-    return;
+  if (fetchError && acc.results.length === acc.renderedCount) {
+    if (!isLoadMore) {
+      resultsDiv.innerHTML = `<div class="muted">Could not search manga.</div>`;
+      $("advancedSearchStatus").textContent = "Could not search manga.";
+      _advSearchLoadMore.clear();
+      return;
+    }
+    throw fetchError; // propagates to the load-more controller's own error state
   }
 
-  const pageResults = acc.results.slice((page - 1) * ADV_PAGE_SIZE, page * ADV_PAGE_SIZE);
-  const hasNextPage = acc.hasMore || acc.results.length > page * ADV_PAGE_SIZE;
+  const newItems = acc.results.slice(acc.renderedCount);
+  const hasNextPage = acc.hasMore;
   state.advSearchHasNextPage = hasNextPage;
 
-  const resultsDiv = $("advancedResults");
-  if (!pageResults.length) {
+  if (!isLoadMore && !acc.results.length) {
     resultsDiv.innerHTML = `<div class="muted">No results found</div>`;
     $("advancedSearchStatus").textContent = "0 result(s) found";
-    renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
+    _advSearchLoadMore.show(hasNextPage, () => advancedSearch(page, true));
     return;
   }
-  renderMangaGrid(resultsDiv, pageResults);
-  $("advancedSearchStatus").textContent = `${pageResults.length} result(s) found — Page ${page}`;
-  renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
+  if (!isLoadMore) {
+    renderMangaGrid(resultsDiv, acc.results);
+  } else if (newItems.length) {
+    resultsDiv.insertAdjacentHTML("beforeend", newItems.map(m => mangaCardHTML(m)).join(""));
+    bindMangaCards(resultsDiv);
+    if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(resultsDiv);
+  }
+  acc.renderedCount = acc.results.length;
+  $("advancedSearchStatus").textContent = formatLoadedStatus(acc.renderedCount);
+  _advSearchLoadMore.show(hasNextPage, () => advancedSearch(page, true));
 }
 
 // Same "Search all sources" idea as the home search (see searchAllSources()

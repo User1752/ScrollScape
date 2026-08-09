@@ -7,81 +7,24 @@
   justify-content: center;
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: var(--bg-secondary);
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
-  border: 1px solid var(--bg-tertiary);
-}
-
-.pagination-btn {
-  padding: 0.6rem 1.2rem;
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background-color: var(--primary);
-  border-color: var(--primary);
-  color: white;
-}
-
-.pagination-btn:disabled,
-.pagination-btn.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.pagination-numbers {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.pagination-number {
-  min-width: 40px;
-  height: 40px;
-  padding: 0.5rem;
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--bg-tertiary);
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
+/* Infinite-scroll "load more" sentinel — replaces the old numbered
+   Prev/Next controls inside the same #searchPagination/#advancedSearchPagination
+   host divs (see createLoadMoreController() in ui-search.js). */
+.load-more-sentinel {
+  width: 100%;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.pagination-number:hover {
-  background-color: var(--primary);
-  border-color: var(--primary);
-  color: white;
-  transform: translateY(-2px);
-}
-
-.pagination-number.active {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-  border-color: var(--primary);
-  color: white;
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent);
-}
-
-.pagination-ellipsis {
+.load-more-status {
+  font-size: 0.85rem;
   color: var(--text-secondary);
-  padding: 0 0.5rem;
-  font-weight: bold;
+}
+
+.load-more-end {
+  padding: 1rem 0;
 }
 
 .btn-continue {
@@ -93,48 +36,6 @@
   box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 40%, transparent);
   transform: translateY(-2px);
   background: linear-gradient(135deg, color-mix(in srgb, var(--primary-dark) 80%, black 20%) 0%, var(--primary-dark) 100%);
-}
-
-@media (max-width: 768px) {
-  .pagination {
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    padding: 0.75rem 1rem;
-  }
-
-  .pagination-btn {
-    padding: 0.5rem 0.8rem;
-    font-size: 0.85rem;
-  }
-
-  .pagination-number {
-    min-width: 36px;
-    height: 36px;
-    font-size: 0.85rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .pagination {
-    gap: 0.3rem;
-    padding: 0.5rem;
-  }
-
-  .pagination-btn {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.8rem;
-  }
-
-  .pagination-number {
-    min-width: 32px;
-    height: 32px;
-    font-size: 0.8rem;
-  }
-
-  .pagination-ellipsis {
-    padding: 0 0.3rem;
-    font-size: 0.8rem;
-  }
 }
 
 /* ============================================================================
