@@ -188,8 +188,8 @@ function createLocalService({
       const titleBase = (body.title || path.basename(origName, path.extname(origName)))
         .replace(/[_-]+/g, ' ').trim() || 'Local Manga';
 
-      if (!['.cbz', '.cbr', '.pdf'].includes(ext)) {
-        const err = new Error('Unsupported format. Use CBZ, CBR or PDF.');
+      if (!['.cbz', '.cbr', '.zip', '.pdf'].includes(ext)) {
+        const err = new Error('Unsupported format. Use CBZ, CBR, ZIP or PDF.');
         err.statusCode = 400;
         throw err;
       }

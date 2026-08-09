@@ -101,26 +101,23 @@ async function _hasAnySourceChapters(manga, preferredSourceId) {
 }
 
 async function _filterMangaWithoutChapters(results, sourceId) {
-  const list = Array.isArray(results) ? results : [];
-  if (!list.length) return [];
-
-  const keep = new Array(list.length).fill(false);
-  const workers = Math.min(4, list.length);
-  let cursor = 0;
-
-  const worker = async () => {
-    while (cursor < list.length) {
-      const idx = cursor++;
-      const manga = list[idx];
-      keep[idx] = await _hasAnySourceChapters(manga, sourceId);
-    }
-  };
-
-  await Promise.all(Array.from({ length: workers }, worker));
-  return list.filter((_, idx) => keep[idx]);
+  // The original implementation made a /chapters API call for every search result,
+  // and if 0, searched every other source. This causes the UI to hang on "Searching..."
+  // for minutes or hours due to massive backend API spam and timeouts.
+  return Array.isArray(results) ? results : [];
 }
 
 // ── Pagination helper ───────────────────────────────────────────────────────
+// Only a handful of sources can report a real, query-specific total page
+// count (MangaDex via its own `total` field, KingOfShojo/MangaKatana via
+// their "1 2 3 … N" numbered pagination) — everyone else only ever knows
+// "is there a next page", so `totalPages` is undefined for them and this
+// just falls back to the plain "Page X" it always showed.
+function formatPageStatus(resultCount, page, totalPages) {
+  const base = `${resultCount} result(s) found — Page ${page}`;
+  return Number.isFinite(totalPages) && totalPages > 0 ? `${base} of ${totalPages}` : base;
+}
+
 function renderPagination(containerId, currentPage, hasNextPage, callbackName) {
   const container = $(containerId);
   if (!container) return;
@@ -268,7 +265,8 @@ window.search = async function search(page = 1) {
     } else {
       dropdown.innerHTML = chapterFiltered.map(m => mangaCardHTML(m)).join("");
       bindMangaCards(dropdown);
-      $("searchStatus").textContent = `${chapterFiltered.length} result(s) found — Page ${page}`;
+      if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(dropdown);
+      $("searchStatus").textContent = formatPageStatus(chapterFiltered.length, page, result.totalPages);
       renderPagination("searchPagination", page, hasNextPage, "searchGoToPage");
     }
   } catch (e) {
@@ -286,7 +284,7 @@ function toggleSourceSwitchDropdown(e) {
   document.querySelectorAll(".source-switch-dropdown").forEach(d => d.classList.add("hidden"));
   if (isHidden) {
     // Rebuild items in case sources changed
-    const installed = Object.values(state.installedSources).filter(s => s.id !== state.currentSourceId);
+    const installed = getSelectableSources().filter(s => s.id !== state.currentSourceId);
     if (installed.length === 0) { showToast("No other sources installed", "", "info"); return; }
     const title = state.currentManga?.title || "";
     dropdown.innerHTML = installed.map(s =>
@@ -633,6 +631,20 @@ async function openAniListForManga(title) {
 }
 window.openAniListForManga = openAniListForManga;
 
+// BatCave comics have no AniList presence (manga-only database). LOCG sits
+// behind Cloudflare, so a precise-match lookup like openAniListForManga's
+// can't be done directly from the browser here — this always opens LOCG's
+// own search results and lets the user pick the right edition themselves.
+function openLocgForComic(title) {
+  // Strip BatCave's own trailing year annotation ("Title (2026-)", "Title
+  // (1991 series)", "Title (2018-2019)") so the query is just the clean
+  // series name — LOCG's own search ranks that higher than with the
+  // annotation still attached.
+  const cleanTitle = String(title || '').replace(/\s*\((?:\d{4}(?:-\d{4})?-?|\d{4}\s+series)\)\s*$/i, '').trim() || title;
+  window.open(`https://leagueofcomicgeeks.com/search?keyword=${encodeURIComponent(cleanTitle)}`, '_blank');
+}
+window.openLocgForComic = openLocgForComic;
+
 function openMangaCoverPicker(manga, options = {}) {
   const mangaId = String(manga?.id || '');
   const sourceId = String(options.sourceId || manga?.sourceId || state.currentSourceId || '');
@@ -676,6 +688,7 @@ function openMangaCoverPicker(manga, options = {}) {
           </div>
           <p class="cover-picker-label">Search results</p>
           <div class="cover-picker-search-meta muted" id="coverPickerSearchMeta"></div>
+          <div class="cover-picker-loading-bar" id="coverPickerLoadingBar"><div class="cover-picker-loading-bar-fill"></div></div>
           <div class="cover-picker-grid muted" id="coverPickerSuggestions">Loading cover suggestions...</div>
           <div class="cover-picker-load-more-wrap">
             <button class="btn btn-secondary" id="coverPickerLoadMore">Load more</button>
@@ -713,6 +726,7 @@ function openMangaCoverPicker(manga, options = {}) {
 
   const gridEl = document.getElementById('coverPickerSuggestions');
   const metaEl = document.getElementById('coverPickerSearchMeta');
+  const loadingBarEl = document.getElementById('coverPickerLoadingBar');
   const searchInput = document.getElementById('coverPickerSearchInput');
   const loadMoreBtn = document.getElementById('coverPickerLoadMore');
   const pickerState = {
@@ -761,6 +775,7 @@ function openMangaCoverPicker(manga, options = {}) {
     }
     const modeLabel = pickerState.mode === 'google' ? 'Google Images' : 'AniList + other sources';
     metaEl.textContent = `Searching ${modeLabel} for "${nextQuery}"...`;
+    if (loadingBarEl) loadingBarEl.classList.add('active');
     updateLoadMoreVisibility();
     try {
       const data = await searchCoverChoices(nextQuery, sourceId, pickerState.page, pickerState.mode);
@@ -787,6 +802,7 @@ function openMangaCoverPicker(manga, options = {}) {
       metaEl.textContent = 'Cover search failed.';
     } finally {
       pickerState.loading = false;
+      if (loadingBarEl) loadingBarEl.classList.remove('active');
       updateLoadMoreVisibility();
     }
   }
@@ -1139,16 +1155,21 @@ async function loadMangaDetails(rawMangaId, fromView = "discover", fallbackTitle
     $("trackerBtn").onclick = () => showTrackerModal(result);
     const detailCoverTrigger = $("details")?.querySelector('.cover-picker-trigger');
     if (detailCoverTrigger) {
-      detailCoverTrigger.title = 'Left click: AniList | Right click: Change Cover';
+      const isComicSource = state.currentSourceId === 'batcave';
+      detailCoverTrigger.title = isComicSource
+        ? 'Left click: LOCG | Right click: Change Cover'
+        : 'Left click: AniList | Right click: Change Cover';
       const hint = detailCoverTrigger.querySelector('.cover-anilist-hint');
       if (hint) {
-        hint.textContent = 'AniList (RMB: Cover)';
+        hint.textContent = isComicSource ? 'LOCG (RMB: Cover)' : 'AniList (RMB: Cover)';
         hint.style.fontSize = '0.75rem';
       }
       detailCoverTrigger.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (typeof window.openAniListForManga === 'function') {
+        if (isComicSource) {
+          openLocgForComic(result.title);
+        } else if (typeof window.openAniListForManga === 'function') {
           window.openAniListForManga(result.title);
         } else {
           window.open('https://anilist.co/search/manga?search=' + encodeURIComponent(result.title), '_blank');

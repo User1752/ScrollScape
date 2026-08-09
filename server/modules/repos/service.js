@@ -22,6 +22,7 @@ function createRepoService({
         const mod = loadSourceFromFile(sid);
         installedSources[sid] = {
           ...installedSources[sid],
+          beta: mod.meta?.beta === true,
           capabilities: {
             trending: typeof mod.trending === 'function' && mod.meta?.supportsTrending !== false,
             recentlyAdded: typeof mod.recentlyAdded === 'function' && mod.meta?.supportsRecentlyAdded !== false,

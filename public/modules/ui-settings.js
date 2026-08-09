@@ -46,7 +46,8 @@ const DEFAULT_SETTINGS = {
   readerNoiseSource: 'generated',
   readerNoiseGifFile: '',
   autoScrollPointSpeeds: [0.2, 0.5, 1.0, 2.0, 3.5],
-  genreBlacklist: []
+  genreBlacklist: [],
+  showBetaSources: false
 };
 
 function deepMerge(target, source) {
@@ -81,6 +82,7 @@ function sanitizeSettings(rawSettings) {
   if (sanitized.homeSourceMode !== 'selected') sanitized.homeSourceMode = 'all';
   if (!Array.isArray(sanitized.homeSelectedSourceIds)) sanitized.homeSelectedSourceIds = [];
   if (typeof sanitized.bookshelfStripeUseSourceColor !== 'boolean') sanitized.bookshelfStripeUseSourceColor = false;
+  if (typeof sanitized.showBetaSources !== 'boolean') sanitized.showBetaSources = false;
   
   const speedDefaults = DEFAULT_SETTINGS.autoScrollPointSpeeds;
   const savedSpeeds = Array.isArray(sanitized.autoScrollPointSpeeds) ? sanitized.autoScrollPointSpeeds : speedDefaults;

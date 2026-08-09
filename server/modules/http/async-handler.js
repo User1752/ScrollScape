@@ -39,7 +39,7 @@ function createAsyncHandler(tag = 'API', defaultStatus = 500, defaultMessage = '
       if (res.headersSent) return;
       res.status(status).json({
         ok: false,
-        code: err?.code,
+        ...(err?.code ? { code: err.code } : {}),
         error: err?.message || defaultMessage,
         ...(err?.details || {})
       });

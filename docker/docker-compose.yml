@@ -6,10 +6,10 @@
       dockerfile: docker/Dockerfile
     container_name: scrollscape
     ports:
-      - "3000:3000"
+      - "4000:4000"
     volumes:
       - ../data:/app/data
       - ../public:/app/public
     environment:
-      - PORT=3000
+      - PORT=4000
     restart: unless-stopped

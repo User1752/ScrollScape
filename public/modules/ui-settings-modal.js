@@ -257,7 +257,7 @@ function showSettings() {
                 <div id="homeSourceSelectionList">
                   ${(() => {
                     const ids = new Set(Array.isArray(state.settings.homeSelectedSourceIds) ? state.settings.homeSelectedSourceIds : []);
-                    const sources = Object.values(state.installedSources || {});
+                    const sources = getSelectableSources();
                     if (!sources.length) return '<p class="muted" style="margin:0">No installed sources</p>';
                     return sources.map(s => `
                       <label class="home-source-check">
@@ -512,6 +512,30 @@ function showSettings() {
           <!-- Advanced tab -->
           <div class="settings-tab" id="tab-advanced">
             <div class="settings-section-card">
+              <p class="settings-section-title">Sources</p>
+              <div class="setting-group">
+                <label class="toggle-label">
+                  <span class="toggle-text">Show beta sources</span>
+                  <input type="checkbox" id="showBetaSourcesToggle" ${state.settings.showBetaSources ? "checked" : ""}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="setting-description">Shows recently added, not-yet-fully-tested sources in the source pickers (Search, Discover, Random Manga, etc). Off by default — manga already in your library from a beta source keep working either way.</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
+              <p class="settings-section-title">Network & Anti-Bot</p>
+              <div class="setting-group">
+                <label for="flaresolverrUrlInput">FlareSolverr URL</label>
+                <input type="text" id="flaresolverrUrlInput" class="input" placeholder="http://localhost:8191/v1" autocomplete="off" spellcheck="false" style="width:100%">
+                <p class="setting-description">Used to bypass Cloudflare on protected sources. Leave blank to disable.</p>
+              </div>
+              <div class="setting-group">
+                <label for="comicVineApiKeyInput">ComicVine API Key</label>
+                <input type="password" id="comicVineApiKeyInput" class="input" placeholder="Get a free key at comicvine.gamespot.com/api" autocomplete="off" spellcheck="false" style="width:100%">
+                <p class="setting-description">Used to fetch higher-quality covers for Western comics (e.g. BatCave). Leave blank to disable.</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
               <p class="settings-section-title">Commands</p>
               <div class="setting-group">
                 <div style="display:flex;gap:8px;align-items:center">
@@ -694,6 +718,52 @@ function showSettings() {
       state.settings.mangasPerRow = parseInt(e.target.value, 10);
       saveSettings();
       renderLibrary();
+    };
+  }
+
+  const showBetaSourcesToggle = $("showBetaSourcesToggle");
+  if (showBetaSourcesToggle) {
+    showBetaSourcesToggle.onchange = (e) => {
+      state.settings.showBetaSources = e.target.checked;
+      saveSettings();
+      renderSourceSelect();
+      if (typeof loadPopularToday === 'function') loadPopularToday();
+      if (typeof loadRecentlyAdded === 'function') loadRecentlyAdded();
+      if (typeof loadLatestUpdates === 'function') loadLatestUpdates();
+    };
+  }
+
+  const fsInput = $("flaresolverrUrlInput");
+  if (fsInput) {
+    fetch('/api/settings').then(r => r.json()).then(data => {
+      if (data.ok && data.data && data.data.flaresolverrUrl) {
+        fsInput.value = data.data.flaresolverrUrl;
+      }
+    });
+    fsInput.onchange = (e) => {
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flaresolverrUrl: e.target.value.trim() })
+      });
+      saveSettings(); // To trigger the saved indicator
+    };
+  }
+
+  const cvInput = $("comicVineApiKeyInput");
+  if (cvInput) {
+    fetch('/api/settings').then(r => r.json()).then(data => {
+      if (data.ok && data.data && data.data.comicVineApiKey) {
+        cvInput.value = data.data.comicVineApiKey;
+      }
+    });
+    cvInput.onchange = (e) => {
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comicVineApiKey: e.target.value.trim() })
+      });
+      saveSettings();
     };
   }
 
@@ -1063,6 +1133,7 @@ function showSettings() {
         achievementManager.reset();
         localStorage.setItem('scrollscape_ap_bonus', '0');
         localStorage.setItem('scrollscape_ap_spent', '0');
+        _pushProgressionToServer({ resetAll: true });
         updateApBadge();
         showToast('Reset complete', 'All AP and achievements cleared.', 'info');
         break;

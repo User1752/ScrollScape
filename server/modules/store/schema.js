@@ -12,8 +12,23 @@ function normaliseStore(store) {
   store.favorites = store.favorites || [];
   store.readingStatus = store.readingStatus || {};
   store.reviews = store.reviews || {};
+  
+  store.settings = store.settings || {};
+  store.settings.flaresolverrUrl = store.settings.flaresolverrUrl || '';
+  store.settings.comicVineApiKey = store.settings.comicVineApiKey || '';
   store.customLists = Array.isArray(store.customLists) ? store.customLists : [];
   store.achievements = Array.isArray(store.achievements) ? store.achievements : [];
+
+  // Achievement Points wallet, purchased shop themes, and active theme —
+  // previously localStorage-only, which meant clearing browser data (or
+  // switching profile) silently wiped a user's AP/themes while the library
+  // and history (already stored here) survived untouched. Consolidated
+  // into the same server-side store so everything lives in one place.
+  store.ap = store.ap && typeof store.ap === 'object' ? store.ap : {};
+  store.ap.bonus = Number.isFinite(store.ap.bonus) ? store.ap.bonus : 0;
+  store.ap.spent = Number.isFinite(store.ap.spent) ? store.ap.spent : 0;
+  store.purchasedThemes = Array.isArray(store.purchasedThemes) ? store.purchasedThemes : ['default'];
+  store.activeTheme = typeof store.activeTheme === 'string' && store.activeTheme ? store.activeTheme : 'default';
 
   store.anilistSync = store.anilistSync || {
     lastImportAt: null,

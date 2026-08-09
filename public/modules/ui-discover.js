@@ -342,7 +342,7 @@ function genreBadgesHTML(rawGenres, max = 3, fallbackTag = '', sourceId = '') {
 }
 
 function _getHomeSourceIds() {
-  const installedIds = Object.keys(state.installedSources || {});
+  const installedIds = getSelectableSourceIds();
   if (!installedIds.length) return [];
 
   if (state.settings.homeSourceMode !== 'selected') return installedIds;
@@ -596,6 +596,7 @@ function mangaCardHTML(m) {
   const sourceAttr = resolvedSourceId ? ` data-source-id="${escapeHtml(resolvedSourceId)}"` : "";
   const sourceLabel = m.sourceName || (resolvedSourceId ? (state.installedSources?.[resolvedSourceId]?.name || resolvedSourceId) : "");
   const coverUrl = normalizeImageUrl(m.cover);
+  const inLibrary = isMangaInLibrary(m, resolvedSourceId);
   return `
     <div class="manga-card" data-manga-id="${escapeHtml(m.id)}"${sourceAttr}>
       <div class="manga-card-cover">
@@ -603,6 +604,18 @@ function mangaCardHTML(m) {
           ? `<img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(m.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
           : (m.cover ? '<div class="no-cover">&#128196;</div>' : '<div class="no-cover">?</div>')}
         ${sourceLabel ? `<span class="all-pop-source-badge">${escapeHtml(sourceLabel)}</span>` : ""}
+        <button class="manga-card-library-btn${inLibrary ? ' in-library' : ''}"
+          data-library-manga-id="${escapeHtml(m.id)}"
+          data-source-id="${escapeHtml(resolvedSourceId)}"
+          data-title="${escapeHtml(m.title)}"
+          data-cover="${escapeHtml(m.cover || '')}"
+          data-url="${escapeHtml(m.url || '')}"
+          onclick="event.stopPropagation(); toggleCardLibrary(this)"
+          title="${inLibrary ? 'Remove from Library' : 'Add to Library'}">
+          <span class="icon-plus">+</span>
+          <span class="icon-check">&#10003;</span>
+          <span class="icon-minus">&minus;</span>
+        </button>
       </div>
       <div class="manga-card-info">
         <h3 class="manga-card-title">${escapeHtml(m.title)}</h3>
@@ -613,6 +626,39 @@ function mangaCardHTML(m) {
     </div>
   `;
 }
+
+async function toggleCardLibrary(btn) {
+  if (btn.disabled) return;
+  const mangaId = btn.dataset.libraryMangaId;
+  const sourceId = btn.dataset.sourceId;
+  const wasInLibrary = btn.classList.contains('in-library');
+
+  btn.disabled = true;
+  try {
+    if (wasInLibrary) {
+      await ensureMangaNotInLibrary(mangaId, sourceId);
+      btn.classList.remove('in-library');
+      btn.title = 'Add to Library';
+    } else {
+      const manga = {
+        id: mangaId,
+        mangaId,
+        sourceId,
+        title: btn.dataset.title,
+        cover: btn.dataset.cover,
+        url: btn.dataset.url
+      };
+      const added = await ensureMangaInLibrary(manga, sourceId);
+      if (added) {
+        btn.classList.add('in-library');
+        btn.title = 'Remove from Library';
+      }
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
+window.toggleCardLibrary = toggleCardLibrary;
 
 async function startReading(mangaId, sourceId = "") {
   if (sourceId && state.installedSources[sourceId] && sourceId !== state.currentSourceId) {

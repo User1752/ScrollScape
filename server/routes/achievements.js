@@ -1,13 +1,14 @@
 /**
- * routes/achievements.js — Achievement unlock and query endpoints
+ * routes/achievements.js — Achievement, AP wallet & theme ownership endpoints
  *
  * Endpoints:
- *   GET  /api/achievements          — Return the list of unlocked achievement IDs
- *   POST /api/achievements/unlock   — Unlock an achievement (idempotent)
+ *   GET  /api/achievements             — Unlocked achievement IDs + AP wallet + owned/active themes
+ *   POST /api/achievements/unlock      — Unlock an achievement (idempotent)
+ *   POST /api/achievements/progression — Set AP wallet / purchased themes / active theme (or resetAll)
  *
  * Security:
- *  • Achievement IDs are sanitised to safe identifier characters and capped
- *    at 100 characters to prevent oversized payloads reaching the store.
+ *  • Achievement/theme IDs are sanitised to safe identifier characters and
+ *    capped in length to prevent oversized payloads reaching the store.
  *  • Unlock is idempotent: re-submitting an already-unlocked ID is a no-op,
  *    so callers can safely retry without bloating the achievements array.
  */
@@ -35,6 +36,10 @@ function registerAchievementRoutes(router) {
 
   router.post('/api/achievements/unlock', asyncHandler(async (req, res) => {
     res.json(await achievementService.unlockAchievement(req.body || {}));
+  }));
+
+  router.post('/api/achievements/progression', asyncHandler(async (req, res) => {
+    res.json(await achievementService.updateProgression(req.body || {}));
   }));
 }
 

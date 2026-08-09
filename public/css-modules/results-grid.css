@@ -72,6 +72,60 @@
   z-index: 2;
 }
 
+.manga-card-library-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-overlay-strong);
+  color: var(--text-strong);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.manga-card-library-btn:hover {
+  background: var(--primary);
+  transform: scale(1.12);
+}
+
+.manga-card-library-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.manga-card-library-btn .icon-check,
+.manga-card-library-btn .icon-minus {
+  display: none;
+}
+
+.manga-card-library-btn.in-library .icon-plus {
+  display: none;
+}
+
+.manga-card-library-btn.in-library .icon-check {
+  display: inline;
+}
+
+.manga-card-library-btn.in-library:hover .icon-check {
+  display: none;
+}
+
+.manga-card-library-btn.in-library:hover .icon-minus {
+  display: inline;
+}
+
 .manga-card-cover {
   width: 100%;
   aspect-ratio: 3/4;

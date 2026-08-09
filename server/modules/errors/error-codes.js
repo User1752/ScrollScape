@@ -19,5 +19,9 @@ module.exports = {
   // AllManga.To specific errors
   ALLMANGATO_NO_RESULTS: 'ERROR-014',
   ALLMANGATO_INVALID_RESPONSE: 'ERROR-015',
-  ALLMANGATO_REQUEST_FAILED: 'ERROR-016'
+  ALLMANGATO_REQUEST_FAILED: 'ERROR-016',
+  // ComicVine cover lookup
+  COMICVINE_REQUEST_FAILED: 'ERROR-017',
+  // League of Comic Geeks cover lookup (fallback when ComicVine has no match)
+  LOCG_REQUEST_FAILED: 'ERROR-018'
 };

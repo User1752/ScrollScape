@@ -556,6 +556,13 @@ async function loadChapter(chapterId, chapterName, chapterIndex, startPageIndex 
         body: JSON.stringify({ chapterId })
       });
     }
+    // Some CDNs (e.g. img.batcave.biz) reject a direct <img> hotlink without
+    // a Referer header. Normalise once here so every reader view (webtoon,
+    // paged, 3D flip) gets an already-safe URL without needing its own fix.
+    if (Array.isArray(result?.pages)) {
+      result.pages = result.pages.map(p => (p && p.img ? { ...p, img: normalizeImageUrl(p.img) } : p));
+    }
+
     state.currentChapter      = result;
     state.currentChapter.name = chapterName;
     state.currentChapter.id   = chapterId;

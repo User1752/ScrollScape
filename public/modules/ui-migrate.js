@@ -73,13 +73,14 @@ async function _sourceSearch(sourceId, query) {
 }
 
 async function _getInstalledTargetSources(fromSourceId) {
+  const showBeta = !!state.settings?.showBetaSources;
   try {
     const stateData = await api('/api/state');
-    return Object.keys(stateData?.installedSources || {})
-      .filter(sid => sid !== 'local' && sid !== fromSourceId);
+    return Object.values(stateData?.installedSources || {})
+      .filter(s => s.id !== 'local' && s.id !== fromSourceId && (showBeta || !s.beta))
+      .map(s => s.id);
   } catch (_) {
-    return Object.keys(state.installedSources || {})
-      .filter(sid => sid !== 'local' && sid !== fromSourceId);
+    return getSelectableSourceIds().filter(sid => sid !== 'local' && sid !== fromSourceId);
   }
 }
 

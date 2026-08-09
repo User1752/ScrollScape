@@ -39,10 +39,10 @@ function onImportFileSelected(event) {
 }
 
 function setImportFile(file) {
-  const allowed = ['.cbz', '.cbr', '.pdf'];
+  const allowed = ['.cbz', '.cbr', '.zip', '.pdf'];
   const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
   if (!allowed.includes(ext)) {
-    if ($("importError")) { $("importError").textContent = "Unsupported format. Use CBZ, CBR or PDF."; $("importError").classList.remove("hidden"); }
+    if ($("importError")) { $("importError").textContent = "Unsupported format. Use CBZ, CBR, ZIP or PDF."; $("importError").classList.remove("hidden"); }
     return;
   }
   _importFile = file;

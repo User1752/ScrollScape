@@ -219,6 +219,10 @@ function _calCloseDayPopover() {
 function renderMangaGrid(container, mangaList) {
   container.innerHTML = mangaList.map(m => mangaCardHTML(m)).join("");
   bindMangaCards(container);
+  // Backfills genre tags for sources whose listing/search results don't
+  // include them (only MangaDex/MangaPill/AllManga do out of the box) —
+  // see ui-discover.js's _hydrateMissingGenres()/genreBadgesHTML().
+  if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(container);
 }
 
 function bindMangaCards(container) {
@@ -253,7 +257,7 @@ async function loadRecommendations() {
   const row     = $("recommendedRow");
   if (!section || !row) return;
 
-  let installedSourceIds = Object.keys(state.installedSources);
+  let installedSourceIds = getSelectableSourceIds();
   // Respeitar configuração de fontes selecionadas na home
   if (state.settings.homeSourceMode === 'selected' && Array.isArray(state.settings.homeSelectedSourceIds) && state.settings.homeSelectedSourceIds.length > 0) {
     installedSourceIds = installedSourceIds.filter(sid => state.settings.homeSelectedSourceIds.includes(sid));
@@ -398,5 +402,6 @@ async function loadRecommendations() {
 
   row.innerHTML = list.map(m => mangaCardHTML(m)).join("");
   bindMangaCards(row);
+  if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(row);
   initRowAutoScroll(row);
 }

@@ -22,7 +22,7 @@ GRY='\033[90m'
 YLW='\033[33m'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PORT=3000
+PORT=4000
 NODE_PID=""
 
 cd "$ROOT_DIR"

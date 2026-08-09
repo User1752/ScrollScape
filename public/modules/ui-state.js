@@ -41,6 +41,7 @@ async function refreshState() {
     } catch (_) { state.ratings = {}; }
 
     renderSourceSelect();
+    if (typeof syncProgressionWithServer === 'function') syncProgressionWithServer();
     if (typeof applyHomeSearchVisibility === 'function') applyHomeSearchVisibility();
     if (window._homeSeenManga) window._homeSeenManga.clear();
     if (typeof renderContinueReading === 'function') renderContinueReading();
@@ -59,9 +60,27 @@ async function refreshState() {
   }
 }
 
+// Beta sources (meta.beta === true, from server/modules/repos/service.js's
+// getState()) are hidden from every source-picking UI unless the user opts
+// in via the "Show beta sources" toggle — there are many freshly-ported
+// sources and not enough time to vet them all up front, so they stay
+// invisible-by-default rather than surprising users with untested results.
+// Manga a user already added from a beta source keep working regardless
+// (lookups by a *known* sourceId are untouched) — this only filters the
+// lists a user picks a *new* source from.
+function getSelectableSources() {
+  const all = Object.values(state.installedSources || {});
+  return state.settings?.showBetaSources ? all : all.filter(s => !s.beta);
+}
+function getSelectableSourceIds() {
+  return getSelectableSources().map(s => s.id);
+}
+window.getSelectableSources = getSelectableSources;
+window.getSelectableSourceIds = getSelectableSourceIds;
+
 function renderSourceSelect() {
   const selectors = [$("sourceSelect"), $("advancedSourceSelect")];
-  const installed = Object.values(state.installedSources);
+  const installed = getSelectableSources();
 
   for (const sel of selectors) {
     if (!sel) continue;
@@ -76,7 +95,7 @@ function renderSourceSelect() {
       opt.textContent = s.name;
       sel.appendChild(opt);
     }
-    if (!state.currentSourceId || !state.installedSources[state.currentSourceId]) {
+    if (!state.currentSourceId || !installed.some(s => s.id === state.currentSourceId)) {
       state.currentSourceId = installed[0].id;
     }
     sel.value = state.currentSourceId;

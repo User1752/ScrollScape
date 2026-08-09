@@ -2,6 +2,16 @@
 // ADVANCED SEARCH
 // ============================================================================
 
+// Every source module now internally stitches its own native pages up to
+// a fixed size per dispatch call — 50 for all sources except BatCave,
+// which is capped at 20 (2 native pages) because 50 there means 5 native
+// pages each carrying its own ComicVine/LOCG enrichment pass, measured
+// live at ~91s, well past the server's 30s per-call timeout (see
+// data/sources/batcave.js's APP_PAGE_SIZE comment). Matching this value to
+// the *largest* single-call size (50) means the fast path (no client-side
+// filter active) needs exactly one dispatch call per app-page for 9 of the
+// 10 sources, and the fill-up path below only needs extra iterations for
+// BatCave or when a client-side filter is actually removing items.
 const ADV_PAGE_SIZE = 50;
 const ADV_MAX_API_PAGES = 20; // safety limit per user-page
 
@@ -56,8 +66,152 @@ const ADV_SOURCE_CAPABILITIES = {
     contentRating: false,
     format: false,
     genres: false,
-  }
+  },
+  batcave: {
+    // BatCave's own site-native "sort by" widget doesn't work (confirmed by
+    // replaying its exact form submit through a real browser — the result
+    // order never changes). orderBy IS enabled here, but only for the two
+    // values backed by real, distinct data from BatCave's own homepage
+    // widgets — see applyOrderByOptionsForSource, which swaps in a reduced
+    // option list so the other generic values (title, year, follows...)
+    // — which have no BatCave-side data — are never shown as decoration.
+    orderBy: true,
+    publicationStatus: false,
+    contentRating: false,
+    format: false,
+    genres: true,
+  },
+  weebcentral: {
+    // Genuinely supported server-side (data/sources/weebcentral.js's
+    // mapOrderBy/mapFilters) — orderBy uses a reduced option list (see
+    // WEEBCENTRAL_ORDER_BY_OPTIONS) since Year Asc/Desc has no analogue.
+    orderBy: true,
+    publicationStatus: true,
+    contentRating: false,
+    format: true,
+    genres: true,
+  },
+  asurascans: {
+    // /browse has no sort/status/format query params — only q/genre/page —
+    // so those controls would silently do nothing if left enabled.
+    orderBy: false,
+    publicationStatus: false,
+    contentRating: false,
+    format: false,
+    genres: true,
+  },
+  comichubfree: {
+    // No query-param-driven sort or status/format filtering on this site
+    // (popular-comic/new-comic/search-comic/{genre}-comic are the only
+    // listing endpoints, none of them take a sort/status/format param).
+    orderBy: false,
+    publicationStatus: false,
+    contentRating: false,
+    format: false,
+    genres: true,
+  },
 };
+
+// BatCave's own genre taxonomy (comics, not manga) — swapped in for the
+// generic manga genre list below while it's the selected source, since most
+// of those manga-specific tags (Doujinshi, Isekai, Shounen, ...) don't exist
+// on BatCave and several of its own (Superhero, Zombies, Robots, ...) aren't
+// in the generic list at all.
+const BATCAVE_GENRES = [
+  'Action', 'Adventure', 'Anthology', 'Anthropomorphic', 'Biography', 'Children',
+  'Comedy', 'Crime', 'Drama', 'Family', 'Fantasy', 'Fighting', 'Graphic Novels',
+  'Historical', 'Horror', 'Leading Ladies', 'LGBTQ', 'Literature', 'Manga',
+  'Martial Arts', 'Mature', 'Military', 'Mini-Series', 'Movies & TV', 'Music',
+  'Mystery', 'Mythology', 'Personal', 'Political', 'Post-Apocalyptic',
+  'Psychological', 'Pulp', 'Religious', 'Robots', 'Romance', 'Satire',
+  'School Life', 'Sci-Fi', 'Slice of Life', 'Sport', 'Spy', 'Superhero',
+  'Supernatural', 'Suspense', 'Teen', 'Thriller', 'Vampires', 'Video Games',
+  'War', 'Western', 'Zombies',
+];
+
+const NSFW_BATCAVE_GENRES = new Set(['Mature']);
+
+let _defaultGenreGridHtml = null;
+let _genreGridSource = null; // which list is currently rendered: 'batcave' or 'default'
+
+function applyGenreGridForSource(sourceId) {
+  const grid = $('genreGrid');
+  if (!grid) return;
+
+  if (_defaultGenreGridHtml === null) {
+    _defaultGenreGridHtml = grid.innerHTML;
+    _genreGridSource = 'default';
+  }
+
+  // advancedSearch() calls this on every search (not just on source
+  // change) to keep filters in sync — rebuilding the list unconditionally
+  // would wipe out whatever the user had just checked a moment earlier,
+  // right before those checkboxes get read.
+  const targetSource = sourceId === 'batcave' ? 'batcave' : 'default';
+  if (_genreGridSource === targetSource) return;
+
+  if (targetSource === 'batcave') {
+    grid.innerHTML = BATCAVE_GENRES.map(name => {
+      const nsfwAttr = NSFW_BATCAVE_GENRES.has(name) ? ' data-nsfw="1"' : '';
+      return `<label class="genre-check"${nsfwAttr}><input type="checkbox" value="${escapeHtml(name)}"><span>${escapeHtml(name)}</span></label>`;
+    }).join('');
+  } else {
+    grid.innerHTML = _defaultGenreGridHtml;
+  }
+  _genreGridSource = targetSource;
+}
+
+// The values here are the only ones batcave.js actually has real data for
+// (see search() there) — BatCave's own site-native sort widget doesn't
+// work, so the other generic options (Title, Year, Most Follows...) would
+// just silently do nothing if left in the dropdown for this source.
+const BATCAVE_ORDER_BY_OPTIONS = [
+  { value: 'relevance', label: 'Best Match' },
+  { value: 'latestUploadedChapter', label: 'Latest Upload' },
+  { value: 'rating', label: 'Highest Rating' },
+];
+
+// WeebCentral genuinely supports server-side sorting (see data/sources/
+// weebcentral.js's mapOrderBy) for exactly these values — Year Asc/Desc has
+// no analogue on that site, so it's left out rather than silently no-op'ing.
+const WEEBCENTRAL_ORDER_BY_OPTIONS = [
+  { value: 'relevance', label: 'Best Match' },
+  { value: 'latestUploadedChapter', label: 'Latest Updates' },
+  { value: 'createdAt', label: 'Recently Added' },
+  { value: 'followedCount', label: 'Most Subscribers' },
+  { value: 'rating', label: 'Most Popular' },
+  { value: 'title', label: 'Title (A-Z)' },
+  { value: '-title', label: 'Title (Z-A)' },
+];
+
+const CUSTOM_ORDER_BY_OPTIONS = {
+  batcave: BATCAVE_ORDER_BY_OPTIONS,
+  weebcentral: WEEBCENTRAL_ORDER_BY_OPTIONS,
+};
+
+let _defaultOrderByHtml = null;
+let _orderBySource = null; // which option list is currently rendered: a key of CUSTOM_ORDER_BY_OPTIONS, or 'default'
+
+function applyOrderByOptionsForSource(sourceId) {
+  const select = $('advancedOrderBy');
+  if (!select) return;
+
+  if (_defaultOrderByHtml === null) {
+    _defaultOrderByHtml = select.innerHTML;
+    _orderBySource = 'default';
+  }
+
+  // Same reasoning as applyGenreGridForSource: this runs on every search,
+  // not just on source change, so skip the rebuild once the right list is
+  // already showing or it would reset whatever the user just picked.
+  const targetSource = CUSTOM_ORDER_BY_OPTIONS[sourceId] ? sourceId : 'default';
+  if (_orderBySource === targetSource) return;
+
+  select.innerHTML = CUSTOM_ORDER_BY_OPTIONS[targetSource]
+    ? CUSTOM_ORDER_BY_OPTIONS[targetSource].map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('')
+    : _defaultOrderByHtml;
+  _orderBySource = targetSource;
+}
 
 function getAdvancedSourceCapabilities(sourceId) {
   return { ...ADV_SOURCE_CAPABILITIES.default, ...(ADV_SOURCE_CAPABILITIES[sourceId] || {}) };
@@ -65,6 +219,8 @@ function getAdvancedSourceCapabilities(sourceId) {
 
 function updateAdvancedSearchFilterVisibility(sourceId = state.currentSourceId) {
   const caps = getAdvancedSourceCapabilities(sourceId);
+  applyGenreGridForSource(sourceId);
+  applyOrderByOptionsForSource(sourceId);
 
   const toggleGroupBySelectId = (selectId, enabled) => {
     const sel = $(selectId);
@@ -238,8 +394,8 @@ async function advancedSearch(page = 1) {
   // "local" is not a plugin source — fall back to the dropdown value or first installed source
   if (!state.currentSourceId || !state.installedSources[state.currentSourceId]) {
     const sel = $("advancedSourceSelect");
-    const installed = Object.keys(state.installedSources);
-    const fallback = (sel && state.installedSources[sel.value]) ? sel.value : installed[0];
+    const installed = getSelectableSourceIds();
+    const fallback = (sel && installed.includes(sel.value)) ? sel.value : installed[0];
     if (!fallback) {
       $("advancedSearchStatus").textContent = "Select a source first.";
       return;
@@ -285,7 +441,7 @@ async function advancedSearch(page = 1) {
         return;
       }
       renderMangaGrid(resultsDiv, results);
-      $("advancedSearchStatus").textContent = `${results.length} result(s) found — Page ${page}`;
+      $("advancedSearchStatus").textContent = formatPageStatus(results.length, page, result.totalPages);
       renderPagination("advancedSearchPagination", page, hasNextPage, "advSearchGoToPage");
     } catch (e) {
       $("advancedSearchStatus").textContent = "Could not search manga.";
@@ -310,6 +466,10 @@ async function advancedSearch(page = 1) {
   // Keep fetching API pages until we have enough filtered results (or run out)
   while (acc.results.length < target && acc.hasMore && acc.apiPage < ADV_MAX_API_PAGES) {
     acc.apiPage++;
+    // Each iteration below can take several seconds (cover enrichment against
+    // ComicVine/LOCG runs server-side per item) — without this, the status
+    // text sits frozen on "Searching..." for that whole time and looks stuck.
+    $("advancedSearchStatus").textContent = `A procurar resultados... (${acc.results.length}/${target})`;
     try {
       let result;
       if (selectedGenres.length > 0) {
@@ -359,7 +519,7 @@ async function advancedSearch(page = 1) {
 }
 
 async function randomManga(options = {}) {
-  const sourceIds = Object.keys(state.installedSources).filter(id => id !== 'local');
+  const sourceIds = getSelectableSourceIds().filter(id => id !== 'local');
   const statusEl = $('advancedSearchStatus');
   const mode = options.mode || 'mixed'; // mixed | library | sources
   const selectedSourceIds = (options.sourceIds || []).filter(id => sourceIds.includes(id));
@@ -419,7 +579,7 @@ function closeRandomPickerDrawer() {
 function openRandomPickerDrawer() {
   closeRandomPickerDrawer();
 
-  const sourceIds = Object.keys(state.installedSources).filter(id => id !== 'local');
+  const sourceIds = getSelectableSourceIds().filter(id => id !== 'local');
   const sourceItems = sourceIds.map(id => {
     const label = state.installedSources[id]?.name || id;
     return `

@@ -32,8 +32,9 @@ function escapeHtml(s) {
 /**
  * Normalise image URLs for browser rendering.
  * - Upgrades insecure http:// image URLs to https://.
- * - Routes AllManga CDN images through the local proxy (they require a
- *   Referer: https://allmanga.to header that the browser won't send on its own).
+ * - Routes CDN images that require a Referer header through the local proxy
+ *   (the browser won't send one for a plain <img src>, so a direct request
+ *   gets rejected and the image never loads).
  *
  * @param {*} url
  * @returns {string}
@@ -46,6 +47,11 @@ function normalizeImageUrl(url) {
   // AllManga CDN images need a Referer header; proxy them server-side.
   if (value.includes('wp.youtube-anime.com') || value.includes('aln.youtube-anime.com')) {
     const ref = encodeURIComponent('https://allmanga.to');
+    return `/api/proxy-image?url=${encodeURIComponent(value)}&ref=${ref}`;
+  }
+  // BatCave covers/pages need a Referer header too; same treatment.
+  if (value.includes('batcave.biz')) {
+    const ref = encodeURIComponent('https://batcave.biz/');
     return `/api/proxy-image?url=${encodeURIComponent(value)}&ref=${ref}`;
   }
   if (value.startsWith('http://')) return `https://${value.slice(7)}`;

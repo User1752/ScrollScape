@@ -8,10 +8,30 @@ const _BASE_THEMES = [
 // Merge any community themes registered in themes.js (loaded before this file)
 const SHOP_THEMES = [..._BASE_THEMES, ...(window.COMMUNITY_THEMES || [])];
 
+// Fire-and-forget push to the server-side wallet/theme store (see
+// server/modules/achievements/service.js's updateProgression) — keeps the
+// server copy in sync with every local mutation so AP/themes survive a
+// cleared browser profile the same way the library/history already do.
+function _pushProgressionToServer(patch) {
+  fetch('/api/achievements/progression', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  }).catch(() => {});
+}
+
 function getSpentAP()   { return parseInt(localStorage.getItem('scrollscape_ap_spent')  || '0', 10); }
 function getBonusAP()   { return parseInt(localStorage.getItem('scrollscape_ap_bonus')  || '0', 10); }
-function addBonusAP(n)  { localStorage.setItem('scrollscape_ap_bonus', getBonusAP() + n); }
-function spendAP(n)     { localStorage.setItem('scrollscape_ap_spent', Math.max(0, getSpentAP() + n)); }
+function addBonusAP(n)  {
+  const next = getBonusAP() + n;
+  localStorage.setItem('scrollscape_ap_bonus', next);
+  _pushProgressionToServer({ apBonus: next });
+}
+function spendAP(n)     {
+  const next = Math.max(0, getSpentAP() + n);
+  localStorage.setItem('scrollscape_ap_spent', next);
+  _pushProgressionToServer({ apSpent: next });
+}
 function getAvailableAP() { return Math.max(0, achievementManager.unlockedAchievements.size + getBonusAP() - getSpentAP()); }
 
 function getPurchasedThemes() {
@@ -20,17 +40,96 @@ function getPurchasedThemes() {
 }
 function addPurchasedTheme(id) {
   const p = getPurchasedThemes();
-  if (!p.includes(id)) { p.push(id); localStorage.setItem('scrollscape_purchased_themes', JSON.stringify(p)); }
+  if (!p.includes(id)) {
+    p.push(id);
+    localStorage.setItem('scrollscape_purchased_themes', JSON.stringify(p));
+    _pushProgressionToServer({ purchasedThemes: p });
+  }
 }
 function getActiveTheme() { return localStorage.getItem('scrollscape_active_theme') || 'default'; }
 function setActiveTheme(id) {
   localStorage.setItem('scrollscape_active_theme', id);
+  _pushProgressionToServer({ activeTheme: id });
   applyTheme(id);
 
   // Activating a base/community theme must clear custom overlay/theme tweaks.
   if (typeof window.setActiveCustom === 'function') window.setActiveCustom(null);
   if (typeof window.applyCustomization === 'function') window.applyCustomization(null);
 }
+
+// Called once at startup (see ui-state.js's refreshState()) to reconcile
+// localStorage against the server-side copy. Merges rather than overwrites
+// in either direction — a "richer side wins" union — so neither a cleared
+// browser profile nor a stale/fresh server store file can regress progress;
+// whichever side has less simply catches up to whichever has more.
+async function syncProgressionWithServer() {
+  let server;
+  try {
+    const res = await fetch('/api/achievements');
+    server = res.ok ? await res.json() : null;
+  } catch (_) {
+    server = null;
+  }
+  if (!server) return;
+
+  const serverAchievements = Array.isArray(server.achievements) ? server.achievements : [];
+  let achievementsChanged = false;
+  for (const id of serverAchievements) {
+    if (!achievementManager.unlockedAchievements.has(id)) {
+      achievementManager.unlockedAchievements.add(id);
+      achievementsChanged = true;
+    }
+  }
+  if (achievementsChanged) {
+    achievementManager.achievementPoints = Array.from(achievementManager.unlockedAchievements)
+      .reduce((sum, id) => sum + (achievementManager.getAchievement(id)?.points || 0), 0);
+    achievementManager.saveToStorage();
+  }
+  // Push any unlock the server doesn't have yet (e.g. a prior POST that
+  // failed while offline) back up to it.
+  for (const id of achievementManager.unlockedAchievements) {
+    if (!serverAchievements.includes(id)) {
+      fetch('/api/achievements/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ achievementId: id }),
+      }).catch(() => {});
+    }
+  }
+
+  const serverAp = server.ap || { bonus: 0, spent: 0 };
+  const mergedBonus = Math.max(getBonusAP(), Number(serverAp.bonus) || 0);
+  const mergedSpent = Math.max(getSpentAP(), Number(serverAp.spent) || 0);
+  const apChanged = mergedBonus !== getBonusAP() || mergedSpent !== getSpentAP();
+  localStorage.setItem('scrollscape_ap_bonus', mergedBonus);
+  localStorage.setItem('scrollscape_ap_spent', mergedSpent);
+
+  const serverThemes = Array.isArray(server.purchasedThemes) ? server.purchasedThemes : ['default'];
+  const localThemes = getPurchasedThemes();
+  const mergedThemes = Array.from(new Set([...localThemes, ...serverThemes]));
+  const themesChanged = mergedThemes.length !== localThemes.length;
+  localStorage.setItem('scrollscape_purchased_themes', JSON.stringify(mergedThemes));
+
+  // Active theme has no "merge" concept (single value, not a set/counter) —
+  // keep the local choice if one was ever made, otherwise adopt the
+  // server's so a wiped profile at least restores the last known theme.
+  const hasLocalActive = localStorage.getItem('scrollscape_active_theme') !== null;
+  const resolvedActiveTheme = hasLocalActive ? getActiveTheme() : (server.activeTheme || 'default');
+  if (!hasLocalActive) localStorage.setItem('scrollscape_active_theme', resolvedActiveTheme);
+
+  if (apChanged || themesChanged || achievementsChanged || !hasLocalActive) {
+    _pushProgressionToServer({
+      apBonus: mergedBonus,
+      apSpent: mergedSpent,
+      purchasedThemes: mergedThemes,
+      activeTheme: resolvedActiveTheme,
+    });
+  }
+
+  if (typeof updateApBadge === 'function') updateApBadge();
+  applyTheme(resolvedActiveTheme);
+}
+window.syncProgressionWithServer = syncProgressionWithServer;
 function applyTheme(id) {
   // Call onRemove for the previously active community theme
   const prevId = document.documentElement.getAttribute('data-color-theme') || '';

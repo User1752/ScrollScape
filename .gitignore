@@ -9,11 +9,17 @@ data/tmp/
 data/theme-presets/
 data/error-log.json
 
+# Manga/comics source scrapers — self-contained plug-in .js files (the
+# source-loader auto-installs anything dropped in here, see
+# server/sourceLoader.js). Not tracked so the repo doesn't bundle
+# site-specific scraping code; anyone who wants a given source just needs
+# that one .js file.
+data/sources/
+
 # Keep these data files tracked (app config, not user data)
 !data/achievements.json
 !data/icon-mapping.json
 !data/store.json.example
-!data/sources/
 
 # Temp / OS
 *.log
@@ -31,7 +37,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Portable Node.js (auto-downloaded by build-exe.bat / ScrollScape.bat)
+# Portable Node.js (auto-downloaded by build-exe.bat / Launch-ScrollScape.bat)
 tools/
 # pkg binary cache (populated by build-exe.bat)
 tools/pkg-cache/
@@ -44,3 +50,4 @@ Todo.txt
 temp_check.html
 server.legacy.js
 todo
+ScrollScape_doc.md

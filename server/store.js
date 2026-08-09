@@ -73,6 +73,18 @@ class StorageService {
     });
   }
 
+  // Forces an immediate write during normal operation (e.g. right after a
+  // deliberate settings change), without marking the store as shutting
+  // down — unlike flushStoreSync(), which is only for the process-exit path
+  // and disables all future writes once called.
+  flushNow() {
+    this.persistence.flushStoreSync({
+      store: this.store,
+      storePath: this.storePath,
+      isShuttingDown: false,
+    });
+  }
+
   normaliseStore(s) {
     return normaliseStore(s);
   }
@@ -93,5 +105,6 @@ module.exports = {
   writeStore: storageService.writeStore.bind(storageService),
   initStore: storageService.initStore.bind(storageService),
   flushStoreSync: storageService.flushStoreSync.bind(storageService),
+  flushNow: storageService.flushNow.bind(storageService),
   normaliseStore: storageService.normaliseStore.bind(storageService),
 };

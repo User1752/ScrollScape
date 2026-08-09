@@ -777,10 +777,10 @@
         <div id="importDropZone" class="import-drop-zone" onclick="document.getElementById('importFileInput').click()">
           <div class="import-drop-icon">&#128194;</div>
           <p class="import-drop-label">Click or drag &amp; drop a file here</p>
-          <p class="import-drop-hint">Supported formats: <strong>CBZ &bull; CBR &bull; PDF</strong></p>
+          <p class="import-drop-hint">Supported formats: <strong>CBZ &bull; CBR &bull; ZIP &bull; PDF</strong></p>
           <div id="importFileName" class="import-file-name hidden"></div>
         </div>
-        <input type="file" id="importFileInput" accept=".cbz,.cbr,.pdf" style="display:none" onchange="onImportFileSelected(event)">
+        <input type="file" id="importFileInput" accept=".cbz,.cbr,.zip,.pdf" style="display:none" onchange="onImportFileSelected(event)">
         <div class="import-form-group">
           <label for="importTitleInput">Title <span class="import-optional">(optional — defaults to filename)</span></label>
           <input type="text" id="importTitleInput" class="form-control" placeholder="Manga title...">

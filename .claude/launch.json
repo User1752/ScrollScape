@@ -5,7 +5,7 @@
       "name": "scrollscape",
       "runtimeExecutable": "tools/node/node.exe",
       "runtimeArgs": ["server.js"],
-      "port": 3000
+      "port": 4000
     }
   ]
 }

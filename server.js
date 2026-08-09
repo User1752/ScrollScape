@@ -12,7 +12,7 @@
  *   server/routes/proxy.js         — image proxy (/api/proxy-image)
  *   server/routes/repos.js         — repository management (/api/repos, /api/state)
  *   server/routes/sources.js       — source install/uninstall + generic dispatcher
- *   server/routes/local.js         — local manga (CBZ/CBR/PDF) import + reader
+ *   server/routes/local.js         — local manga (CBZ/CBR/ZIP/PDF) import + reader
  *   server/routes/library.js       — favorites, history, reading status
  *   server/routes/downloads.js     — CBZ chapter/bulk downloads
  *   server/routes/reviews.js       — per-manga user reviews and ratings
@@ -55,7 +55,7 @@ const CACHE_DIR        = path.join(DATA_DIR, 'cache');
 const LOCAL_DIR        = path.join(USER_ROOT, 'Local');
 const TMP_DIR          = path.join(DATA_DIR, 'tmp');
 const THEME_PRESETS_DIR = path.join(DATA_DIR, 'theme-presets');
-const PORT             = process.env.PORT || 3000;
+const PORT             = process.env.PORT || 4000;
 
 // ── Configure submodules ─────────────────────────────────────────────────────
 // Modules must be configured with path constants BEFORE routes are registered.
@@ -74,6 +74,12 @@ localRoutes.configure({ localDir: LOCAL_DIR, upload });
 
 const themePresetRoutes = require('./server/routes/theme-presets');
 themePresetRoutes.configure({ presetsDir: THEME_PRESETS_DIR });
+
+const comicVineService = require('./server/modules/comicvine/service');
+comicVineService.configure({ cacheFilePath: path.join(CACHE_DIR, 'comicvine.json') });
+
+const leagueOfComicGeeksService = require('./server/modules/leagueofcomicgeeks/service');
+leagueOfComicGeeksService.configure({ cacheFilePath: path.join(CACHE_DIR, 'leagueofcomicgeeks.json') });
 
 // ── Express application ──────────────────────────────────────────────────────
 const app = express();
@@ -188,6 +194,26 @@ function openBrowser(url) {
   });
 }
 
+/**
+ * Fires one throwaway request to AniList in the background so its
+ * connection isn't cold the first time a real feature needs it (e.g. the
+ * cover picker's "Search other sources", which queries AniList directly).
+ * The equivalent warm-up for each installed manga/comic source already
+ * happens as a side effect of the startup health check below, which calls
+ * search()/healthCheck() on every one of them — AniList isn't one of those
+ * "sources" (it's a separate proxied API), so it needs its own nudge.
+ * Errors are swallowed: this is purely a latency optimization, never
+ * something that should affect startup or be treated as a real failure.
+ */
+function warmupAniListConnection() {
+  const { createProxyService } = require('./server/modules/proxy/service');
+  const { isSafeUrl } = require('./server/helpers');
+  const proxyService = createProxyService({ isSafeUrl });
+  proxyService
+    .proxyAniList({ query: '{ Page(page: 1, perPage: 1) { media(type: MANGA) { id } } }' })
+    .catch(() => {});
+}
+
 // ── Bootstrap sequence ────────────────────────────────────────────────────────
 const { systemHealthService } = require('./server/routes/system-health');
 
@@ -195,7 +221,10 @@ ensureDirs()
   .then(() => storeModule.initStore())
   .then(() => sourceLoader.autoInstallLocalSources())
   // Fire-and-forget: log system health at startup without blocking the server.
+  // (this also exercises search()/healthCheck() on every installed source,
+  // which doubles as the warm-up described above for those sources.)
   .then(() => systemHealthService.logStartupHealth().catch(() => {}))
+  .then(() => warmupAniListConnection())
   .then(() => {
     // Standalone exe: bind only to loopback — never reachable from outside.
     // Docker / Termux / server: bind to all interfaces for port-mapping.

@@ -31,7 +31,20 @@
   } catch (err) {
     dbg.error(dbg.ERR_ACHIEVE, 'Failed to load achievements', err);
   }
-  
+
+  // Wire up navigation and open the initial route *before* refreshState(),
+  // which fans out network calls to every installed source (some, like a
+  // Cloudflare-protected source under load, can take several seconds). Each
+  // view already fetches/renders its own data independently, so there's no
+  // need to make the whole app wait on refreshState() before nav works.
+  bindUI();
+  if (typeof routerRestoreInitialRoute === 'function') routerRestoreInitialRoute();
+
+  // Initialize Feather icons for static HTML
+  if (typeof feather !== 'undefined') {
+    feather.replace();
+  }
+
   await refreshState();
 
   // Reconcile chapter progress with AniList at startup in background.
@@ -40,16 +53,6 @@
     dbg.warn(dbg.ERR_ANILIST, 'Startup progress reconcile failed', e);
   });
 
-  bindUI();
-
-  // Open whatever view the current URL points at (deep link / refresh).
-  if (typeof routerRestoreInitialRoute === 'function') routerRestoreInitialRoute();
-
-  // Initialize Feather icons for static HTML
-  if (typeof feather !== 'undefined') {
-    feather.replace();
-  }
-  
   // Check achievements on startup based on existing data
   await checkAndUnlockAchievements();
 })();

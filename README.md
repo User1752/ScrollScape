@@ -14,8 +14,9 @@
 
 | | |
 |---|---|
-| **Multiple sources** | MangaDex, AllManga, MangaKatana, MangaPill — add your own in `data/sources/` |
-| **Local files** | Import CBZ, CBR and PDF files through the same reader |
+| **Multiple sources** | MangaDex, AllManga, MangaKatana, MangaPill, KingOfShojo, VortexScans, AsuraScans, WeebCentral, ComicHubFree, BatCave — add your own in `data/sources/` |
+| **Beta sources** | New/less-tested sources are hidden by default; enable them in **Settings → Advanced → Show beta sources** |
+| **Local files** | Import CBZ, CBR, ZIP and PDF files through the same reader |
 | **Reading progress** | Per-chapter markers, continue-reading, full history |
 | **Library & lists** | Favourites, custom lists, reading status (Reading / Completed / On-hold), and display modes (Detailed Grid, Compact Grid, List) |
 | **Library migration** | Migrate manga between sources while preserving custom lists and reading status |
@@ -41,22 +42,22 @@
 
 ### Windows
 ```bat
-ScrollScape.bat
+Launch-ScrollScape.bat
 ```
-Double-click the `.bat` file. It will automatically install dependencies via `npm` on its first run, start the Node.js server in the background, and open a menu with restart/quit options.
+Double-click the `.bat` file. On first run it installs dependencies via `npm` and downloads a portable FlareSolverr (used by Cloudflare-protected sources), then starts the Node.js server in the background, opens the app in its own browser window, and shows a menu with restart/quit options.
 
 ### Linux / macOS (Docker)
 ```bash
 chmod +x scrollscape.sh
 ./scrollscape.sh
 ```
-Run the `.sh` script. It will automatically start Docker if needed, build the container with all dependencies, and open `http://localhost:3000`.
+Run the `.sh` script. It will automatically start Docker if needed, build the container with all dependencies, and open `http://localhost:4000`.
 
 ### Any platform — Manual Node.js
 ```bash
 npm install
 node server.js
-# Open http://localhost:3000
+# Open http://localhost:4000
 ```
 
 ---
@@ -74,7 +75,7 @@ server/
     proxy.js                  Image proxy + AniList GraphQL relay
     repos.js                  Repository management
     sources.js                Source install/uninstall + generic dispatcher
-    local.js                  Local manga (CBZ/CBR/PDF) import & reader
+    local.js                  Local manga (CBZ/CBR/ZIP/PDF) import & reader
     library.js                Favourites, history, reading status, library migration
     downloads.js              CBZ chapter / bulk downloads
     reviews.js                Per-manga ratings and reviews
@@ -84,6 +85,7 @@ server/
     mangaupdates.js           MangaUpdates metadata lookup
     calendar.js               Release calendar with interval prediction
     theme-presets.js          Custom theme preset persistence
+    settings.js               Server-side settings (FlareSolverr URL, ComicVine API key)
 public/
   modules/
     debug.js                  Structured error logging + in-app debug panel
@@ -115,14 +117,14 @@ docker/
 
 ## Local Manga & Offline Reading
 
-ScrollScape supports reading your own local manga files (CBZ, CBR, PDF) and downloading chapters from online sources for offline reading.
+ScrollScape supports reading your own local manga files (CBZ, CBR, ZIP, PDF) and downloading chapters from online sources for offline reading.
 
 ### Importing Local Manga
 1. Open the **Library** tab.
 2. Click the **Import Local** button at the top.
-3. Select your `.cbz`, `.cbr`, or `.pdf` file.
+3. Select your `.cbz`, `.cbr`, `.zip`, or `.pdf` file.
 4. The manga will be processed and added to your library under the "Local" source. You can later change its cover and track its progress normally.
-Alternatively, you can manually copy your CBZ files or image folders directly into the `Local/` directory (located in the project root or next to the `.bat` file) and they will be detected automatically.
+Alternatively, you can manually copy your CBZ/ZIP files or image folders directly into the `Local/` directory (located in the project root or next to the `.bat` file) and they will be detected automatically.
 
 ### Saving Chapters Offline
 To save chapters for offline reading directly in your ScrollScape library:
@@ -176,7 +178,7 @@ All four exports are required. Source calls have a **30 s hard timeout**. Manga 
 3. On any manga detail page, click **Tracker** to search AniList and link the entry.
 4. Chapter progress, score, and status sync automatically as you read.
 
-To set up an OAuth client: create an API client at `https://anilist.co/settings/developer` with `http://localhost:3000` as the redirect URI.
+To set up an OAuth client: create an API client at `https://anilist.co/settings/developer` with `http://localhost:4000` as the redirect URI.
 
 ---
 
@@ -232,6 +234,7 @@ All endpoints are prefixed `/api/`. Rate limit: **600 requests / 10 minutes** pe
 | Achievements | `GET /api/achievements` · `POST /api/achievements/unlock` |
 | Calendar | `GET /api/calendar?year=&month=` |
 | Theme presets | `GET/PUT /api/theme-presets` |
+| Settings | `GET/POST /api/settings` |
 | Reader wallpapers | `GET /api/reader-wallpapers` |
 | Utilities | `GET /api/proxy-image` · `POST /api/mangaupdates/search` · `POST /api/anilist` |
 
@@ -276,7 +279,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "3000:3000"
+      - "4000:4000"
     volumes:
       - ../data:/app/data      # persists across rebuilds
       - ../public:/app/public  # live CSS/JS edits (no rebuild needed)
@@ -294,7 +297,7 @@ cd docker && docker compose up -d --build
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `3000` | HTTP listen port |
+| `PORT` | `4000` | HTTP listen port |
 
 ---
 
