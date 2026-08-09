@@ -130,12 +130,24 @@ async function submitImport() {
     // For EPUBs, ask epub.js for the book's own declared cover image
     // (falls back to nothing if the EPUB doesn't define one — same
     // "best effort" spirit as the PDF branch above).
+    //
+    // Must hand epub.js an ArrayBuffer, not a blob: URL string: epub.js
+    // picks how to parse an input by sniffing the URL's file extension
+    // when given a string, and a blob: URL has none (e.g.
+    // "blob:http://host/<uuid>") — it gets misread as an unpacked-book
+    // directory and epub.js goes looking for a container.xml that was
+    // never there, a lookup that neither resolves nor rejects. Passing
+    // the raw bytes sidesteps that type-sniffing path entirely.
     if (_importFile.name.toLowerCase().endsWith('.epub') && window.ePub && data.manga?.id) {
+      let book = null;
       try {
         if (labelEl) labelEl.textContent = "Generating cover...";
-        const fileUrl = URL.createObjectURL(_importFile);
-        const book = ePub(fileUrl);
-        const coverUrl = await book.coverUrl();
+        const arrayBuffer = await _importFile.arrayBuffer();
+        book = ePub(arrayBuffer);
+        const coverUrl = await Promise.race([
+          book.coverUrl(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('EPUB cover lookup timed out')), 8000)),
+        ]);
         if (coverUrl) {
           const blob = await (await fetch(coverUrl)).blob();
           const coverResp = await fetch(`/api/local/${data.manga.id}/cover`, {
@@ -151,10 +163,10 @@ async function submitImport() {
           }
           URL.revokeObjectURL(coverUrl);
         }
-        book.destroy();
-        URL.revokeObjectURL(fileUrl);
       } catch (coverErr) {
         dbg.warn(dbg.ERR_COVER, 'EPUB cover generation failed', coverErr);
+      } finally {
+        if (book) book.destroy();
       }
     }
 
@@ -228,7 +240,10 @@ async function generateMissingEpubCovers() {
     let book = null;
     try {
       book = ePub(manga.cover);
-      const coverUrl = await book.coverUrl();
+      const coverUrl = await Promise.race([
+        book.coverUrl(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('EPUB cover lookup timed out')), 8000)),
+      ]);
       if (!coverUrl) continue; // EPUB has no declared cover image — leave as-is
       const blob = await (await fetch(coverUrl)).blob();
       URL.revokeObjectURL(coverUrl);
