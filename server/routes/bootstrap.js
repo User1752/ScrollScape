@@ -19,6 +19,7 @@ function registerAppRoutes(app) {
   const { registerSystemHealthRoutes } = require('./system-health');
   const { registerSettingsRoutes } = require('./settings');
   const { registerBackupRoutes } = require('./backup');
+  const { registerOpdsRoutes } = require('./opds');
 
   registerProxyRoutes(app);
   registerRepoRoutes(app);
@@ -39,6 +40,7 @@ function registerAppRoutes(app) {
   registerSystemHealthRoutes(app);
   registerSettingsRoutes(app);
   registerBackupRoutes(app);
+  registerOpdsRoutes(app);
 }
 
 module.exports = { registerAppRoutes };

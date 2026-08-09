@@ -72,6 +72,9 @@ const localRoutes = require('./server/routes/local');
 const upload = multer({ dest: TMP_DIR, limits: { fileSize: limits.maxUploadSizeBytes } });
 localRoutes.configure({ localDir: LOCAL_DIR, upload });
 
+const opdsRoutes = require('./server/routes/opds');
+opdsRoutes.configure({ localDir: LOCAL_DIR });
+
 const themePresetRoutes = require('./server/routes/theme-presets');
 themePresetRoutes.configure({ presetsDir: THEME_PRESETS_DIR });
 

@@ -566,6 +566,17 @@ function showSettings() {
               </div>
             </div>
             <div class="settings-section-card">
+              <p class="settings-section-title">OPDS Catalog</p>
+              <div class="setting-group">
+                <p class="setting-description" style="margin:0 0 0.6rem 0">Browse this library from an external e-reader app (KOReader, Moon+ Reader, Calibre, etc.) by pointing it at this catalog URL.</p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <input type="text" id="opdsCatalogUrl" class="input" readonly value="${escapeHtml(window.location.origin)}/opds" style="flex:1;min-width:220px">
+                  <button class="btn secondary" id="btnCopyOpdsUrl">Copy</button>
+                </div>
+                <p class="setting-description" style="margin-top:0.5rem">Read-only, no login required — matches the rest of this self-hosted app.</p>
+              </div>
+            </div>
+            <div class="settings-section-card">
               <p class="settings-section-title">Factory Reset</p>
               <div class="setting-group">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -704,6 +715,19 @@ function showSettings() {
       if (typeof renderLibrary === 'function') renderLibrary();
       if (typeof applyReaderBackground === 'function') applyReaderBackground();
       if (typeof applyReaderNoiseSetting === 'function') applyReaderNoiseSetting();
+    };
+  }
+
+  const btnCopyOpdsUrl = $("btnCopyOpdsUrl");
+  if (btnCopyOpdsUrl) {
+    btnCopyOpdsUrl.onclick = async () => {
+      const url = $("opdsCatalogUrl")?.value || '';
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('OPDS', 'Catalog URL copied.', 'success');
+      } catch (_) {
+        showToast('OPDS', 'Could not copy — select and copy the URL manually.', 'warning');
+      }
     };
   }
 
