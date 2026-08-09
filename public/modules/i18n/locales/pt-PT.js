@@ -12,6 +12,7 @@ window.ScrollScapeI18nLocales['pt-PT'] = {
   "home.search": "Pesquisar Mangá",
   "home.searchPlaceholder": "Escreve o título do mangá...",
   "home.searchBtn": "Pesquisar",
+  "home.searchAllSources": "Pesquisar em todas as sources",
   "home.continueReading": "Continuar a Ler",
   "features.search.title": "Pesquisa Avançada",
   "features.search.desc": "Encontra exatamente o que procuras com filtros poderosos e opções de ordenação",

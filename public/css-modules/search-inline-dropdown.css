@@ -24,3 +24,54 @@
   min-height: 0;
 }
 
+.search-all-sources-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-all-sources-toggle input {
+  cursor: pointer;
+}
+
+/* When searching all sources, #searchDropdown holds one .search-source-group
+   per source instead of manga-card grid items directly, so the outer
+   auto-fill card grid is switched off in favour of a simple stacked list. */
+.search-dropdown.grouped-by-source {
+  display: block;
+}
+
+.search-source-group {
+  margin-bottom: 1.25rem;
+}
+
+.search-source-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.search-source-group-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.search-source-group-status {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.search-source-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+

@@ -68,6 +68,15 @@ function bindUI() {
       _liveSearchTimer = setTimeout(() => search(), 450);
     };
   }
+  const searchAllSourcesToggle = $("searchAllSourcesToggle");
+  const sourceSelectForSearch  = $("sourceSelect");
+  if (searchAllSourcesToggle) {
+    searchAllSourcesToggle.onchange = (e) => {
+      if (sourceSelectForSearch) sourceSelectForSearch.disabled = e.target.checked;
+      clearTimeout(_liveSearchTimer);
+      search();
+    };
+  }
 
   // Theme toggle
   const themeBtn = $("themeToggle");

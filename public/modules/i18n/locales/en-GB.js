@@ -12,6 +12,7 @@ window.ScrollScapeI18nLocales['en-GB'] = {
   "home.search": "Search Manga",
   "home.searchPlaceholder": "Enter manga title...",
   "home.searchBtn": "Search",
+  "home.searchAllSources": "Search all sources",
   "home.continueReading": "Continue Reading",
   "features.search.title": "Advanced Search",
   "features.search.desc": "Find exactly what you're looking for with powerful filters and sorting options",

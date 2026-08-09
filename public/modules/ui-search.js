@@ -208,16 +208,56 @@ function normalizeSourceSearchResult(raw, sourceId) {
 }
 
 // ── Main search ─────────────────────────────────────────────────────────────
+
+// Shared by single-source search and searchAllSources(): normalizes raw
+// source results, applies the NSFW/genre-blacklist filter, then drops
+// manga with zero chapters. Pulled out of search() so both paths stay in
+// sync instead of drifting apart.
+async function _processSearchResults(rawResults, sourceId, query) {
+  const normalizedResults = (rawResults || [])
+    .map(m => normalizeSourceSearchResult(m, sourceId))
+    .filter(Boolean);
+
+  if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH && normalizedResults.length === 0 && query && query !== '*') {
+    console.log({
+      area: sourceId,
+      code: "NO_RESULTS",
+      errorLabel: `${sourceId} search returned no results for valid query`,
+      suggestedAction: "Check source site or try fallback.",
+      cooldownUntil: null,
+      retryAllowed: true,
+      query: query,
+      rawResultsLength: (rawResults || []).length
+    });
+  }
+
+  const blacklist = state.settings.genreBlacklist || [];
+  const results = normalizedResults.filter(m => {
+    if (state.settings.hideNsfw && isNsfwManga(m)) return false;
+    if (blacklist.length > 0 && Array.isArray(m.genres)) {
+      const lowerGenres = m.genres.map(g => typeof g === 'string' ? g.toLowerCase() : '');
+      if (lowerGenres.some(g => blacklist.includes(g))) return false;
+    }
+    return true;
+  });
+  return _filterMangaWithoutChapters(results, sourceId);
+}
+
 window.search = async function search(page = 1) {
   const query = $("searchInput").value.trim();
   const dropdown = $("searchDropdown");
-  if (!state.currentSourceId) { $("searchStatus").textContent = "Select a source first."; return; }
+  const searchAllToggle = $("searchAllSourcesToggle");
+  const allSources = !!(searchAllToggle && searchAllToggle.checked);
+
+  if (!allSources && !state.currentSourceId) { $("searchStatus").textContent = "Select a source first."; return; }
   if (!query) {
-    if (dropdown) dropdown.innerHTML = "";
+    if (dropdown) { dropdown.innerHTML = ""; dropdown.classList.remove("grouped-by-source"); }
     $("searchStatus").textContent = "";
     const pg = $("searchPagination"); if (pg) pg.innerHTML = "";
     return;
   }
+
+  if (allSources) return searchAllSources(query);
 
   state.searchQuery = query;
   state.searchPage = page;
@@ -227,37 +267,11 @@ window.search = async function search(page = 1) {
       method: "POST",
       body: JSON.stringify({ query, page })
     });
-    const rawResults = result.results || [];
-    const normalizedResults = rawResults
-      .map(m => normalizeSourceSearchResult(m, state.currentSourceId))
-      .filter(Boolean);
-    
-    if (window.SCROLLSCAPE_DEBUG_SOURCE_HEALTH && normalizedResults.length === 0 && query && query !== '*') {
-      console.log({
-        area: state.currentSourceId,
-        code: "NO_RESULTS",
-        errorLabel: `${state.currentSourceId} search returned no results for valid query`,
-        suggestedAction: "Check source site or try fallback.",
-        cooldownUntil: null,
-        retryAllowed: true,
-        query: query,
-        rawResultsLength: rawResults.length
-      });
-    }
-    
-    const blacklist = state.settings.genreBlacklist || [];
-    const results = normalizedResults.filter(m => {
-      if (state.settings.hideNsfw && isNsfwManga(m)) return false;
-      if (blacklist.length > 0 && Array.isArray(m.genres)) {
-        const lowerGenres = m.genres.map(g => typeof g === 'string' ? g.toLowerCase() : '');
-        if (lowerGenres.some(g => blacklist.includes(g))) return false;
-      }
-      return true;
-    });
-    const chapterFiltered = await _filterMangaWithoutChapters(results, state.currentSourceId);
+    const chapterFiltered = await _processSearchResults(result.results, state.currentSourceId, query);
     const hasNextPage = result.hasNextPage || false;
     state.searchHasNextPage = hasNextPage;
     if (!dropdown) return;
+    dropdown.classList.remove("grouped-by-source");
     if (!chapterFiltered.length) {
       dropdown.innerHTML = `<div class="muted" style="padding:1rem">No results found for "${escapeHtml(query)}"</div>`;
       $("searchStatus").textContent = "0 result(s) found";
@@ -273,6 +287,92 @@ window.search = async function search(page = 1) {
     $("searchStatus").textContent = "Could not search manga.";
     const pg = $("searchPagination"); if (pg) pg.innerHTML = "";
   }
+}
+
+// Per-source result cap for "Search all sources" — this is a first-page,
+// best-effort overview across every selectable source, not a paginated
+// merge (each source has its own page/hasNextPage that doesn't unify
+// cleanly). Switch the source dropdown to a single source for full paging.
+const SEARCH_ALL_SOURCES_PER_SOURCE_LIMIT = 20;
+// How many sources are queried in parallel at once. Several installed
+// sources share the same FlareSolverr instance to get past Cloudflare —
+// firing all of them at once just queues them up behind each other, so a
+// small worker pool (matching the pattern already used for genre
+// hydration in ui-discover.js) keeps things moving without hammering it.
+const SEARCH_ALL_SOURCES_CONCURRENCY = 3;
+
+async function searchAllSources(query) {
+  const dropdown = $("searchDropdown");
+  const pg = $("searchPagination");
+  if (pg) pg.innerHTML = "";
+  if (!dropdown) return;
+
+  const sources = getSelectableSources();
+  if (!sources.length) {
+    $("searchStatus").textContent = "No installed sources to search.";
+    dropdown.classList.remove("grouped-by-source");
+    dropdown.innerHTML = "";
+    return;
+  }
+
+  state.searchQuery = query;
+  state.searchPage = 1;
+  $("searchStatus").textContent = `Searching ${sources.length} source(s)...`;
+
+  dropdown.classList.add("grouped-by-source");
+  dropdown.innerHTML = sources.map(s => `
+    <div class="search-source-group" data-source-id="${escapeHtml(s.id)}">
+      <div class="search-source-group-header">
+        <span class="search-source-group-name">${escapeHtml(s.name)}</span>
+        <span class="search-source-group-status">Searching…</span>
+      </div>
+      <div class="search-source-group-grid"></div>
+    </div>
+  `).join("");
+
+  let totalResults = 0;
+  let doneCount = 0;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < sources.length) {
+      const source = sources[cursor++];
+      const groupEl = dropdown.querySelector(`.search-source-group[data-source-id="${source.id}"]`);
+      const statusEl = groupEl?.querySelector(".search-source-group-status");
+      const gridEl = groupEl?.querySelector(".search-source-group-grid");
+
+      try {
+        const result = await api(`/api/source/${source.id}/search`, {
+          method: "POST",
+          body: JSON.stringify({ query, page: 1 })
+        });
+        const filtered = (await _processSearchResults(result.results, source.id, query))
+          .slice(0, SEARCH_ALL_SOURCES_PER_SOURCE_LIMIT);
+
+        totalResults += filtered.length;
+        if (statusEl) statusEl.textContent = filtered.length ? `${filtered.length} result(s)` : "No results";
+        if (gridEl) {
+          if (filtered.length) {
+            gridEl.innerHTML = filtered.map(m => mangaCardHTML(m)).join("");
+            bindMangaCards(gridEl);
+            if (typeof _hydrateMissingGenres === 'function') _hydrateMissingGenres(gridEl);
+          } else {
+            groupEl.style.display = "none";
+          }
+        }
+      } catch (e) {
+        if (statusEl) statusEl.textContent = "Unavailable";
+        if (groupEl) groupEl.style.display = "none";
+      }
+
+      doneCount++;
+      $("searchStatus").textContent = doneCount < sources.length
+        ? `Searching... (${doneCount}/${sources.length} sources done, ${totalResults} result(s) so far)`
+        : `${totalResults} result(s) found across ${sources.length} source(s)`;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(SEARCH_ALL_SOURCES_CONCURRENCY, sources.length) }, worker));
 }
 
 function toggleSourceSwitchDropdown(e) {
