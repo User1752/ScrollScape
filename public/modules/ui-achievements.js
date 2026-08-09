@@ -2,21 +2,59 @@
 // ACHIEVEMENTS SYSTEM
 // ============================================================================
 
+// Counts distinct genre strings across favorites+history, reusing the same
+// dedup-by-manga logic the Analytics genre chart already relies on
+// (_collectUniqueMangaForGenres, ui-analytics-view.js) instead of a second,
+// possibly-drifting implementation.
+function _countUniqueGenres() {
+  const manga = typeof _collectUniqueMangaForGenres === 'function'
+    ? _collectUniqueMangaForGenres(state.favorites, state.history)
+    : (state.favorites || []);
+  const genres = new Set();
+  for (const m of manga) {
+    for (const g of (m?.genres || m?.genre || [])) {
+      if (g && typeof g === 'string') genres.add(g.toLowerCase().trim());
+    }
+  }
+  return genres.size;
+}
+
+function _countAnilistLinked() {
+  try {
+    return Object.keys(JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}') || {}).length;
+  } catch {
+    return 0;
+  }
+}
+
 async function checkAndUnlockAchievements() {
   try {
     // Fetch current analytics data
     const anaData = await api("/api/analytics");
     const a = anaData.analytics || {};
-    
+    const dist = anaData.statusDistribution || {};
+
     // Build analytics object for achievement checking
     const analytics = {
       totalChaptersRead: a.totalChaptersRead || state.readChapters.size,
       totalTimeSpent:    a.totalTimeSpent || 0,
       totalFavorites:    (anaData.totalFavorites || 0),
-      completedCount:    (anaData.statusDistribution?.completed || 0),
+      completedCount:    (dist.completed || 0),
+      onHoldCount:       (dist.on_hold || 0),
+      planToReadCount:   (dist.plan_to_read || 0),
+      droppedCount:      (dist.dropped || 0),
       totalLists:        (anaData.totalLists || 0),
-      statusDistribution: anaData.statusDistribution || {},
+      totalReviews:      (anaData.totalReviews || 0),
+      statusDistribution: dist,
       dailyStreak:       a.dailyStreak || 0,
+      // Peak single-day chapter count, from the same per-day totals the
+      // Reading Activity heatmap uses (analytics.dailyChapterCounts) —
+      // never capped, so this stays accurate no matter how long ago the
+      // binge happened.
+      maxChaptersInADay: Math.max(0, ...Object.values(a.dailyChapterCounts || {})),
+      uniqueGenres:      _countUniqueGenres(),
+      uniqueSources:     new Set((state.favorites || []).map(m => m.sourceId).filter(Boolean)).size,
+      anilistLinkedCount: _countAnilistLinked(),
       libraryTitles:     (state.favorites || []).map(m => (m.title || '').toLowerCase())
     };
 

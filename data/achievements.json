@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "lastUpdated": "2026-02-27T00:00:00.000Z",
+  "version": "1.1.0",
+  "lastUpdated": "2026-08-09T00:00:00.000Z",
   "categories": [
     {
       "id": "reading",
@@ -273,6 +273,298 @@
       ]
     },
     {
+      "id": "streak",
+      "name": "Consistency",
+      "description": "Achievements for reading streaks",
+      "icon": "calendar",
+      "achievements": [
+        {
+          "id": "streak_3",
+          "name": "Getting Started",
+          "description": "Read 3 days in a row",
+          "icon": "activity",
+          "rarity": "common",
+          "points": 30,
+          "condition": {
+            "type": "stat_check",
+            "stat": "dailyStreak",
+            "operator": ">=",
+            "value": 3
+          }
+        },
+        {
+          "id": "streak_7",
+          "name": "Weekly Warrior",
+          "description": "Read 7 days in a row",
+          "icon": "trending-up",
+          "rarity": "rare",
+          "points": 100,
+          "condition": {
+            "type": "stat_check",
+            "stat": "dailyStreak",
+            "operator": ">=",
+            "value": 7
+          }
+        },
+        {
+          "id": "streak_30",
+          "name": "Unwavering",
+          "description": "Read 30 days in a row",
+          "icon": "zap",
+          "rarity": "epic",
+          "points": 500,
+          "condition": {
+            "type": "stat_check",
+            "stat": "dailyStreak",
+            "operator": ">=",
+            "value": 30
+          }
+        },
+        {
+          "id": "streak_100",
+          "name": "Immortal",
+          "description": "Read 100 days in a row",
+          "icon": "maximize",
+          "rarity": "legendary",
+          "points": 2000,
+          "condition": {
+            "type": "stat_check",
+            "stat": "dailyStreak",
+            "operator": ">=",
+            "value": 100
+          }
+        },
+        {
+          "id": "streak_365",
+          "name": "Eternal",
+          "description": "Read every day for a full year",
+          "icon": "star",
+          "rarity": "legendary",
+          "points": 10000,
+          "condition": {
+            "type": "stat_check",
+            "stat": "dailyStreak",
+            "operator": ">=",
+            "value": 365
+          }
+        }
+      ]
+    },
+    {
+      "id": "social",
+      "name": "Community & Curation",
+      "description": "Achievements for lists, reviews, and AniList syncing",
+      "icon": "users",
+      "achievements": [
+        {
+          "id": "list_1",
+          "name": "List Maker",
+          "description": "Create your first custom list",
+          "icon": "list",
+          "rarity": "common",
+          "points": 10,
+          "condition": {
+            "type": "stat_check",
+            "stat": "totalLists",
+            "operator": ">=",
+            "value": 1
+          }
+        },
+        {
+          "id": "list_5",
+          "name": "List Curator",
+          "description": "Create 5 custom lists",
+          "icon": "layers",
+          "rarity": "rare",
+          "points": 100,
+          "condition": {
+            "type": "stat_check",
+            "stat": "totalLists",
+            "operator": ">=",
+            "value": 5
+          }
+        },
+        {
+          "id": "first_review",
+          "name": "Critic",
+          "description": "Write your first review",
+          "icon": "edit",
+          "rarity": "common",
+          "points": 25,
+          "condition": {
+            "type": "stat_check",
+            "stat": "totalReviews",
+            "operator": ">=",
+            "value": 1
+          }
+        },
+        {
+          "id": "reviews_10",
+          "name": "Prolific Critic",
+          "description": "Write 10 reviews",
+          "icon": "edit-3",
+          "rarity": "rare",
+          "points": 150,
+          "condition": {
+            "type": "stat_check",
+            "stat": "totalReviews",
+            "operator": ">=",
+            "value": 10
+          }
+        },
+        {
+          "id": "anilist_linked_1",
+          "name": "Synced Up",
+          "description": "Link a manga to your AniList account",
+          "icon": "link",
+          "rarity": "common",
+          "points": 20,
+          "condition": {
+            "type": "stat_check",
+            "stat": "anilistLinkedCount",
+            "operator": ">=",
+            "value": 1
+          }
+        },
+        {
+          "id": "anilist_linked_10",
+          "name": "AniList Power User",
+          "description": "Link 10 manga to your AniList account",
+          "icon": "link-2",
+          "rarity": "rare",
+          "points": 150,
+          "condition": {
+            "type": "stat_check",
+            "stat": "anilistLinkedCount",
+            "operator": ">=",
+            "value": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "exploration",
+      "name": "Exploration",
+      "description": "Achievements for trying different sources",
+      "icon": "compass",
+      "achievements": [
+        {
+          "id": "explorer",
+          "name": "Explorer",
+          "description": "Have manga from 5 different sources in your library",
+          "icon": "compass",
+          "rarity": "rare",
+          "points": 100,
+          "condition": {
+            "type": "stat_check",
+            "stat": "uniqueSources",
+            "operator": ">=",
+            "value": 5
+          }
+        },
+        {
+          "id": "source_master",
+          "name": "Source Master",
+          "description": "Have manga from 8 different sources in your library",
+          "icon": "globe",
+          "rarity": "epic",
+          "points": 300,
+          "condition": {
+            "type": "stat_check",
+            "stat": "uniqueSources",
+            "operator": ">=",
+            "value": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "library_status",
+      "name": "Library Habits",
+      "description": "Achievements for how you manage reading status",
+      "icon": "bookmark",
+      "achievements": [
+        {
+          "id": "on_hold_5",
+          "name": "Taking a Break",
+          "description": "Have 5 manga on hold",
+          "icon": "pause-circle",
+          "rarity": "common",
+          "points": 40,
+          "condition": {
+            "type": "stat_check",
+            "stat": "onHoldCount",
+            "operator": ">=",
+            "value": 5
+          }
+        },
+        {
+          "id": "plan_to_read_20",
+          "name": "Ambitious",
+          "description": "Have 20 manga in your plan-to-read pile",
+          "icon": "clipboard",
+          "rarity": "rare",
+          "points": 100,
+          "condition": {
+            "type": "stat_check",
+            "stat": "planToReadCount",
+            "operator": ">=",
+            "value": 20
+          }
+        },
+        {
+          "id": "dropped_5",
+          "name": "Picky Reader",
+          "description": "Drop 5 manga",
+          "icon": "x-circle",
+          "rarity": "common",
+          "points": 40,
+          "condition": {
+            "type": "stat_check",
+            "stat": "droppedCount",
+            "operator": ">=",
+            "value": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "dedication",
+      "name": "Dedication",
+      "description": "Achievements for binge-reading sessions",
+      "icon": "activity",
+      "achievements": [
+        {
+          "id": "binge_5",
+          "name": "Binge Reader",
+          "description": "Read 5 chapters in a single day",
+          "icon": "activity",
+          "rarity": "common",
+          "points": 40,
+          "condition": {
+            "type": "stat_check",
+            "stat": "maxChaptersInADay",
+            "operator": ">=",
+            "value": 5
+          }
+        },
+        {
+          "id": "binge_20",
+          "name": "Marathon Binge",
+          "description": "Read 20 chapters in a single day",
+          "icon": "zap",
+          "rarity": "epic",
+          "points": 300,
+          "condition": {
+            "type": "stat_check",
+            "stat": "maxChaptersInADay",
+            "operator": ">=",
+            "value": 20
+          }
+        }
+      ]
+    },
+    {
       "id": "special",
       "name": "Special",
       "description": "Unique and special achievements",
@@ -302,6 +594,42 @@
             "stat": "uniqueGenres",
             "operator": ">=",
             "value": 10
+          }
+        },
+        {
+          "id": "titan_slayer",
+          "name": "Titan Slayer",
+          "description": "Have an Attack on Titan manga in your library",
+          "icon": "shield",
+          "rarity": "epic",
+          "points": 300,
+          "condition": {
+            "type": "library_title_match",
+            "pattern": "attack on titan"
+          }
+        },
+        {
+          "id": "king_of_pirates",
+          "name": "Future King of the Pirates",
+          "description": "Have a One Piece manga in your library",
+          "icon": "anchor",
+          "rarity": "epic",
+          "points": 300,
+          "condition": {
+            "type": "library_title_match",
+            "pattern": "one piece"
+          }
+        },
+        {
+          "id": "believe_it",
+          "name": "Believe It!",
+          "description": "Have a Naruto manga in your library",
+          "icon": "wind",
+          "rarity": "epic",
+          "points": 300,
+          "condition": {
+            "type": "library_title_match",
+            "pattern": "naruto"
           }
         }
       ]
