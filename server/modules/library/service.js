@@ -136,6 +136,30 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
       .replace(/\s+/g, ' ')
       .trim();
 
+    // Same word-overlap/substring scoring as the library's "Find Dupes"
+    // scanner (public/modules/ui-duplicates.js, ported from
+    // ui-migrate.js's _titleSimilarity) \u2014 used below as a fallback when
+    // normTitle's exact match misses a real duplicate because AniList's
+    // title differs slightly from what's stored locally (romanization,
+    // punctuation, a subtitle). A higher threshold than the manual scanner
+    // uses (0.8 vs 0.6) since this merges automatically with no user
+    // confirming which entry is "the same manga" \u2014 a false match here
+    // would silently overwrite an unrelated favorite's data.
+    const FUZZY_MERGE_THRESHOLD = 0.8;
+    function titleSimilarity(a, b) {
+      const aa = normTitle(a);
+      const bb = normTitle(b);
+      if (!aa || !bb) return 0;
+      if (aa === bb) return 1;
+      if (aa.includes(bb) || bb.includes(aa)) return 0.9;
+      const sa = new Set(aa.split(' '));
+      const sb = new Set(bb.split(' '));
+      if (!sa.size || !sb.size) return 0;
+      let inter = 0;
+      for (const w of sa) if (sb.has(w)) inter++;
+      return inter / Math.max(sa.size, sb.size);
+    }
+
     const store = await readStore();
     let imported = 0;
     let overwritten = 0;
@@ -165,6 +189,22 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
           favIdx = store.favorites.findIndex(
             m => m.sourceId !== 'anilist' && normTitle(m.title) === nt
           );
+        }
+
+        // Fuzzy fallback: catches a real duplicate the exact match above
+        // misses because AniList's title differs slightly from what's
+        // stored locally (different romanization, punctuation, a subtitle
+        // AniList includes that the source scraper doesn't, etc.) — same
+        // failure mode "Find Dupes" exists to catch manually, just applied
+        // automatically here at a stricter threshold.
+        if (favIdx < 0 && entry.title) {
+          let bestScore = 0, bestIdx = -1;
+          store.favorites.forEach((m, idx) => {
+            if (m.sourceId === 'anilist') return;
+            const score = titleSimilarity(entry.title, m.title);
+            if (score > bestScore) { bestScore = score; bestIdx = idx; }
+          });
+          if (bestIdx >= 0 && bestScore >= FUZZY_MERGE_THRESHOLD) favIdx = bestIdx;
         }
 
         const alreadyFav = favIdx >= 0;
