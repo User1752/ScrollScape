@@ -708,7 +708,39 @@ function _applyCoverToCurrentDetailsView(mangaId, sourceId, coverUrl) {
   if (coverImg) coverImg.src = coverUrl;
 }
 
+// Local manga have no favorites/coverOverrides entry to update — their cover
+// is whatever /api/local/list reads back from that title's own meta.json on
+// disk, so the generic coverOverrides path (below) never actually reaches
+// the value it needs to change. They get their own upload-the-bytes route.
+async function _persistLocalMangaCover(mangaId, coverUrl) {
+  const isRemote = /^https?:\/\//i.test(coverUrl);
+  const fetchUrl = isRemote ? `/api/proxy-image?url=${encodeURIComponent(coverUrl)}` : coverUrl;
+  const imgResp = await fetch(fetchUrl);
+  if (!imgResp.ok) throw new Error('Could not download cover image');
+  const blob = await imgResp.blob();
+
+  const resp = await fetch(`/api/local/${mangaId}/cover`, {
+    method: 'POST',
+    headers: { 'Content-Type': blob.type || 'image/jpeg' },
+    body: blob,
+  });
+  const data = await resp.json();
+  if (!resp.ok || !data.success) throw new Error(data.error || 'Cover update failed');
+
+  const idx = (state.localManga || []).findIndex(m => String(m.id) === String(mangaId));
+  if (idx !== -1) state.localManga[idx].cover = data.cover;
+  return data.cover;
+}
+
 async function persistMangaCover(mangaId, sourceId, coverUrl) {
+  if (String(sourceId || '') === 'local') {
+    const cover = await _persistLocalMangaCover(mangaId, coverUrl);
+    renderLibrary();
+    if (typeof renderHistoryView === 'function') renderHistoryView();
+    _applyCoverToCurrentDetailsView(mangaId, sourceId, cover);
+    return { ok: true, cover };
+  }
+
   const res = await api('/api/library/cover', {
     method: 'POST',
     body: JSON.stringify({ mangaId, sourceId, cover: coverUrl })

@@ -42,6 +42,7 @@ const { createAsyncHandler } = require('../modules/http/async-handler');
 const { streamJobProgress } = require('../modules/http/job-progress-sse');
 const { createLocalService } = require('../modules/local/service');
 const { requireValidIdParam } = require('../middleware/validation');
+const { readStore, writeStore } = require('../store');
 
 // Injected via configure()
 let LOCAL_DIR = '';
@@ -72,6 +73,8 @@ function registerLocalRoutes(router) {
     safeName,
     crypto,
     AdmZip,
+    readStore,
+    writeStore,
   });
 
   // Serve extracted images and PDFs from the LOCAL_DIR as static assets.

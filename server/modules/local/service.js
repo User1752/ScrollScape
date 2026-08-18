@@ -18,6 +18,8 @@ function createLocalService({
   safeName,
   crypto,
   AdmZip,
+  readStore,
+  writeStore,
 }) {
   const saveJobs = new Map();
 
@@ -160,6 +162,41 @@ function createLocalService({
     const meta = JSON.parse(await fsp.readFile(metaPath, 'utf8'));
     meta.cover = `/local-media/${sid}/cover.jpg`;
     await fsp.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+
+    // Local manga's cover of record lives in meta.json (above), but a
+    // favorited/history/continue-reading entry for it is a separate
+    // snapshot taken at add/read time — those need patching too, or the
+    // old cover keeps showing up everywhere except the details page.
+    if (typeof readStore === 'function' && typeof writeStore === 'function') {
+      const store = await readStore();
+      const matches = (m) => String(m?.id) === String(sid) && String(m?.sourceId || '') === 'local';
+
+      let changed = false;
+      if (Array.isArray(store.favorites)) {
+        store.favorites = store.favorites.map((m) => {
+          if (!matches(m)) return m;
+          changed = true;
+          return { ...m, cover: meta.cover };
+        });
+      }
+      if (Array.isArray(store.history)) {
+        store.history = store.history.map((m) => {
+          if (!matches(m)) return m;
+          changed = true;
+          return { ...m, cover: meta.cover };
+        });
+      }
+      for (const [key, value] of Object.entries(store.readingStatus || {})) {
+        const sep = key.indexOf(':');
+        if (sep < 0) continue;
+        if (key.slice(0, sep) !== String(sid) || key.slice(sep + 1) !== 'local') continue;
+        store.readingStatus[key] = { ...value, manga: { ...value?.manga, cover: meta.cover } };
+        changed = true;
+      }
+
+      if (changed) await writeStore(store);
+    }
+
     return { success: true, cover: meta.cover };
   }
 
