@@ -129,18 +129,81 @@ if not defined BROWSER_OPENED (
     set "BROWSER_OPENED=1"
 )
 
+REM Try to hand this same window over to the terminal dashboard right away —
+REM it's a nicer default than sitting on the bare R/Q menu doing nothing. If
+REM Python (or its two deps) aren't available, this falls straight through
+REM to the normal menu instead, with a one-line explanation why.
+echo.
+set "DASHBOARD_READY="
+call :detect_python
+if defined PY_CMD (
+    call :ensure_dashboard_deps
+    if defined DEPS_OK set "DASHBOARD_READY=1"
+)
+if defined DASHBOARD_READY (
+    echo   [ .. ]  Switching this window to the terminal dashboard - press Q inside it to come back here...
+    echo.
+    "!PY_CMD!" "%ROOT%tools\dashboard\dashboard.py" --url http://localhost:!PORT!
+) else (
+    echo   [ .. ]  Terminal dashboard unavailable right now - showing the normal menu instead.
+)
+
 goto :node_menu
 
 :node_menu
 echo.
 echo   +-------------------------------------------------------+
+echo   ^|   D  Open Dashboard (terminal monitor)                ^|
 echo   ^|   R  Restart ^& refresh                                ^|
 echo   ^|   Q  Quit                                             ^|
 echo   +-------------------------------------------------------+
-powershell -NoProfile -Command "while($true){$k=[Console]::ReadKey($true).KeyChar.ToString().ToUpper(); if($k -eq 'R'){exit 1}; if($k -eq 'Q'){exit 2}}"
+powershell -NoProfile -Command "while($true){$k=[Console]::ReadKey($true).KeyChar.ToString().ToUpper(); if($k -eq 'D'){exit 3}; if($k -eq 'R'){exit 1}; if($k -eq 'Q'){exit 2}}"
+if errorlevel 3 goto :node_dashboard
 if errorlevel 2 goto :node_quit
 if errorlevel 1 goto :node_restart
 goto :node_menu
+
+:node_dashboard
+call :detect_python
+if not defined PY_CMD (
+    echo.
+    call :err "Python was not found" "Install Python from python.org to use the terminal dashboard, then try D again."
+    goto :node_menu
+)
+call :ensure_dashboard_deps
+if not defined DEPS_OK (
+    echo.
+    call :err "Failed to install dashboard dependencies" "Try it yourself: pip install -r tools\dashboard\requirements.txt"
+    goto :node_menu
+)
+echo   [ .. ]  Switching this window to the terminal dashboard - press Q inside it to come back here...
+echo.
+"!PY_CMD!" "%ROOT%tools\dashboard\dashboard.py" --url http://localhost:!PORT!
+goto :node_menu
+
+:detect_python
+set "PY_CMD="
+where py >nul 2>&1
+if not errorlevel 1 set "PY_CMD=py"
+if not defined PY_CMD (
+    where python >nul 2>&1
+    if not errorlevel 1 set "PY_CMD=python"
+)
+goto :eof
+
+:ensure_dashboard_deps
+set "DEPS_OK=1"
+"!PY_CMD!" -c "import textual, httpx" >nul 2>&1
+if errorlevel 1 (
+    echo   [ .. ]  Installing dashboard dependencies - textual, httpx...
+    "!PY_CMD!" -m pip install --quiet -r "%ROOT%tools\dashboard\requirements.txt"
+    if errorlevel 1 (
+        set "DEPS_OK="
+    ) else (
+        echo   [ OK ]  Dashboard dependencies installed.
+    )
+)
+goto :eof
 
 :node_restart
 echo   [ .. ]  Restarting server...

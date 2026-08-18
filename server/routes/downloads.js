@@ -46,6 +46,10 @@ function registerDownloadRoutes(router) {
     }
   });
 
+  router.get('/api/download/bulk/jobs', (_req, res) => {
+    res.json({ jobs: downloadService.listBulkJobs() });
+  });
+
   router.get('/api/download/bulk/progress/:jobId', (req, res) => {
     const job = downloadService.getBulkJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'Job not found' });

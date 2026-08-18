@@ -116,7 +116,12 @@ function createDownloadService({ loadSourceFromFile, safeId, safeName, resolvePa
     }
 
     const jobId = crypto.randomBytes(8).toString('hex');
-    bulkJobs.set(jobId, { status: 'pending', done: 0, total: chapters.length, listeners: [], cbzBuffer: null, filename: null, error: null });
+    bulkJobs.set(jobId, {
+      status: 'pending', done: 0, total: chapters.length, listeners: [],
+      cbzBuffer: null, filename: null, error: null,
+      mangaTitle: String(mangaTitle || '').slice(0, 300),
+      startedAt: new Date().toISOString(),
+    });
 
     processBulkJob(jobId, mangaTitle, chapters, sid);
     return { jobId };
@@ -124,6 +129,22 @@ function createDownloadService({ loadSourceFromFile, safeId, safeName, resolvePa
 
   function getBulkJob(jobId) {
     return bulkJobs.get(jobId) || null;
+  }
+
+  // Lightweight summary of every job still tracked (running or recently
+  // finished, until JOB_TTL sweeps it) — lets a caller discover jobs without
+  // already knowing a jobId, e.g. a monitoring dashboard polling for
+  // "what's downloading right now".
+  function listBulkJobs() {
+    return [...bulkJobs.entries()].map(([jobId, job]) => ({
+      jobId,
+      status: job.status,
+      done: job.done,
+      total: job.total,
+      mangaTitle: job.mangaTitle || '',
+      startedAt: job.startedAt || null,
+      error: job.error || null,
+    }));
   }
 
   function addBulkListener(jobId, write) {
@@ -151,6 +172,7 @@ function createDownloadService({ loadSourceFromFile, safeId, safeName, resolvePa
     downloadChapter,
     startBulkDownload,
     getBulkJob,
+    listBulkJobs,
     addBulkListener,
     removeBulkListener,
     deleteBulkJob,

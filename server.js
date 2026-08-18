@@ -92,6 +92,16 @@ const app = express();
 app.use(compression());                   // gzip all responses
 app.use(express.json({ limit: limits.jsonBodyLimit })); // parse JSON bodies
 
+// Resource monitor (CPU/RAM/network footprint of this process, for the
+// terminal dashboard) — attached this early so its middleware sees every
+// request, including ones a later route rejects or rate-limits. The route
+// that actually exposes getSnapshot() lives in server/routes/system-health.js,
+// alongside the rest of the diagnostic API.
+const { createResourceMonitor } = require('./server/modules/system-health/resource-monitor');
+const resourceMonitor = createResourceMonitor();
+app.use(resourceMonitor.middleware);
+require('./server/routes/system-health').configure({ getResourceSnapshot: resourceMonitor.getSnapshot });
+
 // ── Security middleware ───────────────────────────────────────────────────────
 const { applySecurityHeaders, rateLimiter, apiTimeout } = require('./server/middleware/security');
 applySecurityHeaders(app);
