@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Python (tools/dashboard/)
+__pycache__/
+*.pyc
+
 # User data — never commit personal library, history or imported files
 data/store.json
 data/local/
@@ -42,11 +46,12 @@ yarn-debug.log*
 yarn-error.log*
 
 # Portable Node.js (auto-downloaded by build-exe.bat / Launch-ScrollScape.bat)
-tools/
+tools/node/
 # pkg binary cache (populated by build-exe.bat)
 tools/pkg-cache/
-tools/node/
 tools/npm-cache/
+# FlareSolverr portable binary (auto-downloaded by Launch-ScrollScape.bat)
+tools/flaresolverr/
 
 # Planning artefacts / personal notes
 mvp.sql
