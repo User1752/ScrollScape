@@ -2088,6 +2088,19 @@ async function showLibraryContextMenu(pointOrEvent, mangaInput, mangaCategories)
     <button class="context-item ${!currentStatus             ? 'ctx-item-active' : ''}" id="ctxRemoveStatus">${_ico('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>')} ${isBulk ? 'Mark Selected as Unread' : 'Mark as Unread'}</button>
     <div class="context-divider"></div>
     <button class="context-item" id="ctxRemoveFromLibrary">${_ico('<path d="M3 6h18M9 6v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V6"/><path d="M10 11v6M14 11v6"/>')} ${isBulk ? 'Remove Selected from Library' : 'Remove from Library'}</button>
+    ${typeof _alToken === 'function' && _alToken()
+      ? `<div class="context-divider"></div>
+         <div class="ctx-categories-header">AniList Status</div>
+         <div style="padding:0.3rem 0.55rem 0.5rem">
+           <select id="ctxAnilistStatus" class="input" style="width:100%;font-size:0.82rem">
+             ${AL_BULK_STATUSES.map(([v, l]) => `<option value="${escapeHtml(v)}">${escapeHtml(l)}</option>`).join('')}
+           </select>
+         </div>
+         <div style="padding:0 0.55rem 0.6rem">
+           <button class="btn primary ctx-anilist-status-btn" style="width:100%;font-size:0.82rem;padding:0.42rem 0.75rem">${isBulk ? `Apply AniList Status to ${actionMangas.length}` : 'Apply AniList Status'}</button>
+         </div>`
+      : `<div class="context-divider"></div>
+         <div class="ctx-categories-header" style="opacity:0.5;font-style:italic;padding-bottom:0.5rem">Connect AniList in Settings to change status there too</div>`}
     ${sourceId !== 'local' ? categoriesSection : `<div class="context-divider"></div><div class="ctx-categories-header" style="opacity:0.5;font-style:italic;padding-bottom:0.5rem">Categories not supported for local manga</div>`}`;
 
   document.body.appendChild(menu);
@@ -2242,6 +2255,34 @@ async function showLibraryContextMenu(pointOrEvent, mangaInput, mangaCategories)
   menu.querySelector('#ctxMarkCompleted').onclick = () => setStatus('completed');
   menu.querySelector('#ctxMarkReading').onclick   = () => setStatus('reading');
   menu.querySelector('#ctxRemoveStatus').onclick  = () => setStatus('none');
+
+  // AniList status (single or bulk) — updates AniList itself (via
+  // SaveMediaListEntry, auto-matching by title for anything not already
+  // linked) and mirrors the result into local reading status, same as the
+  // single-manga Tracker modal does, just looped over actionMangas.
+  const anilistStatusBtn = menu.querySelector('.ctx-anilist-status-btn');
+  if (anilistStatusBtn) {
+    anilistStatusBtn.onclick = async () => {
+      const status = menu.querySelector('#ctxAnilistStatus')?.value;
+      if (!status) return;
+      anilistStatusBtn.disabled = true;
+      anilistStatusBtn.textContent = 'Applying…';
+      try {
+        const { ok, fail, unmatched } = await anilistBulkSetStatus(actionMangas, status);
+        _closeLibraryContextMenu();
+        _clearLibrarySelection();
+        renderLibrary();
+        const parts = [`${ok} updated on AniList`];
+        if (unmatched) parts.push(`${unmatched} not found on AniList`);
+        if (fail) parts.push(`${fail} failed`);
+        showToast('AniList Status', `${parts.join(', ')}.`, (fail || unmatched) ? 'warning' : 'success');
+      } catch (err) {
+        showToast('AniList Error', err.message || 'Could not update AniList status.', 'error');
+        anilistStatusBtn.disabled = false;
+        anilistStatusBtn.textContent = isBulk ? `Apply AniList Status to ${actionMangas.length}` : 'Apply AniList Status';
+      }
+    };
+  }
 
   // Save categories
   const saveCatsBtn = menu.querySelector('.ctx-save-cats-btn');

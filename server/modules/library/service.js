@@ -112,7 +112,7 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
     return contentService.setUserStatus({ mangaId, sourceId, status, mangaData });
   }
 
-  async function importAniListLibrary({ entries } = {}) {
+  async function importAniListLibrary({ entries, keepCover } = {}) {
     if (!Array.isArray(entries) || entries.length === 0) {
       const err = new Error('entries array required');
       err.statusCode = 400;
@@ -181,9 +181,14 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
         const alId = String(anilistId);
         const nt = normTitle(entry.title);
 
-        let favIdx = store.favorites.findIndex(
-          m => (m.id === alId && m.sourceId === 'anilist') || m.anilistId === alId
-        );
+        // Tier 1: a real, source-backed favorite already explicitly linked to
+        // this AniList id. Deliberately excludes a same-id anilist PLACEHOLDER
+        // here (that used to be combined into this same check with `||`) —
+        // once a prior import run leaves an unresolved placeholder behind, an
+        // id match against that placeholder would otherwise win every single
+        // time and permanently block the title-matching tiers below from ever
+        // reaching the real favorite it should have merged into instead.
+        let favIdx = store.favorites.findIndex(m => m.sourceId !== 'anilist' && m.anilistId === alId);
 
         if (favIdx < 0 && nt) {
           favIdx = store.favorites.findIndex(
@@ -207,6 +212,28 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
           if (bestIdx >= 0 && bestScore >= FUZZY_MERGE_THRESHOLD) favIdx = bestIdx;
         }
 
+        // Last resort: a placeholder this exact entry created on a previous
+        // import run, before it was ever linked to a real source — update it
+        // in place rather than pushing yet another duplicate below.
+        if (favIdx < 0) {
+          favIdx = store.favorites.findIndex(m => m.id === alId && m.sourceId === 'anilist');
+        }
+
+        // If this entry resolved to a real favorite above, retire any OTHER
+        // leftover anilist placeholder for the same id from an earlier import
+        // run — otherwise the real favorite and the stale placeholder both
+        // keep showing up side by side in the library forever.
+        if (favIdx >= 0 && store.favorites[favIdx].sourceId !== 'anilist') {
+          const staleIdx = store.favorites.findIndex(
+            (m, idx) => idx !== favIdx && m.id === alId && m.sourceId === 'anilist'
+          );
+          if (staleIdx >= 0) {
+            store.favorites.splice(staleIdx, 1);
+            delete store.readingStatus[`${alId}:anilist`];
+            if (staleIdx < favIdx) favIdx--;
+          }
+        }
+
         const alreadyFav = favIdx >= 0;
         const existingFav = alreadyFav ? store.favorites[favIdx] : null;
 
@@ -215,7 +242,7 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
             store.favorites[favIdx] = {
               ...existingFav,
               title: existingFav.title || mangaObj.title,
-              cover: existingFav.cover || mangaObj.cover,
+              cover: keepCover ? (mangaObj.cover || existingFav.cover) : (existingFav.cover || mangaObj.cover),
               anilistId: alId,
               updatedAt: new Date().toISOString(),
             };
@@ -282,7 +309,7 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
     };
   }
 
-  async function resolveAniListLibrary({ resolutions } = {}) {
+  async function resolveAniListLibrary({ resolutions, keepCover } = {}) {
     if (!Array.isArray(resolutions) || resolutions.length === 0) {
       return { ok: true, resolved: 0 };
     }
@@ -306,11 +333,15 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
         const alFavIdx = store.favorites.findIndex(m => m.id === anilistId && m.sourceId === 'anilist');
         const alFav = alFavIdx >= 0 ? store.favorites[alFavIdx] : null;
 
+        // "Keep AniList cover" prefers whatever cover the placeholder already
+        // had (AniList's own artwork) over the newly-resolved source's cover.
+        const resolvedCover = keepCover ? (alFav?.cover || mangaObj.cover) : mangaObj.cover;
+
         if (realFavIdx >= 0) {
           store.favorites[realFavIdx] = {
             ...store.favorites[realFavIdx],
             title: store.favorites[realFavIdx].title || mangaObj.title,
-            cover: store.favorites[realFavIdx].cover || mangaObj.cover,
+            cover: keepCover ? resolvedCover : (store.favorites[realFavIdx].cover || resolvedCover),
             sourceId,
             anilistId,
             updatedAt: new Date().toISOString(),
@@ -318,6 +349,7 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
         } else {
           store.favorites.push({
             ...mangaObj,
+            cover: resolvedCover,
             sourceId,
             anilistId,
             addedAt: alFav?.addedAt || new Date().toISOString(),
@@ -330,7 +362,7 @@ function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loa
         if (alStatus) {
           const existingSt = store.readingStatus[realKey];
           if (!existingSt || new Date(alStatus.updatedAt) >= new Date(existingSt.updatedAt || 0)) {
-            store.readingStatus[realKey] = { ...alStatus, manga: { ...mangaObj, sourceId } };
+            store.readingStatus[realKey] = { ...alStatus, manga: { ...mangaObj, cover: resolvedCover, sourceId } };
           }
           delete store.readingStatus[alKey];
         }

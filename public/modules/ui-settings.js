@@ -31,6 +31,7 @@ const DEFAULT_SETTINGS = {
   anilistAutoImportOnConnect: false,
   anilistAutoCategorize: true,
   anilistImportCategoryId: '',
+  anilistKeepCover: false,
   autoWebtoonDetect: true,
   pageFlipAnimation: true,
   displayMode: 'detailed',

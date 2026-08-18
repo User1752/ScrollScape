@@ -296,7 +296,7 @@ async function anilistHandleCallback() {
       showToast('AniList Connected', `Welcome, ${viewer.name}!`, 'success');
       // Auto-import if the user has the toggle enabled
       if (state.settings.anilistAutoImportOnConnect) {
-        setTimeout(() => anilistImportLibrary(), 800);
+        setTimeout(() => anilistImportLibrary({ keepCover: state.settings.anilistKeepCover }), 800);
       }
     }
   } catch (_) {
@@ -966,7 +966,7 @@ async function anilistImportLibrary(opts = {}) {
     const result = await fetch('/api/anilist/import-apply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entries }),
+      body: JSON.stringify({ entries, keepCover: !!opts.keepCover }),
     }).then(r => r.json());
 
     if (!result.ok) throw new Error(result.error || 'Import failed');
@@ -992,11 +992,24 @@ async function anilistImportLibrary(opts = {}) {
     } catch (_) { /* non-fatal — UI will refresh on next navigation */ }
 
     // Source resolution — gather candidate sources and let user choose manually.
+    // Entries already linked to a real, source-backed favorite (from this run's
+    // merge above, or a previous import run) are skipped here — otherwise, with
+    // a library bigger than resolveEntriesMax, every run re-resolves the exact
+    // same head-of-list entries and NEVER makes progress into the rest, leaving
+    // them stuck as unresolved "AniList" placeholders no matter how many times
+    // the user re-imports.
+    const alreadyResolvedIds = new Set(
+      (state.favorites || [])
+        .filter(m => m.sourceId !== 'anilist' && m.anilistId)
+        .map(m => String(m.anilistId))
+    );
+    const unresolvedEntries = entries.filter(e => !alreadyResolvedIds.has(String(e.anilistId)));
+
     const resolutionMap = new Map(); // String(anilistId) → { mangaId, sourceId, cover }
     try {
-      showToast('AniList Import', `Resolving sources for ${entries.length} manga…`, 'info');
+      showToast('AniList Import', `Resolving sources for ${unresolvedEntries.length} manga…`, 'info');
       report(45, 'Resolving best source per manga…');
-      const resolveResult = await _resolveAnilistSources(entries, {
+      const resolveResult = await _resolveAnilistSources(unresolvedEntries, {
         onProgress: (p) => {
           const ratio = p.total ? p.processed / p.total : 1;
           report(45 + Math.round(ratio * 25), `Resolving sources ${p.processed}/${p.total || 0}`);
@@ -1010,7 +1023,7 @@ async function anilistImportLibrary(opts = {}) {
       if (resolutions.length > 0) {
         await api('/api/anilist/resolve-apply', {
           method: 'POST',
-          body: JSON.stringify({ resolutions }),
+          body: JSON.stringify({ resolutions, keepCover: !!opts.keepCover }),
         });
         for (const r of resolutions) {
           resolutionMap.set(String(r.anilistId), { mangaId: r.mangaId, sourceId: r.sourceId, cover: r.cover });
@@ -1031,6 +1044,16 @@ async function anilistImportLibrary(opts = {}) {
         showToast('AniList Import', 'Rate limit reached while resolving sources. Continuing with partial sync.', 'warning');
       } else if (resolveResult.capped) {
         showToast('AniList Import', `Resolved first ${_AL_IMPORT_LIMITS.resolveEntriesMax} entries to keep import stable.`, 'info');
+      }
+
+      // Entries this run actually attempted but found zero usable candidates
+      // for (no title match in any installed source, or every match reported
+      // 0 chapters) never make it into the picker at all — surface the count
+      // so it's clear these are attempted-and-failed, not just "not yet
+      // reached", the two look identical in the library otherwise.
+      const attemptedNoMatch = (resolveResult.choices || []).filter(c => !c.options || c.options.length === 0).length;
+      if (attemptedNoMatch > 0) {
+        showToast('AniList Import', `${attemptedNoMatch} manga sem candidato encontrado em nenhum source instalado — ficam como placeholder AniList.`, 'info');
       }
     } catch (resErr) {
       dbg.error(dbg.ERR_ANILIST, 'Source resolution failed', resErr);
@@ -1557,4 +1580,89 @@ async function showTrackerModal(manga) {
   } catch (err) {
     render(`<p class="tracker-info-msg">Error: ${escapeHtml(err.message)}</p>`);
   }
+}
+
+// ── Bulk AniList status change (library multi-select context menu) ─────────
+const AL_BULK_STATUSES = [
+  ['CURRENT',   'Reading'],
+  ['COMPLETED', 'Completed'],
+  ['PAUSED',    'On Hold'],
+  ['DROPPED',   'Dropped'],
+  ['PLANNING',  'Plan to Read'],
+  ['REPEATING', 'Rereading'],
+];
+
+// Reuses the same manga.id -> AniList media id cache the single-manga Tracker
+// modal writes to (_alSetLink/_alGetLink) — a manga tracked through either
+// path stays linked for the other. For a manga never linked before, searches
+// AniList by title and only auto-accepts a candidate that clears the same
+// title-similarity bar used elsewhere for automatic (non-confirmed) matches.
+async function _anilistResolveMediaId(manga) {
+  const linked = _alGetLink(manga.id);
+  if (linked) return linked;
+
+  const title = String(manga.title || '').trim();
+  if (!title) return null;
+
+  const r = await anilistGQL(
+    `query ($s: String) { Page(perPage: 8) { media(search: $s, type: MANGA, sort: SEARCH_MATCH) { id title { romaji english } } } }`,
+    { s: title }
+  );
+  const results = r?.data?.Page?.media || [];
+  let best = null, bestScore = 0;
+  for (const m of results) {
+    const candidate = m.title?.english || m.title?.romaji || '';
+    const score = typeof _titleScore === 'function'
+      ? _titleScore(title, candidate)
+      : (candidate.toLowerCase() === title.toLowerCase() ? 1 : 0);
+    if (score > bestScore) { bestScore = score; best = m; }
+  }
+  return (best && bestScore >= 0.6) ? best.id : null;
+}
+
+/**
+ * Sets `status` on AniList (SaveMediaListEntry) for every manga in
+ * `mangaList`, and mirrors it into the local reading status too — the same
+ * two writes the Tracker modal does for a single manga, just looped. Manga
+ * with no AniList link yet get auto-matched by title (see
+ * _anilistResolveMediaId); manga with no confident match are counted as
+ * `unmatched`, not `fail`, so the caller can report the two cases separately.
+ */
+async function anilistBulkSetStatus(mangaList, status) {
+  const localStatusMap = {
+    CURRENT: 'reading', COMPLETED: 'completed', PAUSED: 'on_hold',
+    DROPPED: 'dropped', PLANNING: 'plan_to_read', REPEATING: 'reading',
+  };
+  const localStatus = localStatusMap[status] || null;
+
+  let ok = 0, fail = 0, unmatched = 0;
+  for (const manga of mangaList) {
+    try {
+      const mediaId = await _anilistResolveMediaId(manga);
+      if (!mediaId) { unmatched++; continue; }
+
+      const saveRes = await anilistGQL(
+        `mutation ($m: Int, $st: MediaListStatus) { SaveMediaListEntry(mediaId: $m, status: $st) { id } }`,
+        { m: mediaId, st: status }
+      );
+      if (saveRes?.errors?.length) throw new Error(saveRes.errors[0].message);
+      _alSetLink(manga.id, mediaId);
+
+      if (localStatus) {
+        const sourceId = manga.sourceId || state.currentSourceId || '';
+        if (sourceId) {
+          const rs = await api('/api/user/status', {
+            method: 'POST',
+            body: JSON.stringify({ mangaId: manga.id, sourceId, status: localStatus, mangaData: manga }),
+          });
+          state.readingStatus = rs.readingStatus || state.readingStatus;
+        }
+      }
+      ok++;
+    } catch (_) {
+      fail++;
+    }
+    await _sleep(250);
+  }
+  return { ok, fail, unmatched };
 }

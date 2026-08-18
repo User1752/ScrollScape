@@ -452,7 +452,7 @@ function showSettings() {
             <div class="settings-section-card">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <p class="settings-section-title" style="margin-bottom:0">AniList</p>
-                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="anilistAutoSync,anilistAutoImportOnConnect,anilistAutoCategorize">Reset</button>
+                <button class="btn secondary reset-section-btn" style="padding:2px 6px;font-size:0.75rem" data-keys="anilistAutoSync,anilistAutoImportOnConnect,anilistAutoCategorize,anilistKeepCover">Reset</button>
               </div>
               <div id="anilist-loggedout" ${_alToken() ? 'style="display:none"' : ''}>
                 <div class="setting-group">
@@ -512,6 +512,14 @@ function showSettings() {
                     <button class="btn secondary" id="btnNewAnilistImportCategory" title="Create a new category">+ New</button>
                   </div>
                   <p class="setting-description">Every manga imported from AniList (not just Completed) also gets added to this category, so it doesn't mix in with the rest of your library.</p>
+                </div>
+                <div class="setting-group">
+                  <label class="toggle-label">
+                    <span class="toggle-text">Keep AniList cover</span>
+                    <input type="checkbox" id="anilistKeepCoverToggle" ${state.settings.anilistKeepCover ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <p class="setting-description">Uses the cover art from AniList instead of the one from the source it resolves to</p>
                 </div>
                 <div class="setting-group" style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn primary" id="btnAniListImportNow">Import Library Now</button>
@@ -1430,6 +1438,13 @@ function showSettings() {
       saveSettings();
     };
   }
+  const alKeepCoverToggle = $('anilistKeepCoverToggle');
+  if (alKeepCoverToggle) {
+    alKeepCoverToggle.onchange = (e) => {
+      state.settings.anilistKeepCover = e.target.checked;
+      saveSettings();
+    };
+  }
   const btnNewAlImportCategory = $('btnNewAnilistImportCategory');
   if (btnNewAlImportCategory) {
     btnNewAlImportCategory.onclick = () => {
@@ -1537,7 +1552,7 @@ function showSettings() {
         setProgress(0, 'Starting AniList import…');
 
         try {
-          const r = await anilistImportLibrary({ statuses: selectedStatuses });
+          const r = await anilistImportLibrary({ statuses: selectedStatuses, keepCover: state.settings.anilistKeepCover });
 
           const sync = state.anilistSync;
           if (sync?.lastImportAt) {
