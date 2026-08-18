@@ -40,13 +40,15 @@ de `analytics.dailyChapterCounts` — reconstruído a partir de `readingSessions
 existentes, para popular o heatmap de atividade em instalações que nunca tiveram esse
 campo.
 
-**Armadilha real encontrada neste projeto**: `coverOverrides` (o dicionário de capas
-personalizadas — ver capítulo 5) existe e é usado ativamente por vários módulos, mas
-**não é normalizado em `schema.js`**. Cada módulo que o usa faz a sua própria verificação
-defensiva (`store.coverOverrides || {}`) no ponto de uso, em vez de confiar que já existe.
-Funciona, mas é inconsistente com o resto do ficheiro — uma lição prática: se adicionares
-um campo novo ao store, adiciona-o também a `normaliseStore()`, mesmo que "funcione sem
-isso" no imediato.
+**Armadilha real encontrada neste projeto** (entretanto corrigida): `coverOverrides` (o
+dicionário de capas personalizadas — ver capítulo 5) existia e era usado ativamente por
+vários módulos, mas não era normalizado em `schema.js` — cada módulo que o usava fazia a
+sua própria verificação defensiva (`store.coverOverrides || {}`) no ponto de uso, em vez de
+confiar que já existia. Funcionava, mas era inconsistente com o resto do ficheiro.
+`normaliseStore()` agora também garante `store.coverOverrides`, ao lado de `mangaTags` —
+uma lição prática que se mantém válida: se adicionares um campo novo ao store, adiciona-o
+também a `normaliseStore()` na altura, mesmo que "funcione sem isso" no imediato, para não
+ficar como uma inconsistência a descobrir mais tarde.
 
 ## Persistência: debounce + escrita atómica
 

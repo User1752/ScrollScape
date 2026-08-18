@@ -36,6 +36,31 @@ function _alSetLink(mangaId, anilistId) {
   }
 }
 
+// Entries the source-resolution step has already spent a request budget on
+// at least once, whether or not it found a usable candidate — separate from
+// _alGetLink/_alSetLink (which only tracks entries that *succeeded*). Lets a
+// large import prioritize AniList ids it has never even tried yet over ones
+// that already got a turn and came up empty, instead of the same
+// unlucky-but-untried entries losing out to already-attempted ones forever
+// on every subsequent import run.
+function _alGetAttempted() {
+  try { return JSON.parse(localStorage.getItem('scrollscape_al_attempted') || '{}'); } catch (e) {
+    dbg.warn(dbg.ERR_ANILIST, '_alGetAttempted: failed to read localStorage', e);
+    return {};
+  }
+}
+function _alMarkAttempted(anilistIds) {
+  if (!anilistIds || !anilistIds.length) return;
+  try {
+    const seen = _alGetAttempted();
+    const now = Date.now();
+    for (const id of anilistIds) seen[String(id)] = now;
+    localStorage.setItem('scrollscape_al_attempted', JSON.stringify(seen));
+  } catch (e) {
+    dbg.warn(dbg.ERR_ANILIST, '_alMarkAttempted: failed to write localStorage', e);
+  }
+}
+
 // ── GraphQL helper ────────────────────────────────────────────────────────────
 async function anilistGQL(query, variables) {
   const token = _alToken();
@@ -1003,7 +1028,22 @@ async function anilistImportLibrary(opts = {}) {
         .filter(m => m.sourceId !== 'anilist' && m.anilistId)
         .map(m => String(m.anilistId))
     );
-    const unresolvedEntries = entries.filter(e => !alreadyResolvedIds.has(String(e.anilistId)));
+    // Never-attempted entries go first, then already-attempted-but-still-
+    // unresolved ones — without this, an entry that was tried once and came
+    // up empty (no candidate found, or a candidate whose chapter count
+    // failed to fetch that particular run) keeps re-occupying a slot in
+    // every future resolveEntriesMax-capped batch ahead of entries that
+    // have NEVER even had a turn, on a big-enough library. Stable sort
+    // (Array.prototype.sort preserves relative order for equal keys), so
+    // within each of the two groups the original AniList order still holds.
+    const attempted = _alGetAttempted();
+    const unresolvedEntries = entries
+      .filter(e => !alreadyResolvedIds.has(String(e.anilistId)))
+      .sort((a, b) => {
+        const aTried = attempted[String(a.anilistId)] ? 1 : 0;
+        const bTried = attempted[String(b.anilistId)] ? 1 : 0;
+        return aTried - bTried;
+      });
 
     const resolutionMap = new Map(); // String(anilistId) → { mangaId, sourceId, cover }
     try {
@@ -1015,6 +1055,10 @@ async function anilistImportLibrary(opts = {}) {
           report(45 + Math.round(ratio * 25), `Resolving sources ${p.processed}/${p.total || 0}`);
         }
       });
+      // Every entry that made it into resolveResult.choices got at least one
+      // real attempt this run (found candidates or not) — remember that so
+      // the next import's sort above pushes it behind still-untried entries.
+      _alMarkAttempted((resolveResult.choices || []).map(c => c.anilistId));
       const pickedResolutions = await _showAnilistSourcePicker(resolveResult.choices || []);
       const resolutions = pickedResolutions === null
         ? []

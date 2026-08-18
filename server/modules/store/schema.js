@@ -23,6 +23,11 @@ function normaliseStore(store) {
   // otherwise silently drop an unlisted field the next time that manga is
   // re-added, migrated, or resynced from AniList.
   store.mangaTags = (store.mangaTags && typeof store.mangaTags === 'object') ? store.mangaTags : {};
+  // coverOverrides is the same sidecar-dict pattern as mangaTags above, same
+  // reason it lives outside the favorite object — it was just never added
+  // here, so every reader (content-service.js, local/service.js) has always
+  // had to fall back to `|| {}` at the point of use instead of trusting it.
+  store.coverOverrides = (store.coverOverrides && typeof store.coverOverrides === 'object') ? store.coverOverrides : {};
 
   store.customLists = (Array.isArray(store.customLists) ? store.customLists : []).map(l => ({
     ...l,

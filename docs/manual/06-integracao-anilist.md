@@ -146,14 +146,21 @@ const unresolvedEntries = entries.filter(e => !alreadyResolvedIds.has(String(e.a
 // _resolveAnilistSources(unresolvedEntries, ...) em vez de _resolveAnilistSources(entries, ...)
 ```
 
-Com isto, cada execução avança pelo backlog em vez de ficar presa no início. Continua a
-existir uma limitação residual, documentada e aceite: dentro do lote de 80 "ainda não
+Com isto, cada execução avança pelo backlog em vez de ficar presa no início. Uma segunda
+limitação foi identificada mais tarde e também corrigida: dentro do lote de 80 "ainda não
 resolvidos", uma entrada que **falhou a resolver** (nenhum candidato encontrado nessa
-tentativa) continua a competir com uma entrada **nunca tentada** pela mesma vaga, na
-próxima execução — porque ambas aparecem como "não resolvidas" e a ordem preservada é a
-ordem original do AniList. Resolver isto por completo exigiria guardar, por entrada, se já
-foi tentada e falhou (distinto de nunca ter sido tentada) — algo que o projeto atual não
-persiste, e que ficaria como próximo passo natural para quem quisesse otimizar isto mais.
+tentativa) continuava a competir com uma entrada **nunca tentada** pela mesma vaga, na
+execução seguinte — porque ambas apareciam como "não resolvidas" e a ordem preservada era a
+ordem original do AniList, sem distinguir as duas. A correção guarda, em `localStorage`
+(`_alGetAttempted`/`_alMarkAttempted`, ao lado do cache `_alGetLink`/`_alSetLink` já
+existente), quais `anilistId` já tiveram pelo menos uma tentativa real de resolução — não
+se tiveram sucesso, só se chegaram a ser processados. Antes de aplicar o corte de 80,
+`unresolvedEntries` é ordenado (`Array.prototype.sort`, que em JavaScript é estável) para
+que as entradas nunca tentadas fiquem sempre à frente das já tentadas-mas-falhadas, mantendo
+a ordem relativa original dentro de cada um dos dois grupos. Isto é uma distinção
+deliberadamente diferente de `_alGetLink`, que só regista ligações **bem-sucedidas** — o
+registo de "tentativas" cobre também o caso "tentei e não encontrei nada", que de outra
+forma seria indistinguível de "nunca tentei".
 
 Vale notar também que candidatos só contam se tiverem uma contagem de capítulos real maior
 que zero — se a consulta de capítulos falhar transitoriamente (rede, timeout) para todos

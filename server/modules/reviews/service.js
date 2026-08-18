@@ -62,18 +62,11 @@ function createReviewService({ readStore, writeStore }) {
     return { ok: true };
   }
 
+  // Same body as clearRating — the two routes just hand it the mangaId
+  // differently (POST body vs. URL param), so this adapts the shape and
+  // delegates instead of duplicating the delete logic a second time.
   async function removeRatingById(mangaId) {
-    const safeKey = normalizeKey(mangaId);
-    if (!safeKey) {
-      const err = new Error('Invalid mangaId');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const store = await readStore();
-    delete store.reviews[safeKey];
-    await writeStore(store);
-    return { ok: true };
+    return clearRating({ mangaId });
   }
 
   return {
