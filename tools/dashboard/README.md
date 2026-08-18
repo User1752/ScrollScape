@@ -41,8 +41,21 @@ linha de comandos.
 
 ## Teclas
 
-- `r` — atualizar já (por defeito atualiza sozinho a cada 8s, `--interval` muda isto)
+- `r` — reinicia o servidor ScrollScape (só funciona quando lançado a partir do
+  `Launch-ScrollScape.bat` — ver abaixo; os dados dos painéis já atualizam
+  sozinhos a cada 8s, `--interval` muda isto)
 - `q` — sair
+
+### Como funciona o restart
+
+Esta app é um cliente HTTP só de leitura — não tem autoridade nenhuma sobre o
+processo Node por si só. Ao premir `r`, sai de si mesma com um código de saída
+especial (42); é o **`Launch-ScrollScape.bat`** (que já sabe matar e voltar a
+lançar o `server.js`, e é quem lança este dashboard) que reconhece esse código
+e faz o restart de verdade, voltando a abrir o dashboard automaticamente assim
+que o servidor estiver outra vez no ar. Se correres `python dashboard.py`
+diretamente (fora do `.bat`), `r` ainda sai com esse código, mas não há nada do
+outro lado a fazer o restart — a consola simplesmente fecha.
 
 ## Nota sobre Windows
 

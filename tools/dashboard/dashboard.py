@@ -16,6 +16,7 @@ Environment variables (used when the matching flag is omitted):
 
 import argparse
 import os
+import sys
 
 import httpx
 from textual.app import App, ComposeResult
@@ -23,6 +24,15 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import DataTable, Footer, Header, ProgressBar, Static
 
 STATUS_COLOR = {"pass": "green", "warning": "yellow", "fail": "red"}
+
+# Special exit code the launcher batch script watches for (see
+# Launch-ScrollScape.bat, right after it calls this script): rather than
+# have this "read-only API client" reach into taskkill/Node process
+# management itself, restarting is just "exit with this code" - the batch
+# script, which already owns and knows how to restart the server process,
+# does the actual work and then re-launches this same dashboard once the
+# server is back up.
+RESTART_EXIT_CODE = 42
 
 
 def _color(status: str) -> str:
@@ -84,7 +94,7 @@ class ScrollScapeDashboard(App):
 
     BINDINGS = [
         ("q", "quit", "Quit"),
-        ("r", "refresh_now", "Refresh now"),
+        ("r", "restart_everything", "Restart server"),
     ]
 
     def __init__(self, base_url: str, password: str | None, interval: float):
@@ -124,8 +134,8 @@ class ScrollScapeDashboard(App):
         self.set_interval(self.interval, self.refresh_all)
         await self.refresh_all()
 
-    async def action_refresh_now(self) -> None:
-        await self.refresh_all()
+    async def action_restart_everything(self) -> None:
+        self.exit(return_code=RESTART_EXIT_CODE, message="Restarting ScrollScape...")
 
     async def _ensure_login(self) -> None:
         try:
@@ -319,6 +329,7 @@ def main() -> None:
 
     app = ScrollScapeDashboard(base_url=args.url, password=args.password, interval=args.interval)
     app.run()
+    sys.exit(app.return_code or 0)
 
 
 if __name__ == "__main__":

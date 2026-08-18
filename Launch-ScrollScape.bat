@@ -28,6 +28,7 @@ goto :eof
 
 :main
 title ScrollScape Launcher
+cls
 
 set "ROOT=%~dp0"
 cd /d "%ROOT%"
@@ -124,8 +125,28 @@ echo   ^|                                                       ^|
 echo   ^|       http://localhost:!PORT!                          ^|
 echo   +-------------------------------------------------------+
 
+REM Inlined rather than "call"ed to a separate :open_app_window label — this
+REM is the one spot where the same cmd.exe label-lookup flakiness documented
+REM at :node_restart below ("cannot find the batch label specified") was
+REM actually observed in practice, right here, on an otherwise completely
+REM ordinary first run. Inlining removes the only "call" in the critical
+REM startup path that isn't already covered by that documented workaround.
 if not defined BROWSER_OPENED (
-    call :open_app_window
+    echo   [ .. ]  Opening ScrollScape window...
+    set "APP_BROWSER="
+    if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe"        set "APP_BROWSER=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+    if not defined APP_BROWSER if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" set "APP_BROWSER=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+    if not defined APP_BROWSER if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe"       set "APP_BROWSER=%LocalAppData%\Google\Chrome\Application\chrome.exe"
+    if not defined APP_BROWSER if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" set "APP_BROWSER=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+    if not defined APP_BROWSER if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"      set "APP_BROWSER=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+
+    if defined APP_BROWSER (
+        start "" "!APP_BROWSER!" --app=http://localhost:!PORT! --window-size=1280,832
+        echo   [ OK ]  Opened in app window.
+    ) else (
+        start "" "http://localhost:!PORT!"
+        echo   [ OK ]  No Chrome/Edge found - opened in your default browser instead.
+    )
     set "BROWSER_OPENED=1"
 )
 
@@ -141,9 +162,13 @@ if defined PY_CMD (
     if defined DEPS_OK set "DASHBOARD_READY=1"
 )
 if defined DASHBOARD_READY (
-    echo   [ .. ]  Switching this window to the terminal dashboard - press Q inside it to come back here...
+    echo   [ .. ]  Switching this window to the terminal dashboard - press Q inside it to come back here, R inside it to restart everything...
     echo.
     "!PY_CMD!" "%ROOT%tools\dashboard\dashboard.py" --url http://localhost:!PORT!
+    REM Exit code 42 is the dashboard's own signal for "the user pressed r,
+    REM please restart everything" - it never touches the Node process
+    REM itself, that's this script's job via the existing :node_restart flow.
+    if errorlevel 42 goto :node_restart
 ) else (
     echo   [ .. ]  Terminal dashboard unavailable right now - showing the normal menu instead.
 )
@@ -176,9 +201,10 @@ if not defined DEPS_OK (
     call :err "Failed to install dashboard dependencies" "Try it yourself: pip install -r tools\dashboard\requirements.txt"
     goto :node_menu
 )
-echo   [ .. ]  Switching this window to the terminal dashboard - press Q inside it to come back here...
+echo   [ .. ]  Switching this window to the terminal dashboard - press Q inside it to come back here, R inside it to restart everything...
 echo.
 "!PY_CMD!" "%ROOT%tools\dashboard\dashboard.py" --url http://localhost:!PORT!
+if errorlevel 42 goto :node_restart
 goto :node_menu
 
 :detect_python
@@ -245,26 +271,4 @@ goto :eof
 
 :wait_port
 powershell -NoProfile -Command "$port=%~1; for($i=0; $i -lt 20; $i++){ try{ $t=New-Object Net.Sockets.TcpClient('127.0.0.1', $port); $t.Close(); exit 0 }catch{ Start-Sleep -Seconds 1 } }; exit 1" >nul 2>&1
-goto :eof
-
-:open_app_window
-REM Launches ScrollScape in a Chromium "app mode" window (no address bar or
-REM tabs) instead of a normal browser tab, so it feels like a desktop app.
-REM Falls back to the system default browser if neither Chrome nor Edge
-REM can be found.
-echo   [ .. ]  Opening ScrollScape window...
-set "APP_BROWSER="
-if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe"        set "APP_BROWSER=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
-if not defined APP_BROWSER if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" set "APP_BROWSER=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
-if not defined APP_BROWSER if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe"       set "APP_BROWSER=%LocalAppData%\Google\Chrome\Application\chrome.exe"
-if not defined APP_BROWSER if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" set "APP_BROWSER=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
-if not defined APP_BROWSER if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"      set "APP_BROWSER=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
-
-if defined APP_BROWSER (
-    start "" "!APP_BROWSER!" --app=http://localhost:!PORT! --window-size=1280,832
-    echo   [ OK ]  Opened in app window.
-) else (
-    start "" "http://localhost:!PORT!"
-    echo   [ OK ]  No Chrome/Edge found - opened in your default browser instead.
-)
 goto :eof
