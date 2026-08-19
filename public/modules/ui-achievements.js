@@ -20,11 +20,7 @@ function _countUniqueGenres() {
 }
 
 function _countAnilistLinked() {
-  try {
-    return Object.keys(JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}') || {}).length;
-  } catch {
-    return 0;
-  }
+  return Object.keys(_alGetAllLinks()).length;
 }
 
 async function checkAndUnlockAchievements() {

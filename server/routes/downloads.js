@@ -6,6 +6,9 @@ const { safeId, resolvePageUrl, fetchImageBuffer, safeName } = require('../helpe
 const { loadSourceFromFile } = require('../sourceLoader');
 const { createDownloadService } = require('../modules/downloads/service');
 const { streamJobProgress } = require('../modules/http/job-progress-sse');
+const { createAsyncHandler } = require('../modules/http/async-handler');
+
+const asyncHandler = createAsyncHandler('DOWNLOADS');
 
 const downloadService = createDownloadService({
   loadSourceFromFile,
@@ -27,24 +30,14 @@ function sendCbzResponse(res, filename, buffer) {
  * @param {import('express').Router} router
  */
 function registerDownloadRoutes(router) {
-  router.post('/api/download/chapter', async (req, res) => {
-    try {
-      const result = await downloadService.downloadChapter(req.body || {});
-      sendCbzResponse(res, result.filename, result.buffer);
-    } catch (e) {
-      const status = Number(e?.statusCode) || 500;
-      res.status(status).json({ error: e?.message || 'Internal Server Error' });
-    }
-  });
+  router.post('/api/download/chapter', asyncHandler(async (req, res) => {
+    const result = await downloadService.downloadChapter(req.body || {});
+    sendCbzResponse(res, result.filename, result.buffer);
+  }));
 
-  router.post('/api/download/bulk/start', async (req, res) => {
-    try {
-      res.json(await downloadService.startBulkDownload(req.body || {}));
-    } catch (e) {
-      const status = Number(e?.statusCode) || 500;
-      res.status(status).json({ error: e?.message || 'Internal Server Error' });
-    }
-  });
+  router.post('/api/download/bulk/start', asyncHandler(async (req, res) => {
+    res.json(await downloadService.startBulkDownload(req.body || {}));
+  }));
 
   router.get('/api/download/bulk/jobs', (_req, res) => {
     res.json({ jobs: downloadService.listBulkJobs() });

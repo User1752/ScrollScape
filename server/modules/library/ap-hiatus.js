@@ -1,5 +1,7 @@
 'use strict';
 
+const { DEFAULT_USER_AGENT } = require('../network/fetch-utils');
+
 async function checkAnimePlanetHiatus(title) {
   if (!title) return false;
   try {
@@ -7,7 +9,7 @@ async function checkAnimePlanetHiatus(title) {
     const res = await fetch(`https://www.anime-planet.com/manga/${slug}`, {
       signal: AbortSignal.timeout(10000),
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': DEFAULT_USER_AGENT
       }
     });
 

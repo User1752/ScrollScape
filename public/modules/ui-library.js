@@ -58,11 +58,7 @@ async function loadMangaSpineManifest() {
 // Call the loader immediately
 loadMangaSpineManifest();
 
-function getMangaKey(manga) {
-  const sourceId = String(manga?.sourceId || manga?.source || '');
-  const mangaId = String(manga?.id || manga?.mangaId || '');
-  return `${sourceId}:${mangaId}`;
-}
+// getMangaKey() lives in state.js (loads first) — see note in ui-discover.js.
 
 function getSelectedMangaSpine(manga) {
   try {
@@ -71,7 +67,7 @@ function getSelectedMangaSpine(manga) {
       const key = getMangaKey(manga);
       return saved[key] || null;
     }
-  } catch (e) { }
+  } catch (_) { }
   return null;
 }
 
@@ -82,7 +78,7 @@ function setSelectedMangaSpine(manga, spineData) {
     const key = getMangaKey(manga);
     saved[key] = spineData;
     localStorage.setItem('scrollscape.selectedMangaSpines', JSON.stringify(saved));
-  } catch (e) { }
+  } catch (_) { }
 }
 
 function getAvailableMangaSpines(manga) {
@@ -991,7 +987,7 @@ function _sortLibrary(favs) {
           }
           return ordered;
         }
-      } catch(e) {}
+      } catch (_) {}
       return favs;
     }
   }
@@ -1336,21 +1332,18 @@ function renderLibrary() {
 
   // Repair local AniList tracker links for previously migrated items.
   try {
-    const raw = localStorage.getItem('scrollscape_al_links');
-    const links = raw ? JSON.parse(raw) : {};
-    if (links && typeof links === 'object') {
-      let changed = false;
-      for (const manga of favs) {
-        const id = String(manga?.id || '');
-        const ani = String(manga?.anilistId || '');
-        if (!id || !ani) continue;
-        if (!links[id]) {
-          links[id] = ani;
-          changed = true;
-        }
+    const links = _alGetAllLinks();
+    let changed = false;
+    for (const manga of favs) {
+      const id = String(manga?.id || '');
+      const ani = String(manga?.anilistId || '');
+      if (!id || !ani) continue;
+      if (!links[id]) {
+        links[id] = ani;
+        changed = true;
       }
-      if (changed) localStorage.setItem('scrollscape_al_links', JSON.stringify(links));
     }
+    if (changed) _alSetAllLinks(links);
   } catch (_) {
     // Non-fatal.
   }
@@ -1369,12 +1362,12 @@ function renderLibrary() {
     if (overlays.downloaded !== false && manga.downloadedChapters && manga.downloadedChapters.length > 0) {
       downloadedBadge = `<div class="library-card-overlay-badge downloaded" title="Downloaded Chapters">DL</div>`;
     }
-    // Unread Chapters overlay (exemplo: badge se houver capítulos não lidos)
+    // Unread Chapters overlay (a badge shown when there are unread chapters)
     let unreadBadge = '';
     if (overlays.unread !== false && chaptersLeft && chaptersLeft > 0 && !state.settings.hideLibraryStatusAndChapters) {
       unreadBadge = `<div class="library-card-overlay-badge unread" title="Unread Chapters">${chaptersLeft}</div>`;
     }
-    // Local Source overlay (exemplo: badge se for local)
+    // Local Source overlay (a badge shown when the manga is a local import)
     let localBadge = '';
     if (overlays.local !== false && manga.sourceId === 'local') {
       localBadge = `<div class="library-card-overlay-badge local" title="Local Source">LOCAL</div>`;
@@ -1766,7 +1759,7 @@ function renderLibrary() {
           let fullOrder = [];
           try {
             fullOrder = JSON.parse(localStorage.getItem('bookshelfCustomOrder'));
-          } catch(err) {}
+          } catch (_) {}
           
           if (!fullOrder || !Array.isArray(fullOrder) || fullOrder.length === 0) {
             fullOrder = state.favorites.map(m => `${m.id}:${m.sourceId || ''}`);

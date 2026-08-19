@@ -80,4 +80,7 @@ function pickBestMatch(candidates, cleanTitle, year, getName, getYear) {
   return yearMatch || null;
 }
 
-module.exports = { parseTitle, normalize, pickBestMatch };
+// normalize() is only ever used internally by pickBestMatch() below — not
+// exported, since neither of this module's two real consumers (comicvine,
+// leagueofcomicgeeks) has ever imported it on its own.
+module.exports = { parseTitle, pickBestMatch };

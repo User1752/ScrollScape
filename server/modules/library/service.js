@@ -6,67 +6,17 @@ const { checkAnimePlanetHiatus } = require('./ap-hiatus');
 function createLibraryService({ readStore, writeStore, safeManga, isSafeUrl, loadSourceFromFile }) {
   const contentService = createLibraryContentService({ readStore, writeStore, safeManga, isSafeUrl });
 
-  function normSourceId(s) {
-    const v = String(s || '').trim();
-    if (!v || v === 'unknown' || v === 'null' || v === 'undefined') return '';
-    return v.slice(0, 100);
-  }
-
-  function sanitizeCompositePart(v) {
-    return String(v || '').replace(/[^a-z0-9:_-]/gi, '_').slice(0, 300);
-  }
-
-  function safeStatusKey(mangaId, sourceId) {
-    const mid = sanitizeCompositePart(mangaId);
-    const sid = sanitizeCompositePart(sourceId || 'unknown');
-    return `${mid}:${sid}`.slice(0, 300);
-  }
-
-  function safeReviewKey(mangaId) {
-    return sanitizeCompositePart(mangaId).slice(0, 200);
-  }
-
-  function mergeReviewEntries(existing, incoming) {
-    const out = [];
-    const seen = new Set();
-    for (const item of [...(incoming || []), ...(existing || [])]) {
-      if (!item || typeof item !== 'object') continue;
-      const key = `${Number(item.rating) || 0}|${String(item.text || '')}|${String(item.date || '')}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(item);
-      if (out.length >= 20) break;
-    }
-    return out;
-  }
-
-  function collectReadingStatusCandidates(store, fromMangaId, fromSourceIdRaw) {
-    const wantedSource = normSourceId(fromSourceIdRaw);
-    const rawId = String(fromMangaId || '');
-    const safeIdPart = sanitizeCompositePart(rawId);
-    const out = [];
-
-    for (const [key, val] of Object.entries(store.readingStatus || {})) {
-      const sep = key.indexOf(':');
-      if (sep < 0) continue;
-      const left = key.slice(0, sep);
-      const right = normSourceId(key.slice(sep + 1));
-      const idMatch = left === rawId || left === safeIdPart;
-      if (!idMatch) continue;
-      if (wantedSource && right !== wantedSource) continue;
-      out.push({ key, value: val, score: Date.parse(val?.updatedAt || '') || 0 });
-    }
-
-    if (out.length === 0 && wantedSource) {
-      const rawKey = `${rawId}:${wantedSource}`;
-      if (store.readingStatus?.[rawKey]) {
-        out.push({ key: rawKey, value: store.readingStatus[rawKey], score: Date.parse(store.readingStatus[rawKey]?.updatedAt || '') || 0 });
-      }
-    }
-
-    out.sort((a, b) => b.score - a.score);
-    return out;
-  }
+  // These used to be a second, byte-identical copy of the same six helpers
+  // content-service.js already had — now shared from there instead, so a
+  // change to the composite-key format can't silently desync the two files.
+  const {
+    normSourceId,
+    sanitizeCompositePart,
+    safeStatusKey,
+    safeReviewKey,
+    mergeReviewEntries,
+    collectReadingStatusCandidates,
+  } = contentService;
 
   async function getLibrary() {
     return contentService.getLibrary();

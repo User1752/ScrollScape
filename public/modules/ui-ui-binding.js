@@ -370,7 +370,15 @@ function resetBaseThemeForCustomActivation() {
   var current = window.getActiveTheme();
   var appliedThemeId = document.documentElement.getAttribute('data-color-theme') || '';
   if ((current && current !== 'default') || appliedThemeId) {
+    // Not setActiveTheme('default') here on purpose — its own side effect
+    // clears the custom overlay this function is called right after setting
+    // (see the caller, setActiveCustom()). Still needs the same server push
+    // setActiveTheme() would have done, so the server-side record doesn't
+    // silently drift from what's actually active in this browser.
     localStorage.setItem('scrollscape_active_theme', 'default');
+    if (typeof window._pushProgressionToServer === 'function') {
+      window._pushProgressionToServer({ activeTheme: 'default' });
+    }
     window.applyTheme('default');
   }
 }

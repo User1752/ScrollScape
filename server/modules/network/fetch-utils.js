@@ -4,6 +4,13 @@ const limits = require('../../config/limits');
 const { isSafeUrl } = require('../common/sanitize');
 const IMG_FETCH_TIMEOUT = limits.sourceCallTimeoutMs;
 
+// The one spoofed desktop-Chrome UA string every source and network helper
+// in the project sends — used to be typed out independently in a dozen-plus
+// places (with three different, undocumented Chrome version numbers between
+// them). Exported so sources and other server modules can import this
+// instead of hand-rolling their own copy.
+const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 async function fetchJson(url, retries = 2) {
   // SSRF guard: reject private/loopback/link-local targets before any network call.
   if (!isSafeUrl(url)) throw new Error('Blocked unsafe URL');
@@ -27,11 +34,22 @@ async function fetchJson(url, retries = 2) {
   }
 }
 
-const { readStore } = require('../../store');
+// Defaults to this project's own store for drop-in behavior in server.js's
+// normal boot, but lifting this module into another project (it's a
+// generic HTTP/Cloudflare-bypass helper, arguably the most reusable one in
+// the whole server/) shouldn't require dragging server/store.js along —
+// call configure({ readStore }) to point it at a different store, or at a
+// stub that just returns a fixed flaresolverrUrl.
+let _readStore = null;
+
+function configure({ readStore } = {}) {
+  if (typeof readStore === 'function') _readStore = readStore;
+}
 
 async function getFlaresolverrUrl() {
   try {
-    const store = await readStore();
+    if (!_readStore) _readStore = require('../../store').readStore;
+    const store = await _readStore();
     return store?.settings?.flaresolverrUrl || 'http://127.0.0.1:8191/v1';
   } catch {
     return 'http://127.0.0.1:8191/v1';
@@ -53,7 +71,7 @@ function saveDomainSession(targetUrl, cookies = [], userAgent = '') {
 
     const session = {
       cookieHeader,
-      userAgent: userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      userAgent: userAgent || DEFAULT_USER_AGENT,
       timestamp: Date.now()
     };
 
@@ -171,7 +189,7 @@ async function executeFlareSolverr(targetUrl, solverUrl) {
       let html = data.solution.response;
 
       if (isChromeErrorPage(html)) {
-        throw new Error(`${siteLabel(targetUrl)} indisponível (servidor inacessível). Tente novamente em alguns instantes.`);
+        throw new Error(`${siteLabel(targetUrl)} unavailable (server unreachable). Try again in a moment.`);
       }
 
       // If initial load returned JS PoW challenge page before redirecting, retry via direct fetch using saved cookies
@@ -179,7 +197,7 @@ async function executeFlareSolverr(targetUrl, solverUrl) {
         await new Promise(r => setTimeout(r, 2000));
         const session = getDomainSession(targetUrl);
         const headers = {
-          'User-Agent': session?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': session?.userAgent || DEFAULT_USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
         };
@@ -209,15 +227,15 @@ async function resolveViaSolver(url) {
 
   const html = await executeFlareSolverr(url, solverUrl);
   if (isChromeErrorPage(html)) {
-    throw new Error(`${siteLabel(url)} indisponível (servidor inacessível). Tente novamente em alguns instantes.`);
+    throw new Error(`${siteLabel(url)} unavailable (server unreachable). Try again in a moment.`);
   }
   if (html.includes('Connection timed out') || html.includes('Error code 522') || html.includes('Error code 520')) {
-    throw new Error(`Servidor ${siteLabel(url)} indisponível temporariamente (Cloudflare Error 522). Tente novamente em alguns instantes.`);
+    throw new Error(`${siteLabel(url)} server temporarily unavailable (Cloudflare Error 522). Try again in a moment.`);
   }
   if (isBotChallengePage(html)) {
     // FlareSolverr itself got served the bot-check shell instead of real
     // content — surface this as a retryable failure rather than caching it.
-    throw new Error(`${siteLabel(url)} indisponível (verificação anti-bot não resolvida). Tente novamente em alguns instantes.`);
+    throw new Error(`${siteLabel(url)} unavailable (anti-bot check not resolved). Try again in a moment.`);
   }
   return html;
 }
@@ -228,7 +246,7 @@ async function fetchText(url, retries = 2) {
 
   const session = getDomainSession(url);
   const headers = {
-    'User-Agent': session?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': session?.userAgent || DEFAULT_USER_AGENT,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
   };
@@ -267,11 +285,11 @@ async function fetchText(url, retries = 2) {
       }
 
       if (isChromeErrorPage(text)) {
-        throw new Error(`${siteLabel(url)} indisponível (servidor inacessível). Tente novamente em alguns instantes.`);
+        throw new Error(`${siteLabel(url)} unavailable (server unreachable). Try again in a moment.`);
       }
 
       if (text.includes('Connection timed out') && text.includes('Error code 522')) {
-        throw new Error(`Servidor ${siteLabel(url)} indisponível temporariamente (Cloudflare Error 522). Tente novamente em alguns instantes.`);
+        throw new Error(`${siteLabel(url)} server temporarily unavailable (Cloudflare Error 522). Try again in a moment.`);
       }
 
       return text;
@@ -293,7 +311,7 @@ async function fetchImageBuffer(url, referer = 'https://mangadex.org/') {
       signal: controller.signal,
       headers: {
         Referer: referer,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': DEFAULT_USER_AGENT,
       },
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -328,6 +346,8 @@ function createPageUrlResolver({ isSafeUrl }) {
 }
 
 module.exports = {
+  DEFAULT_USER_AGENT,
+  configure,
   fetchJson,
   fetchText,
   fetchImageBuffer,

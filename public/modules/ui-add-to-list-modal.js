@@ -271,8 +271,8 @@ function normalizeChapterMetadata(chapter, index, fallbackLabel) {
   const displayTitle = title && title !== numLabel ? `${numLabel} — ${title}` : numLabel;
 
   // Dates
-  let rawDate = ch.publishedAt || ch.releaseDate || ch.updatedAt || ch.date || ch.sourceUpdatedAt;
-  let dateType = ch.publishedAt || ch.releaseDate ? 'published' : (ch.updatedAt || ch.date ? 'updated' : (ch.sourceUpdatedAt ? 'sourceUpdated' : null));
+  let rawDate = ch.publishAt || ch.publishedAt || ch.releaseDate || ch.updatedAt || ch.date || ch.sourceUpdatedAt;
+  let dateType = ch.publishAt || ch.publishedAt || ch.releaseDate ? 'published' : (ch.updatedAt || ch.date ? 'updated' : (ch.sourceUpdatedAt ? 'sourceUpdated' : null));
   
   let displayDateLabel = '';
   let displayDate = '';

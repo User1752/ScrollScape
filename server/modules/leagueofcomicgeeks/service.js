@@ -16,14 +16,13 @@
 
 'use strict';
 
-const fs = require('fs');
-const fsp = fs.promises;
 const cheerio = require('cheerio');
 const { fetchText } = require('../network/fetch-utils');
 const { parseTitle, pickBestMatch } = require('../comics-metadata/title-matching');
 const { withTimeout } = require('../common/async-utils');
 const { LOCG_REQUEST_FAILED } = require('../errors/error-codes');
 const { recordError } = require('../error-logger');
+const { createTtlDiskCache } = require('../common/ttl-disk-cache');
 
 const SEARCH_URL = 'https://leagueofcomicgeeks.com/search';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // cover/publisher data rarely changes
@@ -40,52 +39,17 @@ const SAVE_DEBOUNCE_MS = 2_000;
 // the next lookup is fast.
 const LOOKUP_TIMEOUT_MS = 12_000;
 
-const cache = new Map();
-let cacheFilePath = null;
-let cacheLoaded = false;
-let saveTimer = null;
-
-/**
- * @param {{ cacheFilePath: string }} options
- */
-function configure({ cacheFilePath: filePath } = {}) {
-  if (!filePath || typeof filePath !== 'string') {
-    throw new Error('Invalid cacheFilePath provided to leagueofcomicgeeks.configure()');
-  }
-  cacheFilePath = filePath;
-}
-
 // Same rationale as comicvine/service.js: restarts are frequent during
 // development, and every lookup here also costs a lot more than a ComicVine
 // call when it can't reuse a warm FlareSolverr session — persisting to disk
 // keeps that cost from being repaid on every restart.
-async function ensureCacheLoaded() {
-  if (cacheLoaded || !cacheFilePath) return;
-  cacheLoaded = true;
-  try {
-    const raw = await fsp.readFile(cacheFilePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    for (const [key, entry] of Object.entries(parsed)) {
-      cache.set(key, entry);
-    }
-  } catch {
-    // No cache file yet (first run) or it's unreadable — start fresh.
-  }
-}
+const ttlCache = createTtlDiskCache({ saveDebounceMs: SAVE_DEBOUNCE_MS });
 
-function scheduleCacheSave() {
-  if (!cacheFilePath) return;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    saveTimer = null;
-    try {
-      const tmpPath = `${cacheFilePath}.tmp`;
-      await fsp.writeFile(tmpPath, JSON.stringify(Object.fromEntries(cache)), 'utf8');
-      await fsp.rename(tmpPath, cacheFilePath);
-    } catch (_) {
-      // Best-effort — worst case we just re-fetch a few titles next time.
-    }
-  }, SAVE_DEBOUNCE_MS);
+/**
+ * @param {{ cacheFilePath: string }} options
+ */
+function configure({ cacheFilePath } = {}) {
+  ttlCache.configure({ cacheFilePath });
 }
 
 /**
@@ -135,13 +99,11 @@ async function lookupCover({ title, year: explicitYear } = {}) {
   const year = explicitYear ?? titleYear;
   if (!cleanTitle) return null;
 
-  await ensureCacheLoaded();
+  await ttlCache.ensureLoaded();
 
   const cacheKey = `${cleanTitle.toLowerCase()}|${year || ''}`;
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    return cached.value;
-  }
+  const cached = ttlCache.getFresh(cacheKey, CACHE_TTL_MS);
+  if (cached !== undefined) return cached;
 
   try {
     const url = `${SEARCH_URL}?keyword=${encodeURIComponent(cleanTitle)}`;
@@ -152,8 +114,7 @@ async function lookupCover({ title, year: explicitYear } = {}) {
     const cover = match && /^https?:\/\//.test(match.cover) ? match.cover : '';
     const result = cover ? { cover, publisher: match.publisher || '' } : null;
 
-    cache.set(cacheKey, { value: result, at: Date.now() });
-    scheduleCacheSave();
+    ttlCache.set(cacheKey, result);
     return result;
   } catch (err) {
     await recordError({

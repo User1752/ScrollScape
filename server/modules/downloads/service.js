@@ -1,5 +1,7 @@
 'use strict';
 
+const { addPagesToZip } = require('../common/cbz-builder');
+
 function createDownloadService({ loadSourceFromFile, safeId, safeName, resolvePageUrl, fetchImageBuffer, AdmZip, crypto }) {
   const JOB_TTL = 15 * 60 * 1000;
   const bulkJobs = new Map();
@@ -40,18 +42,12 @@ function createDownloadService({ loadSourceFromFile, safeId, safeName, resolvePa
         }
 
         const folder = safeName(ch.name);
-        for (let i = 0; i < pages.length; i++) {
-          const resolved = resolvePageUrl(pages[i]);
-          if (!resolved) continue;
-          const { url: imgUrl, referer } = resolved;
-          try {
-            const buf = await fetchImageBuffer(imgUrl, referer);
-            const ext = ((imgUrl.match(/\.(jpe?g|png|webp|gif)/i) || ['', 'jpg'])[1]).replace('jpeg', 'jpg');
-            zip.addFile(`${folder}/${String(i + 1).padStart(3, '0')}.${ext}`, buf);
-          } catch (e) {
-            console.warn(`[bulk-dl] skipped ${ch.name} p${i + 1}: ${e.message}`);
-          }
-        }
+        const resolvedPages = pages.map(resolvePageUrl);
+        await addPagesToZip(zip, resolvedPages, {
+          fetchImageBuffer,
+          folder,
+          onSkip: (i, e) => console.warn(`[bulk-dl] skipped ${ch.name} p${i + 1}: ${e.message}`),
+        });
       }
 
       job.cbzBuffer = zip.toBuffer();
@@ -84,16 +80,10 @@ function createDownloadService({ loadSourceFromFile, safeId, safeName, resolvePa
     }
 
     const zip = new AdmZip();
-    for (let i = 0; i < resolvedPages.length; i++) {
-      const { url: imgUrl, referer } = resolvedPages[i];
-      try {
-        const buf = await fetchImageBuffer(imgUrl, referer);
-        const ext = ((imgUrl.match(/\.(jpe?g|png|webp|gif)/i) || ['', 'jpg'])[1]).replace('jpeg', 'jpg');
-        zip.addFile(`${String(i + 1).padStart(3, '0')}.${ext}`, buf);
-      } catch (e) {
-        console.warn(`[download] skipped page ${i + 1}: ${e.message}`);
-      }
-    }
+    await addPagesToZip(zip, resolvedPages, {
+      fetchImageBuffer,
+      onSkip: (i, e) => console.warn(`[download] skipped page ${i + 1}: ${e.message}`),
+    });
 
     return {
       filename: `${safeName(mangaTitle)} - ${safeName(chapterName)}.cbz`,
@@ -164,11 +154,13 @@ function createDownloadService({ loadSourceFromFile, safeId, safeName, resolvePa
     bulkJobs.delete(jobId);
   }
 
+  // JOB_TTL, bulkJobs (the raw Map), jobNotify and processBulkJob are
+  // internal to this module on purpose — bulkJobs in particular used to be
+  // exported directly, which would let a caller mutate job state behind
+  // this module's back with no offsetting benefit (nothing outside this
+  // file ever actually read them). Sibling job queue in local/service.js
+  // already kept its equivalent Map private; this now matches.
   return {
-    JOB_TTL,
-    bulkJobs,
-    jobNotify,
-    processBulkJob,
     downloadChapter,
     startBulkDownload,
     getBulkJob,

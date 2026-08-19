@@ -66,6 +66,8 @@ const state = {
     anilistAutoSync: true,
     anilistAutoImportOnConnect: false,
     anilistAutoCategorize: true,
+    anilistImportCategoryId: '',
+    anilistKeepCover: false,
     autoWebtoonDetect: true,
     pageFlipAnimation: true,
 
@@ -89,6 +91,8 @@ const state = {
     readerNoiseSource: 'generated',
     readerNoiseGifFile: '',
     autoScrollPointSpeeds: [0.2, 0.5, 1.0, 2.0, 3.5],
+    genreBlacklist: [],
+    showBetaSources: false,
   },
 
   // ── Reading status & analytics ────────────────────────────────────────────

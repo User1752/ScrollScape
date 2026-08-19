@@ -3,8 +3,16 @@
 const path = require('path');
 const fsp = require('fs').promises;
 
-function createAchievementService({ readStore, writeStore }) {
-  const achievementsJson = path.join(__dirname, '..', '..', '..', 'data', 'achievements.json');
+function createAchievementService({ readStore, writeStore, achievementsJsonPath } = {}) {
+  // achievements.json is a static, read-only catalog bundled with the app
+  // code (not user data), so — like data/sources/'s own snapshot — it's
+  // meant to resolve relative to wherever this code actually is, packaged
+  // .exe or not, rather than the writable DATA_DIR everything else in this
+  // service reads/writes through `readStore`/`writeStore`. The 3-level `..`
+  // walk this used to do inline baked in an assumption about exactly how
+  // deep this file sits in the module tree; callers now compute and inject
+  // the path instead, so moving this file doesn't silently break it.
+  const achievementsJson = achievementsJsonPath || path.join(__dirname, '..', '..', '..', 'data', 'achievements.json');
 
   async function getDefinitions() {
     const raw = await fsp.readFile(achievementsJson, 'utf8');

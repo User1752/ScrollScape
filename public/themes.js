@@ -1,36 +1,36 @@
 ﻿/**
- * themes.js â€” Community Themes for ScrollScape
+ * themes.js — Community Themes for ScrollScape
  * =========================================
  * This file is loaded before app.js. Add your theme here and it will
  * automatically appear in the AP Shop.
  *
- * â”€â”€ HOW TO ADD A THEME â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * ── HOW TO ADD A THEME ──────────────────────────────────────────────────────
  *  1. Push a new object into COMMUNITY_THEMES (below "Add more themes here").
  *  2. Fill: id, name, desc, cost, primary, primaryDark, primaryLight, preview.
  *  3. Write your CSS in the `css` property using [data-color-theme="your-id"]{}.
  *  4. Optional: implement onApply() / onRemove() for DOM side-effects (GIFs etc).
- *  5. Reload the page â€” your theme appears in Settings â†’ AP Shop.
+ *  5. Reload the page — your theme appears in Settings → AP Shop.
  *
- * â”€â”€ THEME OBJECT SCHEMA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * ── THEME OBJECT SCHEMA ─────────────────────────────────────────────────────
  *  {
- *    id:           string   â€” unique kebab-case key (e.g. "my-theme")
- *    name:         string   â€” display name
- *    desc:         string   â€” short tagline
- *    cost:         number   â€” AP cost (0 = free)
- *    primary:      string   â€” main accent hex colour
- *    primaryDark:  string   â€” darker variant
- *    primaryLight: string   â€” lighter variant
- *    preview:      string   â€” CSS background value shown in shop card
- *    css:          string   â€” all CSS rules (template literal recommended)
- *    onApply?():   void     â€” called when theme is activated
- *    onRemove?():  void     â€” called when switching away
+ *    id:           string   — unique kebab-case key (e.g. "my-theme")
+ *    name:         string   — display name
+ *    desc:         string   — short tagline
+ *    cost:         number   — AP cost (0 = free)
+ *    primary:      string   — main accent hex colour
+ *    primaryDark:  string   — darker variant
+ *    primaryLight: string   — lighter variant
+ *    preview:      string   — CSS background value shown in shop card
+ *    css:          string   — all CSS rules (template literal recommended)
+ *    onApply?():   void     — called when theme is activated
+ *    onRemove?():  void     — called when switching away
  *  }
  */
 
 (function () {
   'use strict';
 
-  // â”€â”€ Initial D â€” internet asset URLs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Initial D — internet asset URLs ────────────────────────────────────────
   // -- Gintama -- internet asset URLs
   const GT = {
     bg:   'https://4kwallpapers.com/images/wallpapers/gintama-ultrawide-3840x2160-16166.jpg',
@@ -38,48 +38,48 @@
   };
 
   const ID = {
-    // Toyota AE86 Sprinter Trueno â€” Wikimedia Commons (CC-BY-SA)
+    // Toyota AE86 Sprinter Trueno — Wikimedia Commons (CC-BY-SA)
     ae86:  'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Toyota-AE86-Coupe.jpg/640px-Toyota-AE86-Coupe.jpg',
-    // Initial D wallpaper â€” user-supplied
+    // Initial D wallpaper — user-supplied
     touge: 'https://wallpapercave.com/wp/wp12265576.png',
-    // Initial D character art â€” user-supplied
+    // Initial D character art — user-supplied
     manga: 'https://cdn.shopify.com/s/files/1/0046/3234/6694/files/aa064dc5d822366e9c78f0ad2030b0b7_1024x1024.jpg?v=1624917394',
   };
 
-  // â”€â”€ Dragon Ball Z â€” internet asset URLs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Dragon Ball Z — internet asset URLs ──────────────────────────────────
   const DB = {
-    // Night starfield / cosmos â€” Unsplash (free)
+    // Night starfield / cosmos — Unsplash (free)
     stars: 'https://images6.alphacoders.com/640/640445.jpg',
-    // Goku artwork â€” Wikia CDN (no hotlink restriction)
+    // Goku artwork — Wikia CDN (no hotlink restriction)
     goku:  'https://i.pinimg.com/474x/61/9b/19/619b19ba4ff51486d2c149b8f22f6a3d.jpg',
   };
 
-  // â”€â”€ One Piece â€” internet asset URLs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── One Piece — internet asset URLs ────────────────────────────────────────
   const OP = {
-    // Ocean horizon at dusk â€” Unsplash (free)
+    // Ocean horizon at dusk — Unsplash (free)
     ocean: 'https://images5.alphacoders.com/132/1329624.png',
-    // Monkey D. Luffy â€” Wikia CDN
+    // Monkey D. Luffy — Wikia CDN
     luffy: 'https://i.pinimg.com/736x/9e/f4/80/9ef48057131018eba89e8aa5ba953f35.jpg',
   };
 
-  // â”€â”€ Samurai X (Rurouni Kenshin) â€” internet asset URLs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Samurai X (Rurouni Kenshin) — internet asset URLs ──────────────────────
   const SX = {
-    // Cherry blossom â€” Unsplash (free)
+    // Cherry blossom — Unsplash (free)
     sakura:  'https://wallpapers.com/images/hd/fierce-look-kenshin-of-samurai-x-b60h2obwliyfpyqo.jpg',
-    // Himura Kenshin â€” Wikia CDN
+    // Himura Kenshin — Wikia CDN
     kenshin: 'https://i.pinimg.com/originals/e2/1b/e7/e21be7940e84806e38c6776bb450acf5.jpg',
   };
 
-  // â”€â”€ Chainsaw Man â€” internet asset URLs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Chainsaw Man — internet asset URLs ─────────────────────────────────────
   const CSM = {
-    // Dark industrial night â€” Unsplash (free)
+    // Dark industrial night — Unsplash (free)
     dark:  'https://images3.alphacoders.com/131/1319293.jpeg',
-    // Denji / Chainsaw Man â€” Wikia CDN
+    // Denji / Chainsaw Man — Wikia CDN
     denji: 'https://i.redd.it/ng7z0kf00t9a1.jpg',
   };
 
   /* ==========================================================================
-   * COMMUNITY_THEMES â€” add your theme objects here â†“
+   * COMMUNITY_THEMES — add your theme objects here ↓
    * ========================================================================== */
   const COMMUNITY_THEMES = [
 
@@ -515,15 +515,15 @@
 
   ]; // ← end COMMUNITY_THEMES
 
-  // â”€â”€ Shared image injection helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Shared image injection helpers ─────────────────────────────────────────
 
   /**
    * Injects a faded character image at the bottom of the sidebar
    * and a scenic banner at the top of the main container.
-   * Uses real DOM elements â€” works regardless of CSS context.
+   * Uses real DOM elements — works regardless of CSS context.
    */
   function _injectThemeImages({ themeId, charUrl, bannerUrl, accent, charOpacity = 0.22, bannerDim = 0 }) {
-    // â”€â”€ 1. Sidebar character watermark (fixed, bottom-left, same width as sidebar) â”€â”€
+    // ── 1. Sidebar character watermark (fixed, bottom-left, same width as sidebar) ──
     if (charUrl) {
       const existing = document.getElementById(themeId + '-char');
       if (!existing) {
@@ -571,7 +571,7 @@
     });
   }
 
-  // â”€â”€ Registration: expose to app.js â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Registration: expose to app.js ──────────────────────────────────────────
   window.COMMUNITY_THEMES = COMMUNITY_THEMES;
 
   // Inject all theme CSS immediately (before app.js runs, so selectors are ready)

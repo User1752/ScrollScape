@@ -50,7 +50,7 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
     }
   }
 
-  function _mergeReviewEntries(existing, incoming) {
+  function mergeReviewEntries(existing, incoming) {
     const out = [];
     const seen = new Set();
     for (const item of [...(incoming || []), ...(existing || [])]) {
@@ -64,7 +64,7 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
     return out;
   }
 
-  function _collectReadingStatusCandidates(store, fromMangaId, fromSourceIdRaw) {
+  function collectReadingStatusCandidates(store, fromMangaId, fromSourceIdRaw) {
     const wantedSource = normSourceId(fromSourceIdRaw);
     const rawId = String(fromMangaId || '');
     const safeIdPart = sanitizeCompositePart(rawId);
@@ -308,6 +308,17 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
   }
 
   async function addHistoryEntry({ mangaId, sourceId, manga, chapterId, chapterName } = {}) {
+    const missing = [];
+    if (isBadIdentityValue(mangaId)) missing.push('id');
+    if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+    if (missing.length > 0) {
+      const err = new Error('mangaId and sourceId required');
+      err.statusCode = 400;
+      err.code = 'INVALID_LIBRARY_PAYLOAD';
+      err.details = { missing };
+      throw err;
+    }
+
     const store = await readStore();
     const existing = store.history.findIndex(m => m.id === mangaId && m.sourceId === sourceId);
     if (existing >= 0) store.history.splice(existing, 1);
@@ -326,6 +337,17 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
   }
 
   async function removeHistoryEntry({ mangaId, sourceId } = {}) {
+    const missing = [];
+    if (isBadIdentityValue(mangaId)) missing.push('id');
+    if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+    if (missing.length > 0) {
+      const err = new Error('mangaId and sourceId required');
+      err.statusCode = 400;
+      err.code = 'INVALID_LIBRARY_PAYLOAD';
+      err.details = { missing };
+      throw err;
+    }
+
     const store = await readStore();
     store.history = store.history.filter(m => !(m.id === mangaId && m.sourceId === sourceId));
     await writeStore(store);
@@ -378,9 +400,14 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
   }
 
   async function setUserStatus({ mangaId, sourceId, status, mangaData } = {}) {
-    if (!mangaId || !sourceId) {
+    const missing = [];
+    if (isBadIdentityValue(mangaId)) missing.push('id');
+    if (isBadIdentityValue(sourceId)) missing.push('sourceId');
+    if (missing.length > 0) {
       const err = new Error('mangaId and sourceId required');
       err.statusCode = 400;
+      err.code = 'INVALID_LIBRARY_PAYLOAD';
+      err.details = { missing };
       throw err;
     }
 
@@ -429,6 +456,15 @@ function createLibraryContentService({ readStore, writeStore, safeManga, isSafeU
     getUserStatus,
     setUserStatus,
     clearLibrary,
+    // Shared with library/service.js, which used to keep a byte-identical
+    // second copy of each of these — exported instead so there's exactly
+    // one place a change to the composite-key format takes effect.
+    normSourceId,
+    sanitizeCompositePart,
+    safeStatusKey,
+    safeReviewKey,
+    mergeReviewEntries,
+    collectReadingStatusCandidates,
   };
 }
 

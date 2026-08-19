@@ -3,6 +3,7 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
+const { THEME_PRESET_FAILED } = require('../errors/error-codes');
 
 function createThemePresetService() {
   let presetsDir = '';
@@ -66,9 +67,26 @@ function createThemePresetService() {
 
   async function writePresets(presets) {
     if (!presetsFile) throw new Error('Theme presets route not configured');
-    await fsp.mkdir(presetsDir, { recursive: true });
     const payload = { presets, updatedAt: new Date().toISOString() };
-    await fsp.writeFile(presetsFile, JSON.stringify(payload, null, 2), 'utf8');
+    // Same tmp-file + rename pattern as store/persistence.js — a direct
+    // write left a crash mid-save free to truncate the file, and getPresets()
+    // treats any parse failure as "no presets", so a torn write would have
+    // silently discarded every saved preset with no error surfaced anywhere.
+    const tmpFile = `${presetsFile}.tmp`;
+    try {
+      await fsp.mkdir(presetsDir, { recursive: true });
+      await fsp.writeFile(tmpFile, JSON.stringify(payload, null, 2), 'utf8');
+      await fsp.rename(tmpFile, presetsFile);
+    } catch (e) {
+      // Wrapped rather than tagging e.code directly: e is a raw Node fs
+      // error here, whose .code is already a real diagnostic (ENOENT,
+      // EACCES, ...) — overwriting it would throw that away for the sake
+      // of adding this project's own error-code taxonomy on top.
+      const err = new Error(`Failed to save theme presets: ${e.message}`);
+      err.code = THEME_PRESET_FAILED;
+      err.cause = e;
+      throw err;
+    }
   }
 
   async function replacePresets({ presets } = {}) {

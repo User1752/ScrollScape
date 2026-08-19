@@ -37,6 +37,7 @@ const { createSourceDispatchService } = require('../modules/sources/dispatch-ser
 const { createPopularAllService } = require('../modules/sources/popular-all');
 const { createSourceLifecycleService } = require('../modules/sources/lifecycle');
 const { createAsyncHandler } = require('../modules/http/async-handler');
+const { withTimeout: raceWithTimeout } = require('../modules/common/async-utils');
 const limits = require('../config/limits');
 
 const SOURCE_CALL_TIMEOUT = limits.sourceCallTimeoutMs;
@@ -62,13 +63,14 @@ function isTransientSourceError(err) {
     || msg.includes('etimedout');
 }
 
+// Delegates to the shared, leak-free race in modules/common/async-utils.js
+// (this used to reimplement the same Promise.race here without ever
+// clearing its own setTimeout when the source call won the race first —
+// one leaked timer per call) while keeping this file's own labeled message
+// format, since isTransientSourceError() above and callers elsewhere match
+// on "... timed out after Nms" verbatim.
 function withTimeout(promise, ms = SOURCE_CALL_TIMEOUT, label = 'source call') {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-    ),
-  ]);
+  return raceWithTimeout(promise, ms, `${label} timed out after ${ms}ms`);
 }
 
 const asyncHandler = createAsyncHandler('SOURCES');

@@ -1,6 +1,9 @@
 'use strict';
 
 const { readStore, writeStore, flushNow, normaliseStore } = require('../store');
+const { createAsyncHandler } = require('../modules/http/async-handler');
+
+const asyncHandler = createAsyncHandler('BACKUP');
 
 /**
  * Full-library backup: exports/imports the entire server-side store
@@ -10,37 +13,32 @@ const { readStore, writeStore, flushNow, normaliseStore } = require('../store');
  * (see public/modules/ui-backup.js).
  */
 function registerBackupRoutes(app) {
-  app.get('/api/backup/export', async (req, res) => {
-    try {
-      const store = await readStore();
-      res.json({ ok: true, store });
-    } catch (error) {
-      res.status(500).json({ ok: false, error: error.message });
+  app.get('/api/backup/export', asyncHandler(async (req, res) => {
+    const store = await readStore();
+    res.json({ ok: true, store });
+  }));
+
+  app.post('/api/backup/import', asyncHandler(async (req, res) => {
+    const incoming = req.body && req.body.store;
+    if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
+      const err = new Error('Invalid backup file: missing store data.');
+      err.statusCode = 400;
+      err.expected = true;
+      throw err;
     }
-  });
 
-  app.post('/api/backup/import', async (req, res) => {
-    try {
-      const incoming = req.body && req.body.store;
-      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
-        return res.status(400).json({ ok: false, error: 'Invalid backup file: missing store data.' });
-      }
+    // Restoring replaces the entire library/settings/history wholesale —
+    // normalise it through the same schema defaults used on a normal boot
+    // so a partial/older backup doesn't leave the app with missing
+    // fields other routes assume exist (e.g. store.favorites as array).
+    normaliseStore(incoming);
+    await writeStore(incoming);
+    // Deliberate write, not a high-frequency one — flush immediately
+    // rather than relying on the debounced save (mirrors settings.js).
+    flushNow();
 
-      // Restoring replaces the entire library/settings/history wholesale —
-      // normalise it through the same schema defaults used on a normal boot
-      // so a partial/older backup doesn't leave the app with missing
-      // fields other routes assume exist (e.g. store.favorites as array).
-      normaliseStore(incoming);
-      await writeStore(incoming);
-      // Deliberate write, not a high-frequency one — flush immediately
-      // rather than relying on the debounced save (mirrors settings.js).
-      flushNow();
-
-      res.json({ ok: true });
-    } catch (error) {
-      res.status(500).json({ ok: false, error: error.message });
-    }
-  });
+    res.json({ ok: true });
+  }));
 }
 
 module.exports = { registerBackupRoutes };

@@ -4,6 +4,8 @@ const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
 
+const { guessImageExt } = require('../common/cbz-builder');
+
 const IMG_EXT_RE = /\.(jpe?g|png|gif|webp)$/i;
 const SAVE_JOB_TTL = 15 * 60 * 1000;
 const normaliseExt = (e) => e.replace(/^jpeg$/i, 'jpg');
@@ -445,7 +447,7 @@ function createLocalService({
       const { url: imgUrl, referer } = resolved;
       try {
         const buf = await fetchImageBuffer(imgUrl, referer);
-        const ext = ((imgUrl.match(/\.(jpe?g|png|webp|gif)/i) || ['', 'jpg'])[1]).replace('jpeg', 'jpg');
+        const ext = guessImageExt(imgUrl);
         const fname = `${String(i + 1).padStart(4, '0')}.${ext}`;
         await fsp.writeFile(path.join(chapDir, fname), buf);
         imgPaths.push(`/local-media/${localId}/images/${safeName(chapterName)}/${fname}`);

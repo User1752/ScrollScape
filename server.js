@@ -63,6 +63,9 @@ const PORT             = process.env.PORT || 4000;
 const storeModule = require('./server/store');
 storeModule.configure(STORE_PATH);
 
+const errorLogger = require('./server/modules/error-logger');
+errorLogger.configure(DATA_DIR);
+
 const limits = require('./server/config/limits');
 
 const sourceLoader = require('./server/sourceLoader');
@@ -86,6 +89,12 @@ comicVineService.configure({ cacheFilePath: path.join(CACHE_DIR, 'comicvine.json
 
 const leagueOfComicGeeksService = require('./server/modules/leagueofcomicgeeks/service');
 leagueOfComicGeeksService.configure({ cacheFilePath: path.join(CACHE_DIR, 'leagueofcomicgeeks.json') });
+
+// achievements.json is a bundled, read-only catalog, not user data — resolve
+// it the same __dirname-relative way SNAP_SOURCES_DIR resolves data/sources/,
+// so it keeps working from inside a packaged .exe's read-only snapshot.
+const achievementsRoutes = require('./server/routes/achievements');
+achievementsRoutes.configure({ achievementsJsonPath: path.join(__dirname, 'data', 'achievements.json') });
 
 // ── Express application ──────────────────────────────────────────────────────
 const app = express();

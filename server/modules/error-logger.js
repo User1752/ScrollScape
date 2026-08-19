@@ -2,8 +2,15 @@
 const path = require('path');
 const fsp = require('fs').promises;
 
-const DATA_DIR = path.resolve(__dirname, '../../data');
-const LOG_PATH = path.join(DATA_DIR, 'error-log.json');
+// Defaults to __dirname-relative for standalone use (e.g. a bare require in
+// a test), but server.js calls configure() with the real, writable DATA_DIR
+// on startup — required in a packaged .exe, where __dirname sits inside a
+// read-only snapshot and every write here would otherwise fail silently.
+let LOG_PATH = path.join(path.resolve(__dirname, '../../data'), 'error-log.json');
+
+function configure(dataDir) {
+  LOG_PATH = path.join(dataDir, 'error-log.json');
+}
 
 let writePromise = Promise.resolve();
 
@@ -62,4 +69,4 @@ async function clearErrors() {
   return op;
 }
 
-module.exports = { recordError, clearErrors };
+module.exports = { configure, recordError, clearErrors };

@@ -1,4 +1,3 @@
-// (Removido do escopo global: handlers de displayModeSelect e mangasPerRowSelect)
 // ============================================================================
 // SETTINGS MODAL
 // ============================================================================
@@ -652,7 +651,7 @@ function showSettings() {
   document.body.appendChild(modal);
 
   $("closeSettings").onclick = () => modal.remove();
-  // Finaliza inicialização após todos os handlers estarem prontos
+  // Finishes initialization once every handler above is wired up
   setTimeout(() => { initializingSettingsModal = false; }, 0);
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 

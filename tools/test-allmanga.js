@@ -1,4 +1,5 @@
 const https = require('https');
+const { DEFAULT_USER_AGENT } = require('../server/modules/network/fetch-utils');
 
 function req(path, body, headers) {
   return new Promise((resolve, reject) => {
@@ -15,7 +16,7 @@ function req(path, body, headers) {
 async function main() {
   const headers = {
     'Content-Type': 'application/json',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'User-Agent': DEFAULT_USER_AGENT,
     'Referer': 'https://allmanga.to',
     'Origin': 'https://allmanga.to',
   };

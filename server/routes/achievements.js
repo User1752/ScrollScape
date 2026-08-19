@@ -20,12 +20,18 @@ const { createAsyncHandler } = require('../modules/http/async-handler');
 const { createAchievementService } = require('../modules/achievements/service');
 
 const asyncHandler = createAsyncHandler('ACHIEVEMENTS');
-const achievementService = createAchievementService({ readStore, writeStore });
+
+let achievementsJsonPath = '';
+
+function configure(opts = {}) {
+  if (opts.achievementsJsonPath) achievementsJsonPath = opts.achievementsJsonPath;
+}
 
 /**
  * @param {import('express').Router} router
  */
 function registerAchievementRoutes(router) {
+  const achievementService = createAchievementService({ readStore, writeStore, achievementsJsonPath });
   router.get('/api/achievements/definitions', asyncHandler(async (_req, res) => {
     res.json(await achievementService.getDefinitions());
   }));
@@ -43,4 +49,4 @@ function registerAchievementRoutes(router) {
   }));
 }
 
-module.exports = { registerAchievementRoutes };
+module.exports = { registerAchievementRoutes, configure };

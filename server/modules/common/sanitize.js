@@ -20,12 +20,28 @@ function safeManga(manga) {
   };
 }
 
+// The WHATWG URL parser always normalizes an IPv4-mapped IPv6 host (however
+// it was written — dotted "::ffff:127.0.0.1", full "0:0:0:0:0:ffff:127.0.0.1",
+// whatever) down to this one compressed hex form, e.g. "::ffff:7f00:1" for
+// 127.0.0.1 — so matching just this shape after the fact is enough to catch
+// every input spelling, without needing a full IPv6 parser.
+function extractMappedIPv4(host) {
+  const m = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(host);
+  if (!m) return null;
+  const hi = parseInt(m[1], 16);
+  const lo = parseInt(m[2], 16);
+  return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+}
+
 function isSafeUrl(rawUrl) {
   try {
     const url = new URL(rawUrl);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
     const host = url.hostname.replace(/\[|\]/g, '');
-    return !PRIVATE_IP_RE.test(host) && host !== 'localhost';
+    if (PRIVATE_IP_RE.test(host) || host === 'localhost') return false;
+    const mappedV4 = extractMappedIPv4(host);
+    if (mappedV4 && PRIVATE_IP_RE.test(mappedV4)) return false;
+    return true;
   } catch {
     return false;
   }

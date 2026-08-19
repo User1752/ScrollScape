@@ -35,6 +35,26 @@ function _alSetLink(mangaId, anilistId) {
     dbg.warn(dbg.ERR_ANILIST, '_alSetLink: failed to write localStorage', e);
   }
 }
+// Whole-map access for the few callers (here and in ui-library.js,
+// ui-achievements.js, ui-migrate.js) that need to iterate or bulk-rewrite
+// every link at once — a migration remap, a linked-count, an auto-sync pass
+// — rather than look up one mangaId. Those used to each hand-roll their own
+// localStorage.getItem/JSON.parse('scrollscape_al_links') independently;
+// centralizing at least the key string and parse/stringify boilerplate here
+// means a typo in the key can only happen in one place now.
+function _alGetAllLinks() {
+  try { return JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}') || {}; } catch (e) {
+    dbg.warn(dbg.ERR_ANILIST, '_alGetAllLinks: failed to read localStorage', e);
+    return {};
+  }
+}
+function _alSetAllLinks(links) {
+  try {
+    localStorage.setItem('scrollscape_al_links', JSON.stringify(links || {}));
+  } catch (e) {
+    dbg.warn(dbg.ERR_ANILIST, '_alSetAllLinks: failed to write localStorage', e);
+  }
+}
 
 // Entries the source-resolution step has already spent a request budget on
 // at least once, whether or not it found a usable candidate — separate from
@@ -247,10 +267,7 @@ async function anilistStartupReconcileProgress() {
   if (_alStartupProgressSyncRunning || _alStartupProgressSyncDone) return;
   if (!_alToken() || !state.settings.anilistAutoSync) return;
 
-  const links = (() => {
-    try { return JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}') || {}; }
-    catch (_) { return {}; }
-  })();
+  const links = _alGetAllLinks();
 
   const targetsMap = new Map();
   for (const fav of (state.favorites || [])) {
@@ -837,20 +854,20 @@ function _showAnilistSourcePicker(choices) {
     modal.innerHTML = `
       <div class="settings-content" style="width:min(96vw,980px);max-width:980px;max-height:94vh;overflow:auto;border:1px solid color-mix(in srgb, var(--primary) 25%, transparent)">
         <div class="settings-header">
-          <h2>Escolher Source Após Import</h2>
+          <h2>Choose Source After Import</h2>
           <button class="btn secondary" id="anilistPickerClose">&#x2715;</button>
         </div>
         <div class="settings-body" style="padding-bottom:0.4rem">
           <p style="margin:0 0 0.8rem;color:var(--text-muted);font-size:0.84rem">
-            Seleciona manualmente o source para cada manga importado. Pré-selecionado: source com mais capítulos.
+            Manually pick the source for each imported manga. Pre-selected: the source with the most chapters.
           </p>
           <div style="max-height:66vh;overflow:auto;padding-right:4px">${rows}</div>
         </div>
         <div style="padding:0.8rem 1.2rem;border-top:1px solid color-mix(in srgb, var(--primary) 15%, transparent);display:flex;justify-content:space-between;align-items:center;gap:0.6rem">
-          <span style="font-size:0.8rem;color:var(--text-muted)">${rowsData.length} manga com opções encontradas</span>
+          <span style="font-size:0.8rem;color:var(--text-muted)">${rowsData.length} manga with options found</span>
           <div style="display:flex;gap:0.5rem">
-            <button class="btn secondary" id="anilistPickerSkip">Manter AniList</button>
-            <button class="btn primary" id="anilistPickerApply">Aplicar Seleção</button>
+            <button class="btn secondary" id="anilistPickerSkip">Keep AniList</button>
+            <button class="btn primary" id="anilistPickerApply">Apply Selection</button>
           </div>
         </div>
       </div>`;
@@ -1083,7 +1100,7 @@ async function anilistImportLibrary(opts = {}) {
       }
 
       if (pickedResolutions === null) {
-        showToast('AniList Import', 'Seleção de source cancelada. Mantidos placeholders AniList.', 'warning');
+        showToast('AniList Import', 'Source selection cancelled. Kept AniList placeholders.', 'warning');
       } else if (resolveResult.rateLimited) {
         showToast('AniList Import', 'Rate limit reached while resolving sources. Continuing with partial sync.', 'warning');
       } else if (resolveResult.capped) {

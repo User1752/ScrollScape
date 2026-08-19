@@ -1,6 +1,7 @@
 'use strict';
 
 const limits = require('../../config/limits');
+const { MANGAUPDATES_REQUEST_FAILED } = require('../errors/error-codes');
 
 function createMangaUpdatesService() {
   async function searchByTitle({ title } = {}) {
@@ -22,6 +23,7 @@ function createMangaUpdatesService() {
     if (!searchRes.ok) {
       const err = new Error(`MangaUpdates search error: ${searchRes.status}`);
       err.statusCode = 502;
+      err.code = MANGAUPDATES_REQUEST_FAILED;
       throw err;
     }
 
@@ -45,6 +47,7 @@ function createMangaUpdatesService() {
     if (!detailRes.ok) {
       const err = new Error(`MangaUpdates detail error: ${detailRes.status}`);
       err.statusCode = 502;
+      err.code = MANGAUPDATES_REQUEST_FAILED;
       throw err;
     }
 

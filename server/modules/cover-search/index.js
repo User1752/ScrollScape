@@ -1,9 +1,10 @@
 'use strict';
 
 const { isSafeUrl } = require('../../helpers');
+const { DEFAULT_USER_AGENT } = require('../network/fetch-utils');
 
 const DEFAULT_FETCH_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  'User-Agent': DEFAULT_USER_AGENT,
   'Cache-Control': 'no-cache',
 };
 

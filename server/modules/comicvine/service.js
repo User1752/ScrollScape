@@ -17,12 +17,10 @@
 
 'use strict';
 
-const fs = require('fs');
-const fsp = fs.promises;
-const { readStore } = require('../../store');
 const { COMICVINE_REQUEST_FAILED } = require('../errors/error-codes');
 const { recordError } = require('../error-logger');
 const { parseTitle, pickBestMatch } = require('../comics-metadata/title-matching');
+const { createTtlDiskCache } = require('../common/ttl-disk-cache');
 
 const SEARCH_URL = 'https://comicvine.gamespot.com/api/search/';
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -30,61 +28,28 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // cover/publisher data rarely changes
 const RATE_LIMIT_COOLDOWN_MS = 15 * 60 * 1000; // ComicVine's own window is ~1h; this just stops us digging the hole deeper
 const SAVE_DEBOUNCE_MS = 2_000;
 
-const cache = new Map();
+const ttlCache = createTtlDiskCache({ saveDebounceMs: SAVE_DEBOUNCE_MS });
 let rateLimitedUntil = 0;
-let cacheFilePath = null;
-let cacheLoaded = false;
-let saveTimer = null;
+// Only needed for getApiKey() below. Defaults to this project's own store,
+// same lazy-fallback pattern as network/fetch-utils.js — keeps every
+// existing caller working unconfigured, while letting this module (a
+// self-contained "look up a comic's cover on ComicVine" service, otherwise
+// unrelated to ScrollScape's own store shape) be pointed at a different
+// store if it's ever reused elsewhere.
+let _readStore = null;
 
 /**
- * @param {{ cacheFilePath: string }} options
+ * @param {{ cacheFilePath: string, readStore?: Function }} options
  */
-function configure({ cacheFilePath: filePath } = {}) {
-  if (!filePath || typeof filePath !== 'string') {
-    throw new Error('Invalid cacheFilePath provided to comicvine.configure()');
-  }
-  cacheFilePath = filePath;
-}
-
-// Restarts are frequent during development (and after any settings change),
-// and every one used to wipe this in-memory-only cache — re-paying for
-// titles ScrollScape had already resolved just minutes earlier. Persisting
-// it to disk is what actually keeps repeat lookups (and ComicVine's rate
-// limit) under control; downloading every cover up front isn't a real
-// alternative — a catalog-wide crawl would burn through the same hourly
-// quota in one sitting instead of spreading naturally over real usage.
-async function ensureCacheLoaded() {
-  if (cacheLoaded || !cacheFilePath) return;
-  cacheLoaded = true;
-  try {
-    const raw = await fsp.readFile(cacheFilePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    for (const [key, entry] of Object.entries(parsed)) {
-      cache.set(key, entry);
-    }
-  } catch {
-    // No cache file yet (first run) or it's unreadable — start fresh.
-  }
-}
-
-function scheduleCacheSave() {
-  if (!cacheFilePath) return;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    saveTimer = null;
-    try {
-      const tmpPath = `${cacheFilePath}.tmp`;
-      await fsp.writeFile(tmpPath, JSON.stringify(Object.fromEntries(cache)), 'utf8');
-      await fsp.rename(tmpPath, cacheFilePath);
-    } catch (_) {
-      // Best-effort — worst case we just re-fetch a few titles next time.
-    }
-  }, SAVE_DEBOUNCE_MS);
+function configure({ cacheFilePath, readStore } = {}) {
+  ttlCache.configure({ cacheFilePath });
+  if (typeof readStore === 'function') _readStore = readStore;
 }
 
 async function getApiKey() {
   try {
-    const store = await readStore();
+    if (!_readStore) _readStore = require('../../store').readStore;
+    const store = await _readStore();
     return String(store?.settings?.comicVineApiKey || '').trim();
   } catch {
     return '';
@@ -115,13 +80,11 @@ async function lookupCover({ title, year: explicitYear } = {}) {
   const year = explicitYear ?? titleYear;
   if (!cleanTitle) return null;
 
-  await ensureCacheLoaded();
+  await ttlCache.ensureLoaded();
 
   const cacheKey = `${cleanTitle.toLowerCase()}|${year || ''}`;
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    return cached.value;
-  }
+  const cached = ttlCache.getFresh(cacheKey, CACHE_TTL_MS);
+  if (cached !== undefined) return cached;
 
   // A burst of lookups (a full page of search/browse results, each on its
   // own request) can exhaust ComicVine's hourly quota fast. Once that
@@ -152,8 +115,7 @@ async function lookupCover({ title, year: explicitYear } = {}) {
       ? { cover, publisher: match?.publisher?.name || '' }
       : null;
 
-    cache.set(cacheKey, { value: result, at: Date.now() });
-    scheduleCacheSave();
+    ttlCache.set(cacheKey, result);
     return result;
   } catch (err) {
     await recordError({

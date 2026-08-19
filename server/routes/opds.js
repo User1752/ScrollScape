@@ -37,6 +37,7 @@ const { safeId, sha1Short, safeName, fetchImageBuffer, resolvePageUrl } = requir
 const { loadSourceFromFile } = require('../sourceLoader');
 const { createLocalService } = require('../modules/local/service');
 const { createAsyncHandler } = require('../modules/http/async-handler');
+const { guessImageExt, addPagesToZip } = require('../modules/common/cbz-builder');
 
 let LOCAL_DIR = '';
 let localService = null;
@@ -191,7 +192,7 @@ function registerOpdsRoutes(app) {
   <entry>
     <id>urn:scrollscape:chapter:${xmlEscape(sourceId)}:${xmlEscape(mangaId)}:${xmlEscape(chapterId)}</id>
     <title>${xmlEscape(ch.name || ch.chapter || chapterId)}</title>
-    <updated>${safeDate(ch.date)}</updated>
+    <updated>${safeDate(ch.publishAt || ch.date)}</updated>
     <link rel="http://opds-spec.org/acquisition" href="${xmlEscape(acquisitionHref)}" type="${type}"/>
   </entry>`;
     }
@@ -222,7 +223,7 @@ function registerOpdsRoutes(app) {
         if (!rel) continue;
         try {
           const buf = await fsp.readFile(path.join(LOCAL_DIR, rel));
-          const ext = ((rel.match(/\.(jpe?g|png|webp|gif)$/i) || ['', 'jpg'])[1]).replace(/jpeg/i, 'jpg');
+          const ext = guessImageExt(rel);
           zip.addFile(`${String(i + 1).padStart(3, '0')}.${ext}`, buf);
         } catch (e) {
           console.warn(`[opds] skipped local page ${i + 1}: ${e.message}`);
@@ -237,18 +238,12 @@ function registerOpdsRoutes(app) {
       if (!sid) return res.status(400).json({ error: 'Invalid sourceId' });
       const source = loadSourceFromFile(sid);
       const result = await source.pages(chapterId);
-      const resolvedPages = (result?.pages || []).map(resolvePageUrl).filter(Boolean);
+      const resolvedPages = (result?.pages || []).map(resolvePageUrl);
 
-      for (let i = 0; i < resolvedPages.length; i++) {
-        const { url: imgUrl, referer } = resolvedPages[i];
-        try {
-          const buf = await fetchImageBuffer(imgUrl, referer);
-          const ext = ((imgUrl.match(/\.(jpe?g|png|webp|gif)/i) || ['', 'jpg'])[1]).replace('jpeg', 'jpg');
-          zip.addFile(`${String(i + 1).padStart(3, '0')}.${ext}`, buf);
-        } catch (e) {
-          console.warn(`[opds] skipped page ${i + 1}: ${e.message}`);
-        }
-      }
+      await addPagesToZip(zip, resolvedPages, {
+        fetchImageBuffer,
+        onSkip: (i, e) => console.warn(`[opds] skipped page ${i + 1}: ${e.message}`),
+      });
 
       try {
         const details = await source.mangaDetails(mangaId);

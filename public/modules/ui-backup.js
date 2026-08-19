@@ -15,6 +15,7 @@
 const BACKUP_LOCALSTORAGE_KEYS = [
   'bookshelfCustomOrder',
   'genreFilterCollapsed',
+  'language',
   'scrollscape_analytics_heatmap_range',
   'scrollscape.libraryCardSettings',
   'scrollscape.librarySpineColors',
@@ -26,6 +27,7 @@ const BACKUP_LOCALSTORAGE_KEYS = [
   'scrollscapeSettings',
   'scrollscapeTheme',
   'scrollscape_active_theme',
+  'scrollscape_al_attempted',
   'scrollscape_al_links',
   'scrollscape_anilist_clientid',
   'scrollscape_anilist_user',

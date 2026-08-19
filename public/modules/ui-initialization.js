@@ -11,7 +11,14 @@
   var activeCustom = getActiveCustom();
   var activeTheme = getActiveTheme();
   if (activeCustom && activeTheme !== 'default') {
+    // Not setActiveTheme('default') here on purpose: this branch resets only
+    // the base theme underneath an already-active custom overlay, and
+    // setActiveTheme()'s own side effect is to clear that overlay — exactly
+    // the state this is trying to preserve. Still needs the same server push
+    // setActiveTheme() would have done, or the server-side record silently
+    // drifts from what's actually active in this browser.
     localStorage.setItem('scrollscape_active_theme', 'default');
+    _pushProgressionToServer({ activeTheme: 'default' });
     activeTheme = 'default';
   }
   applyTheme(activeTheme);

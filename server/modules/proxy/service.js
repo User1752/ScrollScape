@@ -52,7 +52,8 @@ function releaseProxyLock() {
   }
 }
 
-const { getDomainSession, getFlaresolverrUrl, executeFlareSolverr } = require('../network/fetch-utils');
+const { getDomainSession, getFlaresolverrUrl, executeFlareSolverr, DEFAULT_USER_AGENT } = require('../network/fetch-utils');
+const { COVER_PROXY_FAILED } = require('../errors/error-codes');
 
 function createProxyService({ isSafeUrl }) {
   async function proxyAniList({ query, variables } = {}, authorizationHeader) {
@@ -112,7 +113,7 @@ function createProxyService({ isSafeUrl }) {
       const headers = {
         Referer: refererHeader,
         Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-        'User-Agent': sess?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': sess?.userAgent || DEFAULT_USER_AGENT,
       };
       if (sess?.cookieHeader) {
         headers['Cookie'] = sess.cookieHeader;
@@ -145,6 +146,7 @@ function createProxyService({ isSafeUrl }) {
     } catch (e) {
       const err = new Error(`Upstream connection failed: ${e.message}`);
       err.statusCode = 502;
+      err.code = COVER_PROXY_FAILED;
       throw err;
     } finally {
       releaseProxyLock();
@@ -158,6 +160,7 @@ function createProxyService({ isSafeUrl }) {
       const err = new Error(message);
       if (status === 404) err.expected = true;
       err.statusCode = imgRes.status;
+      err.code = COVER_PROXY_FAILED;
       throw err;
     }
 
@@ -186,6 +189,7 @@ function createProxyService({ isSafeUrl }) {
         console.warn('[proxy-image] 415 Unsupported:', url, '| Content-Type:', finalCt);
         const err = new Error('Unsupported upstream content type');
         err.statusCode = 415;
+        err.code = COVER_PROXY_FAILED;
         throw err;
       }
     } else {

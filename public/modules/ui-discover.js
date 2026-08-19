@@ -15,10 +15,10 @@ const _homeRowRequestSeq = {
 
 window._homeSeenManga = new Set();
 
-function getMangaKey(manga) {
-  if (!manga) return '';
-  return `${String(manga.sourceId || '')}:${String(manga.id || manga.mangaId || '')}`;
-}
+// getMangaKey() lives in state.js — it loads first and every other copy of
+// this function that used to shadow it here and in ui-library.js had
+// silently drifted to a slightly different body (see docs/manual for the
+// audit that caught it). Deleted rather than kept as a second definition.
 
 function getUserReadingProfile() {
   const profile = {

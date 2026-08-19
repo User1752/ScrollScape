@@ -258,7 +258,7 @@ async function loadRecommendations() {
   if (!section || !row) return;
 
   let installedSourceIds = getSelectableSourceIds();
-  // Respeitar configuração de fontes selecionadas na home
+  // Respect the "selected sources" home-screen setting
   if (state.settings.homeSourceMode === 'selected' && Array.isArray(state.settings.homeSelectedSourceIds) && state.settings.homeSelectedSourceIds.length > 0) {
     installedSourceIds = installedSourceIds.filter(sid => state.settings.homeSelectedSourceIds.includes(sid));
   }

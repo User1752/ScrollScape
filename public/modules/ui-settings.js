@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
   hideLibraryStatusAndChapters: false,
   mangasPerRow: 6,
   overlays: { downloaded: true, unread: true, local: true },
+  showBookSpine: true,
   readerBackground: 'black',
   webtoonTurnButtonsEnabled: true,
   webtoonTurnButtonPlacement: 'corners',

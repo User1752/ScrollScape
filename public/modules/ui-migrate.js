@@ -691,7 +691,7 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
       skipped++;
       continue;
     }
-    // Garante que fromSourceId é sempre string ("unknown" se não houver)
+    // Ensures fromSourceId is always a string ("unknown" if there isn't one)
     let fromSourceId = manga.sourceId;
     if (!fromSourceId || fromSourceId === null || fromSourceId === undefined) fromSourceId = 'unknown';
     migrations.push({
@@ -759,7 +759,7 @@ async function _migrateExecute(modal, results, selectedTargets, rowKeyFor) {
       }
     }
     if (semSourceWarn) {
-      parts.push('Warning: Alguns mangas migrados de "sem source" não tinham progresso/status para copiar.');
+      parts.push('Warning: some manga migrated from "no source" had no progress/status to copy over.');
     }
 
     showToast('Migration complete', parts.join(', '), (res.failed || skipped || semSourceWarn) ? 'warning' : 'success');
@@ -783,14 +783,11 @@ async function _migrateRemapLocalStorage(migrationPairs) {
   // Always remap tracker links first (independent of chapter/source remap).
   try {
     const idMap = new Map(pairs.map(p => [String(p.fromMangaId || ''), String(p.toMangaId || '')]));
-    const alLinksRaw = localStorage.getItem('scrollscape_al_links');
-    if (alLinksRaw) {
-      const links = JSON.parse(alLinksRaw);
-      if (links && typeof links === 'object') {
-        const remapped = {};
-        for (const [key, val] of Object.entries(links)) remapped[idMap.get(key) || key] = val;
-        localStorage.setItem('scrollscape_al_links', JSON.stringify(remapped));
-      }
+    const links = _alGetAllLinks();
+    if (Object.keys(links).length) {
+      const remapped = {};
+      for (const [key, val] of Object.entries(links)) remapped[idMap.get(key) || key] = val;
+      _alSetAllLinks(remapped);
     }
   } catch (_) {
     // Non-fatal.
