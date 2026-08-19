@@ -119,6 +119,47 @@ sempre que o processo Node foi reiniciado antes de concluir "a correção não f
 uma das causas mais comuns e mais fáceis de descartar erradamente de "o bug continua lá"
 quando, na realidade, o código antigo é que ainda está a correr em memória.
 
+## Categoria: "código morto" que só parece morto porque a pesquisa não viu tudo
+
+**Onde apareceu**: `server/modules/errors/error-registry.js`, apagado durante uma
+auditoria de limpeza de código, com base numa pesquisa (`grep`) que não encontrou nenhum
+`require()` dele em ficheiro nenhum sob controlo de versão.
+
+O módulo era, de facto, usado — só que pelos oito pontos de chamada que viviam dentro de
+`data/sources/*.js`, uma pasta marcada como `gitignored` neste projeto (os sources
+instalados são geridos como plugins, não como código do repositório principal). Uma
+pesquisa que só cobre ficheiros rastreados pelo Git simplesmente nunca viu esses oito
+`require()`, cada um dentro de um `try/catch` que engolia silenciosamente o
+`MODULE_NOT_FOUND` resultante — o sintoma não foi um crash, foi um logging de "erro
+conhecido" que silenciosamente deixou de acontecer para três sources, sem nenhum sinal
+visível de que algo tinha partido.
+
+**Como evitar isto**: antes de apagar algo com base em "não encontrei nenhuma referência",
+confirma explicitamente que a tua pesquisa cobriu **todos** os sítios onde o código corre
+em produção — não só os que o teu sistema de controlo de versão rastreia. Num projeto com
+qualquer pasta gitignored que contenha código executável (plugins, configuração gerada,
+scripts descarregados), isso significa procurar aí também, explicitamente, sempre que a
+pergunta for "isto está morto?" em vez de confiar só num `git grep`.
+
+## Categoria: normalizar dados a descartar informação que, a jusante, é mesmo mostrada
+
+**Onde apareceu**: três implementações near-duplicadas de `normalizeStatus()` nos sources
+(capítulo 4) — uma delas devolvia sempre `"unknown"` para qualquer texto de estado não
+reconhecido, em vez de preservar o texto original como as outras duas faziam.
+
+À primeira vista, parecia a versão "mais limpa": descartar texto scraped não reconhecido
+para um valor genérico soa como boa higiene de dados. Só ao verificar onde `status` era
+efetivamente consumido é que ficou claro que esse texto de fallback chega literalmente a
+um badge visível na interface (`ui-search.js`) — um site com um estado invulgar (ex. "Not
+Yet Licensed") mostrava essa frase real ao utilizador nas outras duas versões, e mostraria
+só "unknown" na versão "mais limpa". Unificar as três às cegas pela versão que "parecia"
+mais correta teria sido uma regressão visível, não uma melhoria.
+
+**Como evitar isto**: antes de escolher qual das várias implementações near-duplicadas vira
+a versão canónica, confirma **onde o valor de saída de cada uma é consumido a jusante** —
+não assumas que a diferença de comportamento entre elas é irrelevante só porque parece um
+detalhe de "estilo" ao ler o código isoladamente.
+
 ## Metodologia: verificar contra código e dados reais, nunca assumir
 
 A disciplina mais valiosa aplicada ao longo de todo o desenvolvimento deste projeto não é

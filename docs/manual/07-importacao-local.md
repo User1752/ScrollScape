@@ -10,6 +10,14 @@ aplicação, este armazenamento comporta-se como **mais um source** — com `sou
 chapters,pages}` que qualquer source real usa, mas implementado por
 `server/modules/local/service.js` em vez de fazer scraping a um site externo.
 
+`local/service.js` é hoje um orquestrador fino (~230 linhas) que compõe dois módulos
+vizinhos com uma responsabilidade cada: `archive-import.js` (a extração de CBZ/CBR/PDF/EPUB
+descrita a seguir) e `offline-downloads.js` (guardar capítulos descarregados de **outros**
+sources para leitura offline, incluindo a fila de download em massa e o fallback
+"synthetic" que `routes/sources.js`/`routes/opds.js` usam quando o source real de um manga
+está inacessível mas existe uma cópia offline). `createLocalService(...)` continua a
+devolver exatamente o mesmo objeto público de sempre — nenhum ponto de chamada mudou.
+
 Esta escolha de design — tratar "os meus ficheiros importados" como só mais um source, em
 vez de um conceito totalmente separado no frontend — poupa duplicação: o leitor, a
 navegação entre capítulos, a lista de biblioteca, tudo o que já sabe lidar com "um manga

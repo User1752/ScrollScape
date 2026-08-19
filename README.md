@@ -72,6 +72,12 @@ server/
   store.js                    In-memory store with debounced JSON persistence
   sourceLoader.js             Plugin loading, path-confinement, caching
   middleware/security.js      Security headers + rate limiter
+  modules/
+    common/                   Small stateless helpers reused across sources & routes
+                               (SSRF-safe URL check, page-stitching, genre-slug and
+                               status-text normalization, CBZ building, TTL disk cache)
+    network/fetch-utils.js     Shared fetch: SSRF guard, Cloudflare/FlareSolverr handling,
+                               per-domain session cache, single-flight de-dup
   routes/
     proxy.js                  Image proxy + AniList GraphQL relay
     repos.js                  Repository management
@@ -172,20 +178,40 @@ The reader background becomes transparent when the wallpaper is active so pages 
 Drop a `.js` file into `data/sources/` — it is picked up automatically on the next start.
 
 ```js
-exports.meta = {
-  id: 'my-source',
-  name: 'My Source',
-  baseUrl: 'https://example.com',
-  lang: 'en'
-};
+module.exports = {
+  meta: {
+    id: 'my-source',
+    name: 'My Source',
+    version: '1.0.0',
+  },
 
-exports.search       = async ({ query, page = 1 })    => ({ results: [], hasNextPage: false });
-exports.mangaDetails = async ({ mangaId })            => ({ id, title, cover, chapters: [] });
-exports.chapters     = async ({ mangaId })            => ([ /* Chapter[] */ ]);
-exports.pages        = async ({ mangaId, chapterId }) => ({ pages: [ /* url strings */ ] });
+  async search(query, page = 1, orderBy = '', filters = {}) {
+    return { results: [ /* { id, title, cover, url, genres, status, author } */ ], hasNextPage: false };
+  },
+  async mangaDetails(mangaId) {
+    return { id: mangaId, title: '', cover: '', description: '', status: 'unknown', genres: [], author: '', url: '' };
+  },
+  async chapters(mangaId) {
+    return { chapters: [ /* { id, name, chapter, publishAt } */ ] };
+  },
+  async pages(chapterId) {
+    return { pages: [ /* { index, img } */ ] };
+  },
+};
 ```
 
-All four exports are required. Source calls have a **30 s hard timeout**. Manga with zero chapters across all sources are automatically hidden from search results.
+All four are required, called with **positional** arguments (not a destructured options
+object), and validated on load — a source missing one of them, or with the wrong `meta.id`,
+never gets registered. Source calls have a **30 s hard timeout**. `pages()`'s `img` should
+be routed through `/api/proxy-image?url=...` rather than a raw remote URL (see Security,
+below). Optional methods (`trending`, `recentlyAdded`, `latestUpdates`, `byGenres`,
+`authorSearch`, `popularAllTime`) are detected automatically and only show their
+corresponding UI when implemented. Several small helpers a source can reuse instead of
+reimplementing — URL-safety checks, a shared User-Agent, page-stitching for sites with a
+fixed native page size, genre-slug/status-text normalization — live in
+`server/modules/common/` and `server/modules/network/fetch-utils.js`; see the technical
+manual (`docs/manual/04-sistema-de-sources.md`) for details. Manga with zero chapters
+across all sources are automatically hidden from search results.
 
 ---
 

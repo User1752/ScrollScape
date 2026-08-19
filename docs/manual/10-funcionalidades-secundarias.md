@@ -68,6 +68,13 @@ jitter (variação aleatória controlada) para não parecer artificialmente exat
 sources específicos com datas reais por capítulo, existe um caminho alternativo nativo,
 usado quando a resolução via MangaDex falha.
 
+`calendar/service.js` é o orquestrador de `getCalendar()`; a lógica em si vive em quatro
+módulos vizinhos, cada um sem estado partilhado com os outros: `mangadex-dates.js`
+(resolução de título → UUID e o *fetch* em lote do feed de capítulos), `native-dates.js`
+(o caminho alternativo nativo mencionado acima), `otaku-calendar.js` (scraping de
+lançamentos de volumes do OtakuCalendar), e `prediction-math.js` (a mediana, classificação
+de cadência e nível de confiança — funções puras, sem I/O nenhum).
+
 Vale a pena documentar aqui um bug real encontrado neste próprio módulo, porque é o tipo
 de erro que só aparece em produção: o código de resolução do MangaDex referenciava um
 identificador `limits` sem qualquer `require`/import correspondente no ficheiro — o que

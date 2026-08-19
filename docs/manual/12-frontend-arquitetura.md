@@ -2,7 +2,7 @@
 
 ## Carregamento: `<script defer>`, sem módulos ES, sem bundler
 
-`public/index.html` tem cerca de 59 tags `<script src="..." defer>` — nenhuma com
+`public/index.html` tem cerca de 62 tags `<script src="..." defer>` — nenhuma com
 `type="module"`. Não há `import`/`export` em lado nenhum do frontend; tudo cai no escopo
 global (`window`). A ordem das tags está deliberadamente organizada por dependência, com um
 comentário explícito no próprio HTML a documentar isto:
@@ -105,9 +105,36 @@ acesso específica. Ao construir algo semelhante, esta é uma razão a mais para
 `const` a `var` no topo dos teus ficheiros: continuas a ganhar partilha entre scripts sem
 sujar explicitamente o objeto `window` com cada constante interna.
 
+## Prova real: dividir um ficheiro gigante sem quebrar nada
+
+Esta garantia de escopo partilhado não é só teoria — foi usada deliberadamente para
+dividir dois dos ficheiros mais problemáticos do projeto, sem tocar em nenhum ponto de
+chamada existente. `ui-library.js` tinha 2378 linhas misturando pelo menos quatro
+responsabilidades (miniaturas em "lombada de livro", o menu de contexto do botão direito,
+lógica de ordenação, e a função `renderLibrary()` de 872 linhas que constrói a grelha em
+si); `ui-settings-modal.js` era **uma única função de 1578 linhas**, `showSettings()`.
+
+A divisão seguiu uma regra simples, derivada diretamente do comportamento descrito acima:
+qualquer `function` de topo pode mudar de ficheiro livremente, porque só é *chamada* em
+tempo de execução (depois de todos os `<script defer>` já terem corrido) — nunca é preciso
+mexer no ponto de chamada original. `ui-library.js` ficou com ~1530 linhas depois de
+extrair `ui-library-spines.js` (miniaturas + seletor de lombada) e
+`ui-library-context-menu.js` (o menu de contexto); `ui-settings-modal.js` ficou com ~960
+linhas depois de extrair a sua própria template `innerHTML` (615 linhas, uma função pura de
+`state`/`t()`, sem nenhuma closure sobre a `modal` ou outras variáveis locais de
+`showSettings()`) para `ui-settings-modal-html.js`. Em nenhum dos dois casos foi preciso
+alterar `renderLibrary()` ou o corpo de `showSettings()` que ficou para trás — só adicionar
+as novas tags `<script>` antes do ficheiro original em `index.html`.
+
+**O que tornou isto seguro de verificar sem abrir um browser**: confirmar, por grep, que
+toda declaração de topo do ficheiro original existe exatamente uma vez na soma dos
+ficheiros novos (zero perdida, zero duplicada), e que cada identificador externo que um
+ficheiro novo referencia resolve para uma definição real nalgum `.js` já carregado — o
+resto é uma garantia da própria linguagem, não algo que precise de ser testado caso a caso.
+
 ## Convenção de nomes: `ui-<funcionalidade>.js`
 
-A grande maioria dos ~51 ficheiros em `public/modules/` segue o padrão `ui-*.js`, um
+A grande maioria dos ~50 ficheiros em `public/modules/` segue o padrão `ui-*.js`, um
 ficheiro por ecrã/funcionalidade — `ui-library.js`, `ui-history.js`, `ui-settings-modal.js`,
 `ui-epub-reader.js`, etc. Os nomes são deliberadamente descritivos e por vezes bastante
 longos (ex. um ficheiro dedicado ao motor de "flip" 3D de página para leitura da direita

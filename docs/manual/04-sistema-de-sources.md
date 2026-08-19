@@ -139,6 +139,19 @@ com retries do zero (como faz `mangapill.js`) — mas quem os usa ganha, de fáb
   o primeiro dispara uma resolução via FlareSolverr; os outros esperam pela mesma promise
   em vez de disparar N resoluções em paralelo (o que sobrecarregaria o FlareSolverr e
   provavelmente levaria a mais desafios, não menos).
+- **`DEFAULT_USER_AGENT`** — uma única string de User-Agent exportada, em vez de cada
+  source (e mais uma dúzia de outros módulos: `proxy/service.js`, `cover-search/index.js`,
+  `library/ap-hiatus.js`...) manter a sua própria cópia hardcoded. Trocar o User-Agent do
+  projeto inteiro passou a ser uma alteração num só sítio.
+- **`configure({ readStore })`** — este módulo lê `readStore` (para saber se as sessões de
+  domínio devem persistir em disco) através de um `require('../../store')` direto por
+  omissão, mas aceita opcionalmente um `readStore` injetado. O padrão: uma variável de
+  módulo `let _readStore = null`, e um fallback lento (`if (!_readStore) _readStore =
+  require(...)`) só resolvido na primeira chamada real, nunca no carregamento do módulo.
+  Isto mantém 100% de compatibilidade para quem nunca chama `configure()` (o `require`
+  direto continua lá como default), mas permite injetar um `readStore` falso em testes, ou
+  reutilizar este módulo fora do contexto do `store.json` do ScrollScape — sem precisar de
+  reescrever a assinatura de nenhuma função exportada.
 
 Nota prática: nesta instalação, de 10 sources instalados, apenas o **BatCave** depende de
 facto do FlareSolverr — os outros nove não estão atrás de Cloudflare (o MangaDex, por
@@ -146,3 +159,52 @@ exemplo, tem uma API pública sem qualquer proteção). Isto explica por que só
 específico falha quando o FlareSolverr não está a correr, e é uma boa demonstração de como
 isolar esta dependência por source, em vez de a tornar um requisito global, poupa
 complexidade para quem instala sources que não precisam dela.
+
+## Outros helpers partilhados em `server/modules/common/`
+
+Além do `fetch-utils.js`, há três problemas pequenos que se repetiam, quase palavra por
+palavra, em vários ficheiros de `data/sources/` — cada um acabou por virar o seu próprio
+módulo minúsculo e sem estado, importado apenas pelos sources que precisam dele:
+
+- **`paginate-stitch.js` — "colar" páginas nativas numa página da app.** A maioria dos
+  sites não tem um `limit=` configurável (ou finge tê-lo e ignora-o); a app mostra sempre
+  50 resultados por página, mas o site pode devolver 20, 30 ou 36 por pedido. Sete sources
+  resolviam isto com uma cópia quase idêntica de um algoritmo de "avança página nativa a
+  página nativa até teres o suficiente, depois corta ao tamanho certo" — cinco delas eram
+  **byte a byte idênticas**. `fetchStitchedPage(fetchNativePage, appPage, options)` é agora
+  a implementação única, com `options` a cobrir as duas variações reais que existiam
+  (BatCave precisa de propagar um sinal de "site temporariamente em baixo" em vez de tratar
+  isso como "zero resultados"; KingOfShojo precisa do total de páginas nativas convertido
+  para o total de páginas da app):
+  ```js
+  async function fetchStitchedPage(fetchNativePage, appPage, options = {}) {
+    const {
+      appPageSize = 50,
+      nativePageSize = 20,
+      propagateTemporarilyUnavailable = false,
+      trackTotalPages = false,
+    } = options;
+    // ...
+  }
+  ```
+  Verificado por equivalência comportamental antes de substituir as sete cópias: as três
+  variantes (simples, com propagação de erro, com contagem de páginas) foram comparadas
+  contra a implementação nova em mais de 150 combinações de tamanho de catálogo/página, e
+  depois contra os sites reais em produção.
+- **`slugify.js` — nome de género → segmento de URL.** `slugifyGenre('Shoujo Ai')` →
+  `'shoujo-ai'`. Duplicado, byte a byte, em `asurascans.js` e `comichubfree.js`.
+- **`manga-status.js` — normalizar texto livre de estado de publicação.** Três sources
+  (`mangakatana.js`, `mangapill.js`, `allmanga.js`) tinham cada um o seu próprio
+  `normalizeStatus()`, parecidos mas não idênticos — o de `allmanga.js`, por exemplo, nunca
+  reconhecia "hiatus" nem "cancelled", caindo sempre no texto em bruto para esses dois
+  casos. `mangadex.js` nunca precisou disto: já recebe um enum limpo diretamente da API do
+  MangaDex, texto livre scraped de HTML é que precisa de normalização. A versão partilhada
+  usa o conjunto mais amplo de palavras-chave das três, reconhece os quatro estados, e
+  **mantém o texto original como fallback em vez de o descartar para `"unknown"`** — esse
+  texto de fallback chega mesmo a um badge visível em `ui-search.js`, por isso descartá-lo
+  seria perder informação real, não só "limpar" o código.
+
+O padrão a reter: quando um comportamento pequeno se repete em vários sources com apenas
+pequenas variações, vale a pena consolidar num módulo que aceita essas variações como
+parâmetros explícitos — não escolher arbitrariamente uma das cópias como "a certa" e
+descartar o comportamento das outras sem primeiro perceber *porque* eram diferentes.
