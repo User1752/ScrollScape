@@ -19,7 +19,7 @@ instalação em uso.
 1. [Visão geral e filosofia do projeto](01-visao-geral-e-filosofia.md)
 2. [Arquitetura geral (cliente/servidor, ciclo de um pedido)](02-arquitetura-geral.md)
 3. [O modelo de dados: store.json](03-modelo-de-dados-store-json.md)
-4. [O sistema de sources (plugins de scraping)](04-sistema-de-sources.md)
+4. [O sistema de sources (plugins de scraping) + guia prático de como adicionar um novo](04-sistema-de-sources.md)
 5. [Biblioteca, favoritos e progresso de leitura](05-biblioteca-favoritos-progresso.md)
 6. [Integração com o AniList](06-integracao-anilist.md)
 7. [Importação de ficheiros locais (EPUB, PDF, CBZ/CBR)](07-importacao-local.md)

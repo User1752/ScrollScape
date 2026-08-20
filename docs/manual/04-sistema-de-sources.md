@@ -208,3 +208,133 @@ O padrão a reter: quando um comportamento pequeno se repete em vários sources 
 pequenas variações, vale a pena consolidar num módulo que aceita essas variações como
 parâmetros explícitos — não escolher arbitrariamente uma das cópias como "a certa" e
 descartar o comportamento das outras sem primeiro perceber *porque* eram diferentes.
+
+## Guia prático: passo a passo para adicionar um novo source
+
+O resto deste capítulo explica o *porquê* da arquitetura. Esta secção é o *como* — o
+percurso real seguido para cada um dos 10 sources instalados, na ordem em que as decisões
+têm de ser tomadas.
+
+### 1. Inspecionar o site alvo antes de escrever uma única linha
+
+Três perguntas, respondidas contra o site real (não assumidas):
+
+- **API pública ou HTML scraping?** O MangaDex tem uma API JSON documentada — nesse caso
+  não há `cheerio` nenhum no ficheiro, só `fetch()` + `JSON.parse`. A maioria dos outros
+  sites não tem API, por isso o padrão é `cheerio.load(html)` sobre a página real.
+- **Está atrás de Cloudflare?** Faz um pedido real (`curl` ou `fetch()`) à página de
+  pesquisa do site. Se vier uma página com "Just a moment...", `cdp_flags` ou `powNonce` no
+  HTML, ou um 403/503 persistente, o site precisa de FlareSolverr — usa `fetchText()` de
+  `fetch-utils.js` (deteção automática) em vez de implementares o teu próprio `fetch()`. Se
+  o pedido devolve o HTML esperado diretamente, um `fetch()` simples com
+  `DEFAULT_USER_AGENT` chega (é o caso de 9 dos 10 sources instalados — só o BatCave precisa
+  mesmo de FlareSolverr).
+- **Qual é a paginação nativa?** A app mostra sempre 50 resultados por página; confirma
+  quantos o site devolve por pedido nativo (20? 30? 36?) e se esse número é configurável via
+  query param ou fixo — isto decide se vais precisar de `paginate-stitch.js` (secção acima).
+
+### 2. Esqueleto do ficheiro
+
+```js
+'use strict';
+const cheerio = require('cheerio'); // omite esta linha se for API JSON pura, como o mangadex.js
+const { DEFAULT_USER_AGENT } = require('../../server/modules/network/fetch-utils');
+
+const BASE = 'https://exemplo.com';
+
+module.exports = {
+  meta: {
+    id: 'exemplo',           // estável — usado em URLs, no store, e como chave de cache
+    name: 'Exemplo',
+    version: '1.0.0',
+    author: 'o-teu-nome',
+    supportsTrending: true,       // só declara o que realmente implementaste (secção do contrato, acima)
+    supportsPopularAllTime: false,
+    beta: true,               // esconde o source atrás do toggle "Show beta sources" até
+  },                           // teres confiança suficiente com uso real (ver ui-state.js)
+
+  async search(query, page = 1, orderBy = '', filters = {}) { /* ... */ },
+  async mangaDetails(mangaId) { /* ... */ },
+  async chapters(mangaId) { /* ... */ },
+  async pages(chapterId) { /* ... */ },
+};
+```
+
+`'use strict'` no topo não é opcional por convenção deste projeto — todos os 10 sources
+instalados têm essa linha. `beta: true` é a rede de segurança certa para um source recém-
+escrito: fica instalável e testável, mas não aparece nas listas de sources por omissão até
+alguém (tu, primeiro) confirmar que aguenta uso real.
+
+### 3. Implementar os 4 métodos — pela ordem que dá para testar
+
+Não escrevas os 4 de uma vez às cegas; cada um só é testável depois do anterior devolver
+algo real:
+
+1. **`search()`** primeiro — é o único ponto de entrada sem depender de um `mangaId` real
+   ainda por descobrir. Mapeia os resultados reais do site para
+   `{ id, title, cover, url, genres, status, author, format? }` (forma exata na secção do
+   contrato, acima). Se o site pagina de forma diferente de 50/página, envolve o teu
+   `fetchNativePage` com `fetchStitchedPage` aqui.
+2. Corre `search()` sozinho (um script Node pontual que faz `require()` do ficheiro e chama
+   `search('algo')`) e confirma que `id`/`url` batem certo com o site real — vais precisar
+   de um `id` real do resultado para os passos seguintes.
+3. **`mangaDetails(mangaId)`** — usa um `id` real do passo anterior. Devolve pelo menos
+   `{ id, title, cover, description, status, genres, author, url }`.
+4. **`chapters(mangaId)`** — devolve `{ chapters: [...] }`, **nunca um array solto** (um
+   engano fácil de cometer, e que quebra silenciosamente todo o resto da app à espera de
+   `result.chapters`). Cada capítulo usa `publishAt` para a data — não `date`; dos 10
+   sources instalados, 9 usam `publishAt` e só um usava `date` até este ser corrigido para
+   bater certo com os outros (capítulo 10 explica o efeito real disto no calendário de
+   lançamentos e no OPDS). Lista ordenada do capítulo mais recente para o mais antigo.
+5. **`pages(chapterId)`** — devolve `{ pages: [{ index, img }] }`. O `index` é obrigatório
+   (usado para nomear ficheiros ao gerar um CBZ — ver `cbz-builder.js`). `img` tem de passar
+   por `/api/proxy-image?url=${encodeURIComponent(urlReal)}&ref=${encodeURIComponent(referer)}`
+   — nunca a URL remota diretamente; muitos sites bloqueiam o carregamento da imagem sem um
+   `Referer` válido, e o proxy é onde esse cabeçalho é injetado (capítulo 11 explica o resto
+   da razão de segurança).
+
+### 4. Reutilizar os helpers partilhados — não copiar-colar de outro source
+
+Antes de escreveres lógica nova, confirma se já não existe:
+
+| Precisas de... | Usa | Não escrevas a tua própria versão de |
+|---|---|---|
+| Paginação quando o site não bate com 50/página | `paginate-stitch.js` → `fetchStitchedPage` | o loop "busca até teres 50, corta" |
+| Slug de género para URL (`"Shoujo Ai"` → `"shoujo-ai"`) | `slugify.js` → `slugifyGenre` | uma regex `.replace(/\s+/g,'-')` só a apanhar espaços |
+| Normalizar texto de estado (`"On Hiatus"` → `"hiatus"`) | `manga-status.js` → `normalizeStatus` | um `if/else` que só reconhece ongoing/completed |
+| Cabeçalho User-Agent | `fetch-utils.js` → `DEFAULT_USER_AGENT` | uma string `Mozilla/5.0...` hardcoded |
+| `fetch()` com retry/SSRF-guard/Cloudflare | `fetch-utils.js` → `fetchJson`/`fetchText` | o teu próprio `fetch` + retry do zero (só faz isto se tiveres uma razão específica, como `mangapill.js`) |
+
+A exceção real a esta tabela: se o teu site expõe o estado de publicação só dentro do HTML
+completo da página (não numa label extraída, tipo `vortexscans.js`), **não** passes esse
+HTML inteiro para `normalizeStatus()` — o fallback dela devolve o texto original quando
+nada bate, e isso seria a página toda, não um estado. Nesse caso mantém a tua própria
+verificação `htmlLower.includes('cancel')` etc., só com os 4 estados cobertos.
+
+### 5. Testar contra o site real — nunca contra suposições
+
+A lição mais repetida ao longo deste projeto (capítulo 14): um source "parece" correto
+lendo o código, mas só um pedido real ao site confirma os seletores/URLs. Antes de dares
+o source como pronto:
+
+- Corre `search()`, `mangaDetails()`, `chapters()` e `pages()` cada um contra o site real,
+  não só contra HTML copiado uma vez para um teste — sites mudam de estrutura sem aviso.
+- Confirma o formato real do `mangaId`/`chapterId` que o teu source produz — se contiver
+  barras ou outros caracteres não-alfanuméricos, confirma que sobrevivem a
+  `encodeURIComponent()` nos pontos onde são usados em URLs (nunca precisam de bater com
+  `safeId()` — secção do dispatch, acima).
+- Se o site tiver alguma paginação/filtro que não consigas verificar sem dados reais
+  suficientes (ex. um género raro, uma pesquisa sem resultados), testa esses casos-limite
+  também — não só o caminho feliz com um termo de pesquisa popular.
+
+### Checklist final
+
+- [ ] `'use strict'` na primeira linha
+- [ ] `meta.id` estável, `beta: true` até ter confiança
+- [ ] `search()`/`mangaDetails()`/`chapters()`/`pages()` com assinaturas **posicionais**, não `({query, page})`
+- [ ] `chapters()` devolve `{ chapters: [...] }`, nunca um array solto
+- [ ] Cada capítulo usa `publishAt`, não `date`
+- [ ] `pages()` devolve `{ pages: [{ index, img }] }` com `index` presente
+- [ ] `img` passa por `/api/proxy-image?url=...&ref=...`
+- [ ] Género/estado/User-Agent reutilizam os helpers partilhados, não cópias locais
+- [ ] Testado contra o site real, não só contra HTML estático guardado uma vez
