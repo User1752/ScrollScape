@@ -34,6 +34,11 @@ async function fetchStitchedPage(fetchNativePage, appPage, options = {}) {
     if (propagateTemporarilyUnavailable && page.temporarilyUnavailable) {
       lastError = page;
       if (!collected.length) return page;
+      // A later native page failing mid-stitch means we genuinely don't
+      // know whether more results exist beyond what's already collected —
+      // hasNext must not keep the (now stale) hasNextPage from the last
+      // native page that DID succeed.
+      hasNext = false;
       break;
     }
     if (!page.results.length) { hasNext = false; break; }
@@ -47,7 +52,10 @@ async function fetchStitchedPage(fetchNativePage, appPage, options = {}) {
   const hasMore = hasNext || collected.length > skip + appPageSize;
   const out = { results: slice, hasNextPage: hasMore };
 
-  if (propagateTemporarilyUnavailable && lastError && !slice.length) {
+  if (propagateTemporarilyUnavailable && lastError) {
+    // Surface the outage even when partial results were already collected —
+    // silently returning a short "final" page looks identical to a normal
+    // end-of-catalog page otherwise, hiding that a retry might return more.
     out.temporarilyUnavailable = true;
     out.error = lastError.error;
   }

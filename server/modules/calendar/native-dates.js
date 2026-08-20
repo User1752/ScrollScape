@@ -1,5 +1,7 @@
 'use strict';
 
+const { withTimeout } = require('../common/async-utils');
+
 const MD_TIMEOUT_MS = 20_000;
 
 // Fallback release-date source for manga that don't resolve to a MangaDex
@@ -17,12 +19,7 @@ function createNativeDatesService({ loadSourceFromFile }) {
     if (cached && (Date.now() - cached.ts) < SOURCE_CHAP_TTL) return cached.chapters;
     try {
       const src = loadSourceFromFile(manga.sourceId);
-      let timerId;
-      const result = await Promise.race([
-        src.chapters(manga.id),
-        new Promise((_, reject) => { timerId = setTimeout(() => reject(new Error('timeout')), MD_TIMEOUT_MS); }),
-      ]);
-      clearTimeout(timerId);
+      const result = await withTimeout(src.chapters(manga.id), MD_TIMEOUT_MS, 'timeout');
       const chapters = (result?.chapters || [])
         .map(ch => ({
           date: new Date(ch.publishAt || ch.date || 0),
@@ -54,12 +51,7 @@ function createNativeDatesService({ loadSourceFromFile }) {
     if (cached && (Date.now() - cached.ts) < SOURCE_CHAP_TTL) return cached.num;
     try {
       const src = loadSourceFromFile(manga.sourceId);
-      let timerId;
-      const result = await Promise.race([
-        src.chapters(manga.id),
-        new Promise((_, reject) => { timerId = setTimeout(() => reject(new Error('timeout')), MD_TIMEOUT_MS); }),
-      ]);
-      clearTimeout(timerId);
+      const result = await withTimeout(src.chapters(manga.id), MD_TIMEOUT_MS, 'timeout');
       const chaps = result?.chapters || [];
       if (!chaps.length) {
         sourceChapCache.set(cacheKey, { num: null, ts: Date.now() });

@@ -42,7 +42,7 @@ let _readStore = null;
  * @param {{ cacheFilePath: string, readStore?: Function }} options
  */
 function configure({ cacheFilePath, readStore } = {}) {
-  ttlCache.configure({ cacheFilePath });
+  if (cacheFilePath) ttlCache.configure({ cacheFilePath });
   if (typeof readStore === 'function') _readStore = readStore;
 }
 

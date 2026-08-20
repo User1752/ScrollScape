@@ -238,7 +238,7 @@ function registerOpdsRoutes(app) {
       if (!sid) return res.status(400).json({ error: 'Invalid sourceId' });
       const source = loadSourceFromFile(sid);
       const result = await source.pages(chapterId);
-      const resolvedPages = (result?.pages || []).map(resolvePageUrl);
+      const resolvedPages = (result?.pages || []).map(resolvePageUrl).filter(Boolean);
 
       await addPagesToZip(zip, resolvedPages, {
         fetchImageBuffer,

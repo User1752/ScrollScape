@@ -14,10 +14,17 @@
  * @returns {Promise<T>}
  */
 function withTimeout(promise, ms, message) {
+  let timer;
   const timeout = new Promise((_, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
-    promise.finally(() => clearTimeout(timer));
+    timer = setTimeout(() => reject(new Error(message)), ms);
   });
+  // .then(onFulfilled, onRejected) — unlike .finally(), a non-throwing
+  // rejection handler here "handles" the rejection, so this cleanup
+  // subscription resolves either way instead of re-rejecting into an
+  // unobserved promise. Promise.race below still independently rejects
+  // with `promise`'s real error if it loses the race by rejecting.
+  const clearTimer = () => clearTimeout(timer);
+  promise.then(clearTimer, clearTimer);
   return Promise.race([promise, timeout]);
 }
 

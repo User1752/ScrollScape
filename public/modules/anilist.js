@@ -43,7 +43,10 @@ function _alSetLink(mangaId, anilistId) {
 // centralizing at least the key string and parse/stringify boilerplate here
 // means a typo in the key can only happen in one place now.
 function _alGetAllLinks() {
-  try { return JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}') || {}; } catch (e) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('scrollscape_al_links') || '{}');
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch (e) {
     dbg.warn(dbg.ERR_ANILIST, '_alGetAllLinks: failed to read localStorage', e);
     return {};
   }
